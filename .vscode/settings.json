@@ -1,0 +1,8 @@
+{
+  "dart.getDartSdkCommand": {
+    "executable": "mise",
+    "args": ["where", "flutter"]
+  },
+  "dart.addSdkToTerminalPath": false,
+  "dart.checkForSdkUpdates": false
+}
