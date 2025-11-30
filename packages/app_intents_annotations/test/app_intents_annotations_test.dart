@@ -2,15 +2,14 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('A group of tests', () {
-    final awesome = Awesome();
-
-    setUp(() {
-      // Additional setup goes here.
-    });
-
-    test('First Test', () {
-      expect(awesome.isAwesome, isTrue);
+  group('IntentSpecBase', () {
+    test('can be extended with specific input and output types', () {
+      final intentSpec = MyIntentSpec();
+      expect(intentSpec, isA<IntentSpecBase<String, int>>());
     });
   });
+}
+
+class MyIntentSpec extends IntentSpecBase<String, int> {
+  const MyIntentSpec();
 }

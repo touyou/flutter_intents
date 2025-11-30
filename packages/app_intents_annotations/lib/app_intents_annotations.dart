@@ -1,8 +1,6 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
+/// The app_intents_annotations
 library;
 
-export 'src/app_intents_annotations_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/annotations/intent_param.dart';
+export 'src/annotations/intent_spec.dart';
+export 'src/bases/intent_spec_base.dart';
