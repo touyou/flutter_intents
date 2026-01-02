@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents log -1 --format=fuller)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show --name-status d5967fe)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show --name-status f6875f0)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show d5967fe)"
+    ]
+  }
+}
