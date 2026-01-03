@@ -16,9 +16,7 @@
       "Bash(tree:*)",
       "Bash(flutter pub get:*)",
       "Bash(flutter analyze:*)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents status)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents add -A)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents status --short)"
+      "Bash(flutter test:*)"
     ]
   }
 }
