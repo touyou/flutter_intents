@@ -12,6 +12,7 @@ dependencies:
   build: ^2.4.0
   source_gen: ^2.0.0
   code_builder: ^4.10.0
+  dart_style: ^3.0.0
   path: ^1.9.0
   app_intents_annotations:
     path: ../app_intents_annotations
