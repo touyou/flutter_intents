@@ -44,6 +44,7 @@ class MockAppIntentsPlatform
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final AppIntentsPlatform initialPlatform = AppIntentsPlatform.instance;
 
   test('\$MethodChannelAppIntents is the default instance', () {

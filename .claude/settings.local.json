@@ -23,7 +23,8 @@
       "Bash(open -a Simulator)",
       "Bash(flutter run:*)",
       "WebFetch(domain:pub.dev)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(find:*)"
     ]
   }
 }

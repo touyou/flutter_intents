@@ -52,7 +52,14 @@ class IntentExecutionRequest {
   }
 
   @override
-  int get hashCode => Object.hash(identifier, Object.hashAll(params.entries));
+  int get hashCode {
+    // Sort keys for consistent hash calculation
+    final sortedKeys = params.keys.toList()..sort();
+    final paramHash = Object.hashAll(
+      sortedKeys.expand((key) => [key, params[key]]),
+    );
+    return Object.hash(identifier, paramHash);
+  }
 
   @override
   String toString() {
