@@ -15,8 +15,7 @@ dependencies:
   dart_style: ^3.0.0
   glob: ^2.1.0
   path: ^1.9.0
-  app_intents_annotations:
-    path: ../app_intents_annotations
+  app_intents_annotations: ^0.1.0
 
 executables:
   generate_swift: generate_swift
