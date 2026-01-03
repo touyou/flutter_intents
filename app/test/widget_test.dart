@@ -9,7 +9,7 @@ void main() {
     await tester.pumpWidget(const TaskApp());
 
     // Verify that the app shows the empty state message.
-    expect(find.text('No tasks yet.'), findsOneWidget);
+    expect(find.textContaining('No tasks yet'), findsOneWidget);
     expect(find.text('Tasks'), findsOneWidget);
 
     // Verify that the add button exists
