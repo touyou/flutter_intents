@@ -1,6 +1,7 @@
 import Testing
 @testable import AppIntentsBridge
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-}
+// Main test file - individual tests are organized in separate files:
+// - ErrorHandlingTests.swift
+// - EntityImageTests.swift
+// - FlutterBridgeTests.swift
