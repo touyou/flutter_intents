@@ -1,7 +1,7 @@
 name: app_intents_annotations
-description: A starting point for Dart libraries or applications.
-version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+description: Annotations for defining iOS App Intents in Flutter. Use with app_intents and app_intents_codegen.
+version: 0.1.0
+repository: https://github.com/touyou/flutter_intents
 
 environment:
   sdk: ^3.10.0

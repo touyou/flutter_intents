@@ -1,53 +1,58 @@
 # Flutter Intents
 
-FlutterアプリケーションからiOS App Intentsフレームワークを利用するためのパッケージ群です。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 概要
+A collection of packages for integrating iOS App Intents framework with Flutter applications.
 
-このプロジェクトは、FlutterアプリでiOSのApp Intents（Siri、Shortcuts、Spotlight連携）を宣言的に定義し、自動生成されたSwiftコードを通じてネイティブ連携を実現することを目指しています。
+[日本語版 README](README.ja.md)
 
-### 主な目標
+## Overview
 
-1. **宣言的なIntent定義**: Dartアノテーションを使用してApp Intentsを定義
-2. **型安全**: ジェネリクスによる入出力の型チェック
-3. **コード生成**: Dart定義からSwift App Intentsコードを自動生成
-4. **柔軟な実装選択**: DartまたはSwiftでIntent処理を実装可能
+Flutter Intents enables Flutter apps to integrate with iOS App Intents (Siri, Shortcuts, and Spotlight) through declarative annotations and automatic Swift code generation.
 
-## プロジェクト構成
+### Key Features
+
+1. **Declarative Intent Definition**: Define App Intents using Dart annotations
+2. **Type Safety**: Compile-time type checking via generics
+3. **Code Generation**: Automatic Swift code generation from Dart definitions
+4. **Flexible Implementation**: Choose between Dart or Swift for intent handling
+
+## Project Structure
 
 ```
 flutter_intents/
 ├── packages/
-│   ├── app_intents_annotations/  # アノテーション定義
-│   ├── app_intents/              # Flutterプラグイン
-│   └── app_intents_codegen/      # コード生成ツール
-├── app/                          # サンプルアプリ
+│   ├── app_intents_annotations/  # Annotation definitions
+│   ├── app_intents/              # Flutter plugin
+│   └── app_intents_codegen/      # Code generator
+├── app/                          # Example app
 ├── ios-spm/                      # iOS Swift Package
-└── docs/                         # ドキュメント
+└── docs/                         # Documentation
 ```
 
-## パッケージ
+## Packages
 
-| パッケージ | 説明 |
-|-----------|------|
-| [app_intents_annotations](docs/packages.md#app_intents_annotations) | Intent/Entityを定義するためのアノテーションとベースクラス |
-| [app_intents](docs/packages.md#app_intents) | iOS連携用Flutterプラグイン |
-| [app_intents_codegen](docs/packages.md#app_intents_codegen) | SwiftコードジェネレーターTool |
+| Package | Description |
+|---------|-------------|
+| [app_intents](packages/app_intents/) | Flutter plugin for iOS App Intents integration |
+| [app_intents_annotations](packages/app_intents_annotations/) | Annotations for defining intents and entities |
+| [app_intents_codegen](packages/app_intents_codegen/) | Swift and Dart code generator |
 
-## クイックスタート
+## Quick Start
 
-### 1. 依存関係の追加
+### 1. Add Dependencies
 
 ```yaml
 dependencies:
-  app_intents: ^0.0.1
-  app_intents_annotations: ^0.0.1
+  app_intents: ^0.1.0
+  app_intents_annotations: ^0.1.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.0.1
+  app_intents_codegen: ^0.1.0
+  build_runner: ^2.4.0
 ```
 
-### 2. Intentの定義
+### 2. Define an Intent
 
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
@@ -56,7 +61,6 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
   description: 'Create a new task',
-  implementation: IntentImplementation.dart,
 )
 class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
   @IntentParam(title: 'Title')
@@ -64,17 +68,18 @@ class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
 
   @IntentParam(title: 'Due Date', isOptional: true)
   final DateTime? dueDate;
+
+  CreateTaskIntentSpec({required this.title, this.dueDate});
 }
 ```
 
-### 3. Entityの定義
+### 3. Define an Entity
 
 ```dart
 @EntitySpec(
   identifier: 'TaskEntity',
   title: 'Task',
   pluralTitle: 'Tasks',
-  description: 'A task entity',
 )
 class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntityId()
@@ -88,19 +93,33 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 }
 ```
 
-## ドキュメント
+### 4. Generate Code
 
-- [アーキテクチャ](docs/architecture.md) - 設計思想と全体構成
-- [パッケージ詳細](docs/packages.md) - 各パッケージの詳細仕様
-- [使用方法](docs/usage.md) - 実装ガイドとサンプル
+```bash
+# Generate Dart code
+dart run build_runner build --delete-conflicting-outputs
 
-## 技術スタック
+# Generate Swift code
+dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+```
+
+## Documentation
+
+- [Architecture](docs/architecture.md) - Design philosophy and system overview
+- [Package Details](docs/packages.md) - Detailed package specifications
+- [Usage Guide](docs/usage.md) - Implementation guide and examples
+
+## Requirements
 
 - **Dart SDK**: ^3.10.0
 - **Flutter**: 3.38+
 - **Swift**: 5.9+ / Swift Tools 6.0
 - **iOS**: 16.0+ (App Intents requires iOS 16)
 
-## ライセンス
+## Contributing
 
-MIT License
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
+
+## License
+
+MIT License - see the [LICENSE](LICENSE) file for details.

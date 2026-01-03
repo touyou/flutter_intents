@@ -1,8 +1,8 @@
-# Usage Guide
+# 使用方法
 
-## Setup
+## セットアップ
 
-### 1. Add Dependencies
+### 1. 依存関係の追加
 
 ```yaml
 # pubspec.yaml
@@ -15,24 +15,24 @@ dev_dependencies:
   build_runner: ^2.4.0
 ```
 
-### 2. iOS Configuration
+### 2. iOS設定
 
-Set iOS version to 16.0 or higher in `ios/Podfile` (App Intents framework requirement):
+`ios/Podfile`でiOSバージョンを16.0以上に設定（App Intentsフレームワーク要件）:
 
 ```ruby
 platform :ios, '16.0'
 ```
 
-> **Note**: App Intents framework requires iOS 16.0 or later.
+> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
 
-## Defining Intents
+## Intentの定義
 
-### Basic Intent
+### 基本的なIntent
 
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-// Input model
+// 入力モデル
 class CreateTaskInput {
   final String title;
   final DateTime? dueDate;
@@ -40,7 +40,7 @@ class CreateTaskInput {
   CreateTaskInput({required this.title, this.dueDate});
 }
 
-// Output model
+// 出力モデル
 class Task {
   final String id;
   final String title;
@@ -49,7 +49,7 @@ class Task {
   Task({required this.id, required this.title, this.dueDate});
 }
 
-// Intent definition
+// Intent定義
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
@@ -71,17 +71,17 @@ class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
 }
 ```
 
-### Choosing Implementation Language
+### 実装言語の選択
 
-#### Dart Implementation (Recommended)
+#### Dart実装 (推奨)
 
-Use when you need access to Flutter features (UI, database, state management):
+Flutter機能（UI、データベース、状態管理）へのアクセスが必要な場合:
 
 ```dart
 @IntentSpec(
   identifier: 'ShowTaskDetailIntent',
   title: 'Show Task',
-  implementation: IntentImplementation.dart, // Implement in Dart
+  implementation: IntentImplementation.dart, // Dartで実装
 )
 class ShowTaskDetailIntentSpec extends IntentSpecBase<String, void> {
   @IntentParam(title: 'Task ID')
@@ -91,27 +91,27 @@ class ShowTaskDetailIntentSpec extends IntentSpecBase<String, void> {
 }
 ```
 
-#### Swift Implementation
+#### Swift実装
 
-Use for iOS-specific APIs or performance-critical operations:
+iOS固有APIやパフォーマンスが重要な場合:
 
 ```dart
 @IntentSpec(
   identifier: 'QuickActionIntent',
   title: 'Quick Action',
-  implementation: IntentImplementation.swift, // Implement in Swift
+  implementation: IntentImplementation.swift, // Swiftで実装
 )
 class QuickActionIntentSpec extends IntentSpecBase<void, String> {}
 ```
 
-## Defining Entities
+## Entityの定義
 
-### Basic Entity
+### 基本的なEntity
 
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-// Model class
+// モデルクラス
 class Task {
   final String id;
   final String title;
@@ -130,7 +130,7 @@ class Task {
   });
 }
 
-// Entity definition
+// Entity定義
 @EntitySpec(
   identifier: 'TaskEntity',
   title: 'Task',
@@ -138,15 +138,15 @@ class Task {
   description: 'A task in your task list',
 )
 class TaskEntitySpec extends EntitySpecBase<Task> {
-  // Required: Entity unique ID
+  // 必須: エンティティの一意ID
   @EntityId()
   String id(Task task) => task.id;
 
-  // Required: Display title
+  // 必須: 表示タイトル
   @EntityTitle()
   String title(Task task) => task.title;
 
-  // Optional: Subtitle
+  // 任意: サブタイトル
   @EntitySubtitle()
   String? subtitle(Task task) {
     if (task.dueDate != null) {
@@ -155,11 +155,11 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
     return task.description;
   }
 
-  // Optional: Thumbnail image
+  // 任意: サムネイル画像
   @EntityImage()
   String? imageUrl(Task task) => task.thumbnailUrl;
 
-  // Optional: Default query (entity list retrieval)
+  // 任意: デフォルトクエリ（エンティティ一覧取得）
   @EntityDefaultQuery()
   Future<List<Task>> defaultQuery() async {
     return TaskRepository.instance.getAllTasks();
@@ -171,7 +171,7 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 }
 ```
 
-### Adding Custom Queries
+### カスタムクエリの追加
 
 ```dart
 @EntitySpec(
@@ -189,13 +189,13 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntitySubtitle()
   String? subtitle(Task task) => task.description;
 
-  // Default query: All tasks
+  // デフォルトクエリ: 全タスク
   @EntityDefaultQuery()
   Future<List<Task>> defaultQuery() async {
     return TaskRepository.instance.getAllTasks();
   }
 
-  // Future support planned: Custom queries
+  // 今後対応予定: カスタムクエリ
   // @EntityQuery(title: 'Incomplete Tasks')
   // Future<List<Task>> incompleteTasks() async {
   //   return TaskRepository.instance.getIncompleteTasks();
@@ -203,19 +203,19 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 }
 ```
 
-## Defining App Shortcuts
+## App Shortcutsの定義
 
-App Shortcuts become available in Siri/Shortcuts immediately after app installation.
+App Shortcutsを定義すると、アプリインストール直後からSiri/Shortcutsで利用可能になります。
 
-### Defining AppShortcutsProvider
+### AppShortcutsProviderの定義
 
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-// Define shortcuts provider
+// ショートカットプロバイダを定義
 @AppShortcutsProvider()
 class MyAppShortcuts {
-  // Define each shortcut
+  // 各ショートカットを定義
   @AppShortcut(
     intentIdentifier: 'CreateTaskIntent',
     phrases: [
@@ -240,7 +240,7 @@ class MyAppShortcuts {
 }
 ```
 
-### Generated Swift Code
+### 生成されるSwiftコード
 
 ```swift
 // Generated: AppShortcuts.swift
@@ -271,21 +271,21 @@ struct AppShortcuts: AppShortcutsProvider {
 }
 ```
 
-## Code Generation
+## コード生成
 
-### Running Generation
+### 生成の実行
 
 ```bash
-# Generate once
+# 一度だけ生成
 dart run build_runner build
 
-# Watch and generate continuously
+# 継続的に監視・生成
 dart run build_runner watch
 ```
 
-### Generated Files (Expected)
+### 生成されるファイル（想定）
 
-#### Swift Code
+#### Swiftコード
 
 ```swift
 // Generated: TaskEntity.swift
@@ -315,7 +315,7 @@ struct TaskEntity: AppEntity {
 
 struct TaskQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [TaskEntity] {
-        // Call Dart's defaultQuery() via Flutter
+        // Flutter経由でDartのdefaultQuery()を呼び出し
         return try await FlutterBridge.queryEntities(identifiers: identifiers)
     }
 
@@ -334,7 +334,7 @@ import UIKit
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description = IntentDescription("Create a new task in your task list")
-    static var openAppWhenRun: Bool = true  // Ensures app launches
+    static var openAppWhenRun: Bool = true  // アプリ起動を保証
 
     @Parameter(title: "Task Title", description: "The title of the task")
     var title: String
@@ -344,7 +344,7 @@ struct CreateTaskIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Delegate processing to Flutter app via URL scheme
+        // URL schemeでFlutterアプリに処理を委譲
         var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
         if let dueDate = dueDate {
             let formatter = ISO8601DateFormatter()
@@ -358,13 +358,13 @@ struct CreateTaskIntent: AppIntent {
 }
 ```
 
-> **Note**: URL scheme is used because App Intents may run in an isolated iOS process, making direct MethodChannel calls impossible. URL scheme ensures the app is fully launched before Flutter-side processing.
+> **Note**: URL schemeを使用する理由は、App IntentsがiOSの分離プロセスで実行される場合があり、直接MethodChannelを呼び出せないためです。URL schemeならアプリが完全に起動してからFlutter側で処理が実行されます。
 
-## Deep Link Handling (Flutter Side)
+## Deep Link受信 (Flutter側)
 
-Use the `app_links` package to receive URL schemes from generated Swift Intents.
+生成されたSwift IntentからのURL schemeを受信するため、`app_links`パッケージを使用します。
 
-### Setup
+### セットアップ
 
 ```yaml
 # pubspec.yaml
@@ -372,7 +372,7 @@ dependencies:
   app_links: ^6.3.3
 ```
 
-### Info.plist Configuration
+### Info.plist設定
 
 ```xml
 <!-- ios/Runner/Info.plist -->
@@ -385,15 +385,15 @@ dependencies:
         <string>com.example.app</string>
         <key>CFBundleURLSchemes</key>
         <array>
-            <string>taskapp</string>  <!-- App-specific scheme -->
+            <string>taskapp</string>  <!-- アプリ固有のスキーム -->
         </array>
     </dict>
 </array>
 <key>FlutterDeepLinkingEnabled</key>
-<false/>  <!-- Set to false when using app_links package -->
+<false/>  <!-- app_linksパッケージを使う場合はfalse -->
 ```
 
-### Flutter Implementation
+### Flutter実装
 
 ```dart
 import 'package:app_links/app_links.dart';
@@ -410,13 +410,13 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initAppLinks() async {
     _appLinks = AppLinks();
 
-    // Initial link when app launches
+    // アプリ起動時の初期リンク
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
       _handleDeepLink(initialUri);
     }
 
-    // Links while app is running
+    // アプリ実行中のリンク
     _appLinks.uriLinkStream.listen((uri) {
       _handleDeepLink(uri);
     });
@@ -437,9 +437,9 @@ class _MyAppState extends State<MyApp> {
 }
 ```
 
-## Plugin Usage
+## プラグインの使用
 
-### Basic Usage
+### 基本的な使用方法
 
 ```dart
 import 'package:app_intents/app_intents.dart';
@@ -487,32 +487,32 @@ class _MyAppState extends State<MyApp> {
 }
 ```
 
-## Best Practices
+## ベストプラクティス
 
-### 1. Intent Identifier Naming
+### 1. Intent識別子の命名
 
 ```dart
-// Good: Clear and unique identifier
+// Good: 明確で一意な識別子
 @IntentSpec(identifier: 'com.myapp.CreateTaskIntent', ...)
 
-// Good: Simple identifier (for small apps)
+// Good: シンプルな識別子（小規模アプリ向け）
 @IntentSpec(identifier: 'CreateTaskIntent', ...)
 
-// Avoid: Ambiguous identifier
+// Avoid: 曖昧な識別子
 @IntentSpec(identifier: 'Create', ...)
 ```
 
-### 2. Parameter Design
+### 2. パラメータの設計
 
 ```dart
-// Good: Appropriate optional settings
-@IntentParam(title: 'Title')  // Required
+// Good: 適切なオプショナル設定
+@IntentParam(title: 'Title')  // 必須
 final String title;
 
-@IntentParam(title: 'Due Date', isOptional: true)  // Optional
+@IntentParam(title: 'Due Date', isOptional: true)  // 任意
 final DateTime? dueDate;
 
-// Good: Descriptive title
+// Good: 説明的なタイトル
 @IntentParam(
   title: 'Task Priority',
   description: 'Set the priority level (1-5)',
@@ -520,10 +520,10 @@ final DateTime? dueDate;
 final int priority;
 ```
 
-### 3. Entity Property Mapping
+### 3. Entityのプロパティマッピング
 
 ```dart
-// Good: Meaningful subtitle
+// Good: 意味のあるサブタイトル
 @EntitySubtitle()
 String? subtitle(Task task) {
   if (task.isOverdue) return 'Overdue!';
@@ -531,14 +531,14 @@ String? subtitle(Task task) {
   return task.description;
 }
 
-// Good: Image with fallback
+// Good: フォールバック付きの画像
 @EntityImage()
 String? imageUrl(Task task) {
   return task.thumbnailUrl ?? task.categoryIconUrl;
 }
 ```
 
-### 4. Error Handling
+### 4. エラーハンドリング
 
 ```dart
 @EntityDefaultQuery()
@@ -546,43 +546,43 @@ Future<List<Task>> defaultQuery() async {
   try {
     return await TaskRepository.instance.getAllTasks();
   } catch (e) {
-    // Log the error
+    // エラーログを記録
     debugPrint('Failed to fetch tasks: $e');
-    // Return empty list (prevent crash)
+    // 空リストを返す（クラッシュを防ぐ）
     return [];
   }
 }
 ```
 
-## Troubleshooting
+## トラブルシューティング
 
-### Build Errors
+### ビルドエラー
 
-**Problem**: `undefined class 'IntentSpec'`
+**問題**: `undefined class 'IntentSpec'`
 
-**Solution**: Import the `app_intents_annotations` package
+**解決**: `app_intents_annotations`パッケージをインポート
 
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 ```
 
-### iOS Build Errors
+### iOSビルドエラー
 
-**Problem**: `Deployment target below iOS 16.0`
+**問題**: `Deployment target below iOS 16.0`
 
-**Solution**: Update `ios/Podfile`
+**解決**: `ios/Podfile`を更新
 
 ```ruby
 platform :ios, '16.0'
 ```
 
-> **Note**: App Intents framework requires iOS 16.0 or later.
+> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
 
-### Code Generation Not Working
+### コード生成が動作しない
 
-**Problem**: Generated files not created
+**問題**: 生成ファイルが作成されない
 
-**Solution**:
-1. Ensure `build_runner` is in `dev_dependencies`
-2. Run `dart run build_runner build --delete-conflicting-outputs`
-3. Verify annotations are correctly applied
+**解決**:
+1. `build_runner`が`dev_dependencies`にあることを確認
+2. `dart run build_runner build --delete-conflicting-outputs`を実行
+3. アノテーションが正しく適用されているか確認

@@ -1,17 +1,17 @@
-# Architecture
+# アーキテクチャ
 
-## Design Philosophy
+## 設計思想
 
-Flutter Intents provides a bridge to the iOS App Intents framework, enabling Flutter apps to integrate with Siri, Shortcuts, and Spotlight.
+Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提供し、FlutterアプリがSiri、Shortcuts、Spotlightと連携できるようにします。
 
-### Design Principles
+### 設計原則
 
-1. **Declarative Definition**: Define Intents/Entities using annotations
-2. **Separation of Concerns**: Annotations, plugin, and code generation in separate packages
-3. **Type Safety**: Compile-time type checking via generics
-4. **Platform Abstraction**: Loose coupling via Platform Interface pattern
+1. **宣言的定義**: アノテーションベースでIntent/Entityを宣言
+2. **関心の分離**: アノテーション、プラグイン、コード生成を独立パッケージに分離
+3. **型安全性**: ジェネリクスによるコンパイル時型チェック
+4. **プラットフォーム抽象化**: Platform Interfaceパターンによる疎結合
 
-## Overall Architecture
+## 全体アーキテクチャ
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -19,7 +19,7 @@ Flutter Intents provides a bridge to the iOS App Intents framework, enabling Flu
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Intent/Entity Specifications                         │   │
-│  │  Classes with @IntentSpec / @EntitySpec annotations   │   │
+│  │  @IntentSpec / @EntitySpec アノテーション付きクラス     │   │
 │  └──────────────────────┬───────────────────────────────┘   │
 │                         │                                    │
 │  ┌──────────────────────▼───────────────────────────────┐   │
@@ -44,9 +44,9 @@ Flutter Intents provides a bridge to the iOS App Intents framework, enabling Flu
               └─────────────────────┘
 ```
 
-## Data Flow
+## データフロー
 
-### Intent Execution Flow (URL Scheme)
+### Intent実行フロー (URL Scheme)
 
 ```
 [Siri/Shortcuts/Spotlight]
@@ -67,9 +67,9 @@ Flutter Intents provides a bridge to the iOS App Intents framework, enabling Flu
 [Dart Handler → Business Logic]
 ```
 
-> **Note**: URL scheme is used because App Intents may run in an isolated process (WFIsolatedShortcutRunner), where the Flutter engine is not available. Using URL scheme ensures the app is fully launched before processing.
+> **Note**: URL schemeを使用する理由は、App IntentsがiOSの分離プロセス（WFIsolatedShortcutRunner）で実行される場合があり、Flutterエンジンが利用できないためです。URL schemeならアプリが完全に起動してから処理が実行されます。
 
-### Code Generation Flow
+### コード生成フロー
 
 ```
 [Dart Source Files]
@@ -88,14 +88,14 @@ Flutter Intents provides a bridge to the iOS App Intents framework, enabling Flu
     - Dart Bindings
 ```
 
-## Layer Structure
+## レイヤー構成
 
-### Layer 1: Annotation Layer (app_intents_annotations)
+### Layer 1: アノテーション層 (app_intents_annotations)
 
-Responsible only for metadata definition. No runtime dependencies.
+メタデータ定義のみを担当。ランタイム依存なし。
 
 ```dart
-// Intent definition
+// Intent定義
 @IntentSpec(
   identifier: 'MyIntent',
   title: 'My Intent',
@@ -103,7 +103,7 @@ Responsible only for metadata definition. No runtime dependencies.
 )
 class MyIntentSpec extends IntentSpecBase<Input, Output> {}
 
-// Entity definition
+// Entity定義
 @EntitySpec(identifier: 'MyEntity', title: 'My Entity')
 class MyEntitySpec extends EntitySpecBase<MyModel> {
   @EntityId()
@@ -111,9 +111,9 @@ class MyEntitySpec extends EntitySpecBase<MyModel> {
 }
 ```
 
-### Layer 2: Plugin Layer (app_intents)
+### Layer 2: プラグイン層 (app_intents)
 
-Responsible for native communication via Platform Channel.
+Platform Channelを通じたネイティブ通信を担当。
 
 ```
 AppIntents (Facade)
@@ -128,9 +128,9 @@ MethodChannelAppIntents (Implementation)
 FlutterMethodChannel ◄──► AppIntentsPlugin.swift
 ```
 
-### Layer 3: Code Generation Layer (app_intents_codegen)
+### Layer 3: コード生成層 (app_intents_codegen)
 
-Analyzes Dart annotations and generates Swift code.
+Dartアノテーションを解析し、Swiftコードを生成。
 
 ```
 Source Analysis
@@ -145,12 +145,12 @@ Template Generation
 Swift Output
 ```
 
-## Design Patterns
+## 設計パターン
 
-### 1. Annotation-based Metadata
+### 1. アノテーションベースメタデータ
 
 ```dart
-// Declaratively define metadata
+// 宣言的にメタデータを定義
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
@@ -160,12 +160,12 @@ Swift Output
 class CreateTaskIntentSpec extends IntentSpecBase<String, Task> {}
 ```
 
-**Benefits:**
-- Code and specification colocated
-- IDE support (completion, refactoring)
-- Compile-time validation
+**利点:**
+- コードと仕様が同一箇所に存在
+- IDEサポート（補完、リファクタリング）
+- コンパイル時検証
 
-### 2. Descriptor Pattern (Entity Property Mapping)
+### 2. ディスクリプタパターン (Entity Property Mapping)
 
 ```dart
 class TaskEntitySpec extends EntitySpecBase<Task> {
@@ -183,22 +183,22 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 }
 ```
 
-**Benefits:**
-- Define mappings without modifying model classes
-- Flexible transformation logic
-- Easy to test
+**利点:**
+- モデルクラスを変更せずにマッピング定義
+- 柔軟な変換ロジック
+- テスト容易性
 
-### 3. Platform Interface Pattern
+### 3. Platform Interface パターン
 
 ```dart
-// Abstract interface
+// 抽象インターフェース
 abstract class AppIntentsPlatform extends PlatformInterface {
   static AppIntentsPlatform _instance = MethodChannelAppIntents();
 
   Future<String?> getPlatformVersion();
 }
 
-// Method Channel implementation
+// Method Channel実装
 class MethodChannelAppIntents extends AppIntentsPlatform {
   final methodChannel = MethodChannel('app_intents');
 
@@ -209,88 +209,88 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 }
 ```
 
-**Benefits:**
-- Easy to mock for testing
-- Separation of platform implementations
-- Future extensibility
+**利点:**
+- テスト時のモック差し替えが容易
+- プラットフォーム実装の分離
+- 将来の拡張性
 
-### 4. Implementation Language Selection Pattern
+### 4. 実装言語選択パターン
 
 ```dart
 enum IntentImplementation {
-  dart,   // Implement intent handling in Flutter
-  swift,  // Implement in native Swift
+  dart,   // FlutterでIntent処理を実装
+  swift,  // ネイティブSwiftで実装
 }
 ```
 
-**Use cases:**
-- `dart`: When Flutter features are needed (UI display, database access, etc.)
-- `swift`: Performance-critical, using iOS-specific APIs
+**ユースケース:**
+- `dart`: UI表示、データベースアクセス等Flutter機能が必要な場合
+- `swift`: パフォーマンス重視、iOS固有API使用時
 
-## Type System
+## 型システム
 
-### Type Safety via Generics
+### ジェネリクスによる型安全
 
 ```dart
 // IntentSpecBase<I, O>
-// I = Input type, O = Output type
+// I = Input型, O = Output型
 class IntentSpecBase<I, O> {
   const IntentSpecBase();
 }
 
-// Concrete usage
+// 具体的な使用例
 class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
   // Input: CreateTaskInput
   // Output: Task
 }
 ```
 
-### Entity Type Constraints
+### Entityの型制約
 
 ```dart
 // EntitySpecBase<M>
-// M = Model type
+// M = Model型
 abstract class EntitySpecBase<M> {
   const EntitySpecBase();
 }
 
-// Usage
+// 使用例
 class TaskEntitySpec extends EntitySpecBase<Task> {
-  // Entity definition for Task model
+  // Taskモデルに対するEntity定義
 }
 ```
 
-## iOS App Intents Support
+## iOS App Intents 対応
 
-### Platform Requirements
+### プラットフォーム要件
 
-| Item | Requirement |
-|------|-------------|
-| **Minimum iOS Version** | iOS 16.0+ |
+| 項目 | 要件 |
+|------|------|
+| **iOS最小バージョン** | iOS 16.0+ |
 | **Swift** | 5.0+ |
 | **Xcode** | 14.0+ |
 
-### Design Decisions
+### 設計決定事項
 
-| Item | Decision |
-|------|----------|
-| AppShortcutsProvider | Supported (auto-generated predefined shortcuts) |
-| Handler Registration | Auto-registration (registration code generated) |
-| Localization | String Catalog (iOS standard) |
-| Error Handling | Both (iOS standard + custom error types) |
-| Entity Image Formats | URL + Asset + SF Symbol |
+| 項目 | 決定 |
+|------|------|
+| AppShortcutsProvider | 対応（事前定義ショートカット自動生成） |
+| Handler登録方式 | 自動登録（コード生成で登録コード生成） |
+| ローカライゼーション | String Catalog（iOS標準） |
+| エラーハンドリング | 両対応（iOS標準 + カスタムエラー型） |
+| Entity画像形式 | URL + Asset + SF Symbol |
 
-### Supported Features
+### サポート対象機能
 
-| iOS Feature | Status | Description |
-|-------------|--------|-------------|
-| AppIntent | ✅ Complete | Action execution from Siri/Shortcuts (via URL scheme) |
-| AppEntity | ✅ Complete | Entity search and display |
-| AppShortcut | ✅ Complete | Predefined shortcuts |
-| EntityQuery | ✅ Complete | Entity search queries (via MethodChannel) |
-| AppShortcutsProvider | ✅ Complete | Automatic shortcut registration |
+| iOS機能 | 対応状況 | 説明 |
+|---------|----------|------|
+| AppIntent | ✅ 完了 | Siri/Shortcutsからのアクション実行（URL scheme経由） |
+| AppEntity | ✅ 完了 | エンティティ検索・表示 |
+| AppShortcut | ✅ 完了 | 事前定義ショートカット |
+| EntityQuery | ✅ 完了 | エンティティ検索クエリ（MethodChannel経由） |
+| AppShortcutsProvider | ✅ 完了 | ショートカット自動登録 |
 
-### Generated Swift Code
+### 生成されるSwiftコード
 
 ```swift
 // Generated from CreateTaskIntentSpec (iOS 16+)
@@ -302,7 +302,7 @@ struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Creates a new task")
-    static var openAppWhenRun: Bool = true  // Launch app before execution
+    static var openAppWhenRun: Bool = true  // アプリを起動してから実行
 
     @Parameter(title: "Title")
     var title: String
@@ -312,7 +312,7 @@ struct CreateTaskIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Delegate processing to app via URL scheme
+        // URL schemeでアプリに処理を委譲
         var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
         if let dueDate = dueDate {
             let formatter = ISO8601DateFormatter()
@@ -342,9 +342,10 @@ struct AppShortcuts: AppShortcutsProvider {
 }
 ```
 
-## Future Extension Points
+## 今後の拡張ポイント
 
-1. **macOS Support**: macOS Shortcuts integration
-2. **Widget Integration**: iOS WidgetKit, Interactive Widgets
-3. **Focus Filter**: iOS Focus integration
-4. **Live Activities**: Dynamic Island / Lock Screen integration
+1. **Android対応**: Android App Actions/Shortcuts連携 → これは一旦考えない
+2. **macOS対応**: macOS Shortcuts連携
+3. **ウィジェット連携**: iOS WidgetKit, Interactive Widgets
+4. **Focus Filter**: iOS Focus連携
+5. **Live Activities**: Dynamic Island / Lock Screen連携

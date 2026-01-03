@@ -1,56 +1,56 @@
-# Package Details
+# パッケージ詳細
 
 ## app_intents_annotations
 
-A pure Dart package that provides annotations and base classes for defining Intents/Entities.
+Intent/Entityを定義するためのアノテーションとベースクラスを提供する純粋なDartパッケージ。
 
-### Dependencies
+### 依存関係
 
 - Dart SDK: ^3.10.1
-- No external dependencies (framework-independent)
+- 外部依存なし（フレームワーク非依存）
 
-### Intent Related
+### Intent関連
 
 #### IntentSpec
 
-Annotation for defining an Intent.
+Intentを定義するためのアノテーション。
 
 ```dart
 @IntentSpec(
-  identifier: 'CreateTaskIntent',    // Unique identifier
-  title: 'Create Task',              // Display title
-  description: 'Creates a new task', // Description
-  implementation: IntentImplementation.dart, // Implementation language
+  identifier: 'CreateTaskIntent',    // 一意の識別子
+  title: 'Create Task',              // 表示タイトル
+  description: 'Creates a new task', // 説明文
+  implementation: IntentImplementation.dart, // 実装言語
 )
 class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
 ```
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| identifier | String | Yes | Intent unique identifier |
-| title | String | Yes | User-facing display name |
-| description | String | No | Intent description |
-| implementation | IntentImplementation | No | Implementation language (default: dart) |
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| identifier | String | Yes | Intent一意識別子 |
+| title | String | Yes | ユーザー向け表示名 |
+| description | String | No | Intent説明文 |
+| implementation | IntentImplementation | No | 実装言語（デフォルト: dart） |
 
 #### IntentImplementation
 
 ```dart
 enum IntentImplementation {
-  dart,   // Implement on Dart/Flutter side
-  swift,  // Implement on Swift side
+  dart,   // Dart/Flutter側で実装
+  swift,  // Swift側で実装
 }
 ```
 
 #### IntentParam
 
-Annotation for defining intent parameters.
+Intentパラメータを定義するアノテーション。
 
 ```dart
 class MyIntentSpec extends IntentSpecBase<Input, Output> {
   @IntentParam(
-    title: 'Task Title',        // Parameter display name
-    description: 'The title',   // Parameter description
-    isOptional: false,          // Required/optional
+    title: 'Task Title',        // パラメータ表示名
+    description: 'The title',   // パラメータ説明
+    isOptional: false,          // 必須/任意
   )
   final String title;
 
@@ -59,72 +59,72 @@ class MyIntentSpec extends IntentSpecBase<Input, Output> {
 }
 ```
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| title | String | Yes | Parameter display name |
-| description | String | No | Parameter description |
-| isOptional | bool | No | Whether optional (default: false) |
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| title | String | Yes | パラメータ表示名 |
+| description | String | No | パラメータ説明 |
+| isOptional | bool | No | 任意パラメータか（デフォルト: false） |
 
 #### IntentSpecBase
 
-Base class for intent definitions. Specify input/output types via generics.
+Intent定義の基底クラス。ジェネリクスで入出力型を指定。
 
 ```dart
 abstract class IntentSpecBase<I, O> {
   const IntentSpecBase();
 }
 
-// I = Input type (parameters)
-// O = Output type (result)
+// I = Input型（パラメータ）
+// O = Output型（結果）
 class MyIntentSpec extends IntentSpecBase<MyInput, MyOutput> {}
 ```
 
-### Entity Related
+### Entity関連
 
 #### EntitySpec
 
-Annotation for defining an Entity.
+Entityを定義するためのアノテーション。
 
 ```dart
 @EntitySpec(
-  identifier: 'TaskEntity',     // Unique identifier
-  title: 'Task',                // Singular title
-  pluralTitle: 'Tasks',         // Plural title
-  description: 'A task entity', // Description
+  identifier: 'TaskEntity',     // 一意の識別子
+  title: 'Task',                // 単数形タイトル
+  pluralTitle: 'Tasks',         // 複数形タイトル
+  description: 'A task entity', // 説明文
 )
 class TaskEntitySpec extends EntitySpecBase<Task> {}
 ```
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| identifier | String | Yes | Entity unique identifier |
-| title | String | Yes | Singular display name |
-| pluralTitle | String | No | Plural display name |
-| description | String | No | Entity description |
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| identifier | String | Yes | Entity一意識別子 |
+| title | String | Yes | 単数形表示名 |
+| pluralTitle | String | No | 複数形表示名 |
+| description | String | No | Entity説明文 |
 
-#### Entity Property Annotations
+#### Entity Property アノテーション
 
-Annotations for defining entity property mappings.
+Entityのプロパティマッピングを定義するアノテーション群。
 
 ```dart
 class TaskEntitySpec extends EntitySpecBase<Task> {
-  // ID getter method (required)
+  // ID取得メソッド（必須）
   @EntityId()
   String id(Task task) => task.id;
 
-  // Title getter method (required)
+  // タイトル取得メソッド（必須）
   @EntityTitle()
   String title(Task task) => task.title;
 
-  // Subtitle getter method (optional)
+  // サブタイトル取得メソッド（任意）
   @EntitySubtitle()
   String? subtitle(Task task) => task.description;
 
-  // Image URL getter method (optional)
+  // 画像URL取得メソッド（任意）
   @EntityImage()
   String? imageUrl(Task task) => task.thumbnailUrl;
 
-  // Default query (entity list retrieval)
+  // デフォルトクエリ（エンティティ一覧取得）
   @EntityDefaultQuery()
   Future<List<Task>> defaultQuery() async {
     return TaskRepository.instance.getAllTasks();
@@ -132,47 +132,47 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 }
 ```
 
-| Annotation | Return Type | Required | Description |
-|------------|-------------|----------|-------------|
-| @EntityId() | String | Yes | Entity unique ID |
-| @EntityTitle() | String | Yes | Display title |
-| @EntitySubtitle() | String? | No | Subtitle |
-| @EntityImage() | String? | No | Image URL |
-| @EntityDefaultQuery() | Future<List<M>> | No | Default query |
+| アノテーション | 戻り値型 | 必須 | 説明 |
+|---------------|---------|------|------|
+| @EntityId() | String | Yes | エンティティの一意ID |
+| @EntityTitle() | String | Yes | 表示タイトル |
+| @EntitySubtitle() | String? | No | サブタイトル |
+| @EntityImage() | String? | No | 画像URL |
+| @EntityDefaultQuery() | Future<List<M>> | No | デフォルトクエリ |
 
 #### EntitySpecBase
 
-Base class for entity definitions.
+Entity定義の基底クラス。
 
 ```dart
 abstract class EntitySpecBase<M> {
   const EntitySpecBase();
 }
 
-// M = Model type
+// M = Model型
 class TaskEntitySpec extends EntitySpecBase<Task> {}
 ```
 
-### File Structure
+### ファイル構成
 
 ```
 app_intents_annotations/
 ├── lib/
-│   ├── app_intents_annotations.dart  # Exports
+│   ├── app_intents_annotations.dart  # エクスポート
 │   └── src/
 │       ├── annotations/
 │       │   ├── intent_spec.dart      # IntentSpec, IntentImplementation
 │       │   ├── intent_param.dart     # IntentParam
 │       │   ├── entity_spec.dart      # EntitySpec
-│       │   └── entity_params.dart    # Entity* annotations
+│       │   └── entity_params.dart    # Entity*アノテーション
 │       └── bases/
 │           ├── intent_spec_base.dart # IntentSpecBase<I,O>
 │           └── entity_spec_base.dart # EntitySpecBase<M>
 ├── example/
-│   ├── create_task_intent.dart       # Intent example
-│   ├── task_entity_spec.dart         # Entity example
+│   ├── create_task_intent.dart       # Intent使用例
+│   ├── task_entity_spec.dart         # Entity使用例
 │   └── models/
-│       └── task.dart                 # Sample model
+│       └── task.dart                 # サンプルモデル
 └── test/
     └── app_intents_annotations_test.dart
 ```
@@ -181,16 +181,16 @@ app_intents_annotations/
 
 ## app_intents
 
-Flutter plugin for iOS App Intents integration.
+iOS App Intents連携用Flutterプラグイン。
 
-### Dependencies
+### 依存関係
 
 - Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
 - iOS: 13.0+
 - Swift: 5.0+
 
-### Architecture
+### アーキテクチャ
 
 ```
 AppIntents (Public API)
@@ -209,11 +209,11 @@ AppIntentsPlatform (Interface)
      └─► MockAppIntentsPlatform (Testing)
 ```
 
-### Classes
+### クラス
 
 #### AppIntents
 
-Main facade class.
+メインのファサードクラス。
 
 ```dart
 class AppIntents {
@@ -222,14 +222,14 @@ class AppIntents {
   }
 }
 
-// Usage
+// 使用例
 final appIntents = AppIntents();
 final version = await appIntents.getPlatformVersion();
 ```
 
 #### AppIntentsPlatform
 
-Platform interface. Can be mocked for testing.
+プラットフォームインターフェース。テスト時にモック可能。
 
 ```dart
 abstract class AppIntentsPlatform extends PlatformInterface {
@@ -245,7 +245,7 @@ abstract class AppIntentsPlatform extends PlatformInterface {
 
 #### MethodChannelAppIntents
 
-Method Channel implementation.
+Method Channel実装。
 
 ```dart
 class MethodChannelAppIntents extends AppIntentsPlatform {
@@ -288,23 +288,23 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
 }
 ```
 
-### File Structure
+### ファイル構成
 
 ```
 app_intents/
 ├── lib/
 │   ├── app_intents.dart                    # Public API
 │   ├── app_intents_platform_interface.dart # Platform Interface
-│   └── app_intents_method_channel.dart     # Method Channel implementation
+│   └── app_intents_method_channel.dart     # Method Channel実装
 ├── ios/
 │   ├── Classes/
-│   │   └── AppIntentsPlugin.swift          # Swift implementation
-│   └── app_intents.podspec                 # CocoaPods config
+│   │   └── AppIntentsPlugin.swift          # Swift実装
+│   └── app_intents.podspec                 # CocoaPods設定
 └── test/
     └── app_intents_test.dart
 ```
 
-### Podspec Configuration
+### Podspec設定
 
 ```ruby
 Pod::Spec.new do |s|
@@ -321,9 +321,9 @@ end
 
 ## app_intents_codegen
 
-Tool for generating code from Dart annotations.
+Dartアノテーションからコードを生成するツール。
 
-### Dependencies
+### 依存関係
 
 - Dart SDK: ^3.10.1
 - analyzer: ^7.4.5
@@ -331,27 +331,27 @@ Tool for generating code from Dart annotations.
 - source_gen: ^2.0.0
 - path: ^1.9.0
 
-### Implemented Features
+### 実装済み機能
 
-1. **Swift Code Generation** ✅
-   - AppIntent conforming types
-   - AppEntity conforming types
-   - EntityQuery generation
-   - AppShortcutsProvider generation
+1. **Swiftコード生成** ✅
+   - AppIntent準拠型の生成
+   - AppEntity準拠型の生成
+   - EntityQueryの生成
+   - AppShortcutsProviderの生成
 
-2. **Dart Binding Generation** ✅
-   - Intent Handler registration code (part file format)
-   - Entity Query Handler registration code
-   - Suggested Entities Handler registration code
+2. **Dartバインディング生成** ✅
+   - Intent Handler登録コード（part file形式）
+   - Entity Query Handler登録コード
+   - Suggested Entities Handler登録コード
 
-3. **build_runner Integration** ✅
-   - `PartBuilder` implementation (`.intent.dart` file generation)
-   - Incremental build support
+3. **build_runner統合** ✅
+   - `PartBuilder`実装（`.intent.dart`ファイル生成）
+   - インクリメンタルビルド対応
 
-4. **CLI Command** ✅
-   - `dart run app_intents_codegen:generate_swift` for Swift file generation
+4. **CLIコマンド** ✅
+   - `dart run app_intents_codegen:generate_swift` でSwiftファイル生成
 
-### Usage
+### 使用方法
 
 ```yaml
 # pubspec.yaml
@@ -361,56 +361,56 @@ dev_dependencies:
 ```
 
 ```bash
-# Generate Dart bindings
+# Dartバインディング生成
 dart run build_runner build
 
-# Generate Swift App Intents
+# Swift App Intents生成
 dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
 ```
 
-### Generated Files
+### 生成ファイル
 
-**Dart Files** (via build_runner):
+**Dartファイル** (build_runner経由):
 ```
 lib/
 ├── intents/
 │   ├── create_task_intent.dart
-│   └── create_task_intent.intent.dart  # Generated part file
+│   └── create_task_intent.intent.dart  # 生成されたpart file
 ├── entities/
 │   ├── task_entity.dart
-│   └── task_entity.intent.dart         # Generated part file
+│   └── task_entity.intent.dart         # 生成されたpart file
 ```
 
-**Swift Files** (via CLI command):
+**Swiftファイル** (CLIコマンド経由):
 ```
 ios/Runner/GeneratedIntents/
-└── GeneratedAppIntents.swift           # All Intents/Entities/AppShortcuts
+└── GeneratedAppIntents.swift           # 全Intent/Entity/AppShortcuts
 ```
 
-### File Structure
+### ファイル構成
 
 ```
 app_intents_codegen/
 ├── lib/
-│   ├── app_intents_codegen.dart    # Entry point
+│   ├── app_intents_codegen.dart    # エントリポイント
 │   └── src/
-│       ├── analyzer/               # Annotation analysis
+│       ├── analyzer/               # アノテーション解析
 │       │   ├── intent_analyzer.dart
 │       │   └── entity_analyzer.dart
-│       ├── generator/              # Code generation
+│       ├── generator/              # コード生成
 │       │   ├── swift_generator.dart
 │       │   └── dart_generator.dart
-│       └── builder.dart            # build_runner integration
+│       └── builder.dart            # build_runner統合
 ├── bin/
-│   └── generate_swift.dart         # CLI command
-└── test/                           # 70+ tests
+│   └── generate_swift.dart         # CLIコマンド
+└── test/                           # 70+テスト
 ```
 
 ---
 
 ## ios-spm (Swift Package)
 
-Swift Package for iOS App Intents integration.
+iOS App Intents統合用のSwift Package。
 
 ### Package.swift
 
@@ -430,26 +430,26 @@ let package = Package(
 )
 ```
 
-### Role
+### 役割
 
-1. Bridge between Flutter plugin and iOS App Intents framework
-2. Communication from generated Swift Intents to Flutter
-3. Thread-safe FlutterBridge actor
+1. FlutterプラグインとiOS App Intentsフレームワークの橋渡し
+2. 生成されたSwift IntentからFlutterへの通信
+3. スレッドセーフなFlutterBridge actor
 
-### Key Components
+### 主要コンポーネント
 
 #### FlutterBridge
 
-Thread-safe singleton actor that manages communication from App Intents to Flutter.
+スレッドセーフなシングルトンactorで、App IntentsからFlutterへの通信を管理。
 
 ```swift
 public actor FlutterBridge {
     public static let shared = FlutterBridge()
 
-    // For intent execution (mainly for Entity Query after URL scheme migration)
+    // Intent実行用（URL scheme移行後は主にEntity Query用）
     public func setIntentExecutor(_ executor: @escaping @Sendable (...) async throws -> Any)
 
-    // For Entity Query
+    // Entity Query用
     public func setEntityQueryExecutor(_ executor: @escaping @Sendable (...) async throws -> [[String: Any]])
     public func setSuggestedEntitiesExecutor(_ executor: @escaping @Sendable (...) async throws -> [[String: Any]])
 }
@@ -457,7 +457,7 @@ public actor FlutterBridge {
 
 #### AppIntentError
 
-Common error type.
+共通エラー型。
 
 ```swift
 public enum AppIntentError: Error {
@@ -467,7 +467,7 @@ public enum AppIntentError: Error {
 }
 ```
 
-### File Structure
+### ファイル構成
 
 ```
 ios-spm/
@@ -475,22 +475,22 @@ ios-spm/
     ├── Package.swift
     └── Sources/
         └── AppIntentsBridge/
-            ├── FlutterBridge.swift     # Main communication bridge
-            ├── AppIntentError.swift    # Error type
-            └── EntityImageSource.swift # Entity image source
+            ├── FlutterBridge.swift     # メイン通信ブリッジ
+            ├── AppIntentError.swift    # エラー型
+            └── EntityImageSource.swift # Entity画像ソース
 ```
 
-### Integration Steps
+### 統合方法
 
-1. Copy files from `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/` to `ios/Runner/AppIntentsBridge/`
-2. Add to Xcode project
-3. Set executor in AppDelegate:
+1. `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/`のファイルを`ios/Runner/AppIntentsBridge/`にコピー
+2. Xcodeプロジェクトに追加
+3. AppDelegateでexecutorを設定:
 
 ```swift
 if #available(iOS 16.0, *) {
     Task {
         await FlutterBridge.shared.setIntentExecutor { identifier, params in
-            // Call Dart handler via AppIntentsPlugin
+            // AppIntentsPlugin経由でDartハンドラーを呼び出し
         }
     }
 }
