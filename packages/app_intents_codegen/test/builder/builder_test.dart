@@ -115,8 +115,9 @@ void main() {
           'a|lib/greet_intent.intent.dart': decodedMatches(
             allOf([
               contains('// GENERATED CODE - DO NOT MODIFY BY HAND'),
-              contains('GreetIntent'),
+              contains('greetIntentHandler'),
               contains('com.example.greet'),
+              contains('registerIntentHandler'),
             ]),
           ),
         },
@@ -223,8 +224,9 @@ void main() {
           'a|lib/task_entity.intent.dart': decodedMatches(
             allOf([
               contains('// GENERATED CODE - DO NOT MODIFY BY HAND'),
-              contains('TaskEntity'),
+              contains('taskEntityQuery'),
               contains('com.example.task'),
+              contains('registerEntityQueryHandler'),
             ]),
           ),
         },

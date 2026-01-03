@@ -5,6 +5,7 @@ import 'package:source_gen/source_gen.dart';
 
 import 'analyzer/entity_analyzer.dart';
 import 'analyzer/intent_analyzer.dart';
+import 'generator/dart_generator.dart';
 import 'models/entity_info.dart';
 import 'models/intent_info.dart';
 
@@ -15,10 +16,11 @@ Builder appIntentsBuilder(BuilderOptions options) => LibraryBuilder(
     );
 
 /// Generator that processes @IntentSpec and @EntitySpec annotations
-/// and generates Swift/Dart code.
+/// and generates Dart handler registration code.
 class AppIntentsGenerator extends Generator {
   final IntentAnalyzer _intentAnalyzer = const IntentAnalyzer();
   final EntityAnalyzer _entityAnalyzer = const EntityAnalyzer();
+  final DartGenerator _dartGenerator = const DartGenerator();
 
   @override
   FutureOr<String?> generate(LibraryReader library, BuildStep buildStep) {
@@ -47,64 +49,7 @@ class AppIntentsGenerator extends Generator {
       return null;
     }
 
-    return _generateOutput(intents, entities);
-  }
-
-  String _generateOutput(List<IntentInfo> intents, List<EntityInfo> entities) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('// GENERATED CODE - DO NOT MODIFY BY HAND');
-    buffer.writeln();
-    buffer.writeln('// **************************************************************************');
-    buffer.writeln('// AppIntentsGenerator');
-    buffer.writeln('// **************************************************************************');
-    buffer.writeln();
-
-    // Generate intent information
-    for (final intent in intents) {
-      buffer.writeln('// Intent: ${intent.className}');
-      buffer.writeln('// Identifier: ${intent.identifier}');
-      buffer.writeln('// Title: ${intent.title}');
-      if (intent.description != null) {
-        buffer.writeln('// Description: ${intent.description}');
-      }
-      buffer.writeln('// Implementation: ${intent.implementation.name}');
-      if (intent.inputType != null) {
-        buffer.writeln('// Input Type: ${intent.inputType}');
-      }
-      if (intent.outputType != null) {
-        buffer.writeln('// Output Type: ${intent.outputType}');
-      }
-      if (intent.parameters.isNotEmpty) {
-        buffer.writeln('// Parameters:');
-        for (final param in intent.parameters) {
-          buffer.writeln('//   - ${param.fieldName}: ${param.dartType} (${param.title})');
-        }
-      }
-      buffer.writeln();
-    }
-
-    // Generate entity information
-    for (final entity in entities) {
-      buffer.writeln('// Entity: ${entity.className}');
-      buffer.writeln('// Identifier: ${entity.identifier}');
-      buffer.writeln('// Title: ${entity.title}');
-      buffer.writeln('// Plural Title: ${entity.pluralTitle}');
-      if (entity.description != null) {
-        buffer.writeln('// Description: ${entity.description}');
-      }
-      if (entity.modelType != null) {
-        buffer.writeln('// Model Type: ${entity.modelType}');
-      }
-      if (entity.properties.isNotEmpty) {
-        buffer.writeln('// Properties:');
-        for (final prop in entity.properties) {
-          buffer.writeln('//   - ${prop.fieldName}: ${prop.dartType} (${prop.role.name})');
-        }
-      }
-      buffer.writeln();
-    }
-
-    return buffer.toString();
+    // Generate Dart handler registration code
+    return _dartGenerator.generate(intents, entities);
   }
 }
