@@ -215,7 +215,7 @@ class SwiftGenerator {
     buffer.writeln('@available(iOS 16.0, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
     buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
-    buffer.writeln('$_indent${_indent}// TODO: Implement entity fetching via FlutterBridge');
+    buffer.writeln('$_indent$_indent// TODO: Implement entity fetching via FlutterBridge');
     buffer.writeln('$_indent${_indent}return []');
     buffer.writeln('$_indent}');
     buffer.writeln('}');
@@ -366,7 +366,7 @@ class SwiftGenerator {
     buffer.writeln('@available(iOS 16.0, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
     buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
-    buffer.writeln('$_indent${_indent}// TODO: Implement entity fetching via FlutterBridge');
+    buffer.writeln('$_indent$_indent// TODO: Implement entity fetching via FlutterBridge');
     buffer.writeln('$_indent${_indent}return []');
     buffer.writeln('$_indent}');
     buffer.write('}');

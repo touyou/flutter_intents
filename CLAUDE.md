@@ -38,18 +38,21 @@ docs/                         # Documentation
   - `registerIntentHandler`, `registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`
   - `onIntentExecution` stream
   - iOS `AppIntentsPlugin.swift` updated
-- `app_intents_codegen`: build_runner integration + Analyzers
+- `app_intents_codegen`: build_runner integration + Analyzers + Generators
   - `IntentAnalyzer`, `EntityAnalyzer` for annotation parsing
-  - `AppIntentsGenerator` builder
+  - `SwiftGenerator`: Generates iOS 16+ AppIntent/AppEntity/AppShortcutsProvider Swift code
+  - `DartGenerator`: Generates `initializeAppIntents()` and handler registration code
+  - `AppIntentsGenerator` builder (integrates DartGenerator)
+  - 70+ tests covering analyzers, generators, and builder
 - `ios-spm/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
 
 ### Pending
-- `app_intents_codegen`: SwiftGenerator (generate Swift AppIntent/AppEntity code)
-- `app_intents_codegen`: DartGenerator (generate handler auto-registration code)
-- Integration tests
+- Swift code output to file system (currently DartGenerator is integrated, SwiftGenerator needs file output)
+- Integration tests with Example app
 - Example app completion
+- End-to-end testing with actual iOS device/simulator
 
 ## Code Conventions
 
@@ -155,19 +158,39 @@ struct CreateTaskIntent: AppIntent {
 
 ## Generated Dart Code Example
 
-The codegen should produce Dart like:
+The DartGenerator produces code like:
 
 ```dart
-// app_intents.g.dart
-void registerIntentHandlers() {
-  AppIntents.instance.registerHandler(
-    'CreateTaskIntent',
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+import 'package:app_intents/app_intents.dart';
+
+/// Initialize all App Intents handlers.
+void initializeAppIntents() {
+  _registerIntentHandlers();
+  _registerEntityHandlers();
+}
+
+void _registerIntentHandlers() {
+  AppIntents().registerIntentHandler(
+    'com.example.createTask',
     (params) async {
-      final input = CreateTaskInput(
-        title: params['title'] as String,
-      );
-      return await createTaskHandler(input);
+      final title = params['title'] as String;
+      final result = await createTaskIntentHandler(title: title);
+      return <String, dynamic>{};
+    },
+  );
+}
+
+void _registerEntityHandlers() {
+  AppIntents().registerEntityQueryHandler(
+    'com.example.TaskEntity',
+    (identifiers) async {
+      final entities = await taskEntityQuery(identifiers);
+      return entities.map((e) => e.toMap()).toList();
     },
   );
 }
 ```
+
+**Note**: User must implement `createTaskIntentHandler()` and `taskEntityQuery()` functions.
