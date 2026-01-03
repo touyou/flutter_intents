@@ -261,24 +261,45 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 ## iOS App Intents 対応
 
+### プラットフォーム要件
+
+| 項目 | 要件 |
+|------|------|
+| **iOS最小バージョン** | iOS 16.0+ |
+| **Swift** | 5.0+ |
+| **Xcode** | 14.0+ |
+
+### 設計決定事項
+
+| 項目 | 決定 |
+|------|------|
+| AppShortcutsProvider | 対応（事前定義ショートカット自動生成） |
+| Handler登録方式 | 自動登録（コード生成で登録コード生成） |
+| ローカライゼーション | String Catalog（iOS標準） |
+| エラーハンドリング | 両対応（iOS標準 + カスタムエラー型） |
+| Entity画像形式 | URL + Asset + SF Symbol |
+
 ### サポート対象機能
 
 | iOS機能 | 対応状況 | 説明 |
 |---------|----------|------|
-| AppIntent | 計画中 | Siri/Shortcutsからのアクション実行 |
-| AppEntity | 計画中 | エンティティ検索・表示 |
-| AppShortcut | 計画中 | 事前定義ショートカット |
-| EntityQuery | 計画中 | エンティティ検索クエリ |
+| AppIntent | 実装中 | Siri/Shortcutsからのアクション実行 |
+| AppEntity | 実装中 | エンティティ検索・表示 |
+| AppShortcut | 実装中 | 事前定義ショートカット |
+| EntityQuery | 実装中 | エンティティ検索クエリ |
+| AppShortcutsProvider | 実装中 | ショートカット自動登録 |
 
-### 生成されるSwiftコード（想定）
+### 生成されるSwiftコード
 
 ```swift
-// Generated from CreateTaskIntentSpec
+// Generated from CreateTaskIntentSpec (iOS 16+)
 import AppIntents
 
+@available(iOS 16.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
-    static var description = IntentDescription("Creates a new task")
+    static var description: IntentDescription =
+        IntentDescription("Creates a new task")
 
     @Parameter(title: "Title")
     var title: String
@@ -286,10 +307,29 @@ struct CreateTaskIntent: AppIntent {
     @Parameter(title: "Due Date")
     var dueDate: Date?
 
+    @MainActor
     func perform() async throws -> some IntentResult {
-        // Flutter Method Channel経由でDart実装を呼び出し
-        let result = await FlutterBridge.invoke("CreateTaskIntent", params: [...])
-        return .result(value: result)
+        let result = try await FlutterBridge.shared.invoke(
+            intent: "CreateTaskIntent",
+            params: ["title": title, "dueDate": dueDate]
+        )
+        return .result()
+    }
+}
+
+// Generated AppShortcutsProvider
+@available(iOS 16.0, *)
+struct AppShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: CreateTaskIntent(),
+            phrases: [
+                "Create a task in \(.applicationName)",
+                "Add task to \(.applicationName)"
+            ],
+            shortTitle: "Create Task",
+            systemImageName: "plus.circle"
+        )
     }
 }
 ```

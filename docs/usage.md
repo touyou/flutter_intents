@@ -17,11 +17,13 @@ dev_dependencies:
 
 ### 2. iOS設定
 
-`ios/Podfile`でiOSバージョンを13.0以上に設定:
+`ios/Podfile`でiOSバージョンを16.0以上に設定（App Intentsフレームワーク要件）:
 
 ```ruby
-platform :ios, '13.0'
+platform :ios, '16.0'
 ```
+
+> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
 
 ## Intentの定義
 
@@ -198,6 +200,74 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
   // Future<List<Task>> incompleteTasks() async {
   //   return TaskRepository.instance.getIncompleteTasks();
   // }
+}
+```
+
+## App Shortcutsの定義
+
+App Shortcutsを定義すると、アプリインストール直後からSiri/Shortcutsで利用可能になります。
+
+### AppShortcutsProviderの定義
+
+```dart
+import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+// ショートカットプロバイダを定義
+@AppShortcutsProvider()
+class MyAppShortcuts {
+  // 各ショートカットを定義
+  @AppShortcut(
+    intentIdentifier: 'CreateTaskIntent',
+    phrases: [
+      'Create a task in {applicationName}',
+      'Add task to {applicationName}',
+    ],
+    shortTitle: 'Create Task',
+    systemImageName: 'plus.circle',
+  )
+  static const createTask = null;
+
+  @AppShortcut(
+    intentIdentifier: 'ShowTasksIntent',
+    phrases: [
+      'Show my tasks in {applicationName}',
+      'List tasks in {applicationName}',
+    ],
+    shortTitle: 'Show Tasks',
+    systemImageName: 'list.bullet',
+  )
+  static const showTasks = null;
+}
+```
+
+### 生成されるSwiftコード
+
+```swift
+// Generated: AppShortcuts.swift
+import AppIntents
+
+@available(iOS 16.0, *)
+struct AppShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: CreateTaskIntent(),
+            phrases: [
+                "Create a task in \(.applicationName)",
+                "Add task to \(.applicationName)"
+            ],
+            shortTitle: "Create Task",
+            systemImageName: "plus.circle"
+        )
+        AppShortcut(
+            intent: ShowTasksIntent(),
+            phrases: [
+                "Show my tasks in \(.applicationName)",
+                "List tasks in \(.applicationName)"
+            ],
+            shortTitle: "Show Tasks",
+            systemImageName: "list.bullet"
+        )
+    }
 }
 ```
 
