@@ -30,6 +30,8 @@ docs/
 | Localization | **String Catalog** (iOS standard) |
 | Error Handling | **Both** (iOS standard + custom) |
 | Entity Images | **URL + Asset + SF Symbol** |
+| Intent Execution | **URL Scheme** (due to Flutter engine timing) |
+| Deep Linking | **app_links** package |
 
 ## Implementation Status
 
@@ -65,9 +67,22 @@ docs/
   - Xcode project.pbxproj updated with Swift file references
   - iOS build verified successful
 
+- URL Scheme Deep Linking (Phase 3):
+  - Intent execution via URL scheme (`taskapp://action?params`)
+  - `app_links` package for receiving deep links in Flutter
+  - Entity queries still use MethodChannel (work when app is foregrounded)
+  - `openAppWhenRun = true` ensures app is launched before intent executes
+  - SnackBar feedback for successful intent actions
+
+### Known Limitations
+- **Flutter Engine Timing**: Direct MethodChannel calls from App Intents may fail because:
+  - App Intents can run in isolated process (`WFIsolatedShortcutRunner`)
+  - Flutter engine may not be initialized when intent executes
+  - Solution: Use URL scheme to open app, then process action after Flutter is ready
+
 ### Pending
-- End-to-end testing on iOS simulator with Siri
 - macOS platform support (future)
+- Background intent execution without opening app (requires native-only fallback)
 
 ## Code Conventions
 
@@ -157,7 +172,9 @@ Use conventional commit prefixes:
 2. `ios-spm/AppIntentsBridge/Tests/AppIntentsBridgeTests/` - Swift tests
 3. `ios-spm/AppIntentsBridge/Package.swift` - Package manifest
 
-## Communication Flow (MethodChannel ↔ AppIntentsBridge)
+## Communication Flow
+
+### Intent Execution (URL Scheme Approach)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -167,37 +184,46 @@ Use conventional commit prefixes:
                            │ triggers
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Generated AppIntent struct (from SwiftGenerator)               │
-│  └── perform() calls FlutterBridge.shared.invoke()              │
+│  Generated AppIntent struct                                     │
+│  └── perform() opens URL: taskapp://action?params               │
+│  └── openAppWhenRun = true ensures app launches                 │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ UIApplication.shared.open(url)
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Flutter App (via app_links package)                            │
+│  └── AppLinks().uriLinkStream receives URL                      │
+│  └── Parse action and parameters from URL                       │
+│  └── Execute business logic (e.g., create/complete task)        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Entity Queries (MethodChannel Approach)
+
+Entity queries (for parameter pickers) still use MethodChannel because
+they only run when the app is foregrounded via `openAppWhenRun = true`.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  EntityQuery.suggestedEntities() / entities(for:)               │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  ios-spm/AppIntentsBridge/FlutterBridge.swift                   │
-│  └── actor FlutterBridge (thread-safe singleton)                │
-│      └── invoke(intent:params:) → uses intentExecutor closure   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ setIntentExecutor() wired in AppDelegate
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  packages/app_intents/ios/Classes/AppIntentsPlugin.swift        │
-│  └── executeIntent() → MethodChannel.invokeMethod("executeIntent")
-│  └── queryEntities() → MethodChannel.invokeMethod("queryEntities")
-│  └── getSuggestedEntities() → MethodChannel.invokeMethod(...)   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ FlutterMethodChannel
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  packages/app_intents/lib/app_intents_method_channel.dart       │
-│  └── setMethodCallHandler for "executeIntent", "queryEntities"  │
-│  └── Calls registered handlers from registerIntentHandler()    │
+│  FlutterBridge.shared.queryEntities/suggestedEntities           │
+│  └── Waits up to 5 seconds for executor to be set               │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Generated Dart code (from DartGenerator)                       │
-│  └── initializeAppIntents() registers all handlers              │
-│  └── User-implemented handler functions are called              │
+│  AppIntentsPlugin (MethodChannel)                               │
+│  └── queryEntitiesAsync() / getSuggestedEntitiesAsync()         │
+│  └── @MainActor ensures main thread execution                   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Dart handlers (registered via initializeXxxAppIntents)         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
