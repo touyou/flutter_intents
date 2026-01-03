@@ -108,6 +108,24 @@ class SwiftGenerator {
     buffer.writeln('${_indent}var ${param.fieldName}: $swiftType');
   }
 
+  /// Returns the Swift expression to convert a parameter value for MethodChannel.
+  ///
+  /// Date types need to be converted to ISO8601 strings since MethodChannel
+  /// doesn't support NSDate directly.
+  String _paramValueExpression(IntentParamInfo param) {
+    final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+    final isNullable = param.dartType.endsWith('?');
+
+    if (isDate) {
+      if (isNullable) {
+        return '${param.fieldName}.map { ISO8601DateFormatter().string(from: \$0) }';
+      } else {
+        return 'ISO8601DateFormatter().string(from: ${param.fieldName})';
+      }
+    }
+    return param.fieldName;
+  }
+
   /// Writes the perform method to the buffer.
   void _writePerformMethod(StringBuffer buffer, IntentInfo info) {
     buffer.writeln('$_indent@MainActor');
@@ -126,7 +144,8 @@ class SwiftGenerator {
       for (var i = 0; i < info.parameters.length; i++) {
         final param = info.parameters[i];
         final comma = i < info.parameters.length - 1 ? ',' : '';
-        buffer.writeln('$_indent$_indent$_indent$_indent"${param.fieldName}": ${param.fieldName}$comma');
+        final valueExpr = _paramValueExpression(param);
+        buffer.writeln('$_indent$_indent$_indent$_indent"${param.fieldName}": $valueExpr$comma');
       }
       buffer.writeln('$_indent$_indent$_indent]');
       buffer.writeln('$_indent$_indent)');
