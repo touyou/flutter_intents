@@ -2,6 +2,7 @@ name: app_intents_codegen
 description: Code generator for Flutter AppIntents that produces Swift and Dart code from annotations.
 version: 1.0.0
 repository: https://github.com/touyou/flutter_intents
+publish_to: none
 
 environment:
   sdk: ^3.10.0
