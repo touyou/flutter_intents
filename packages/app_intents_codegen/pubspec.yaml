@@ -9,13 +9,18 @@ environment:
 
 dependencies:
   analyzer: ^7.0.0
+  args: ^2.5.0
   build: ^2.4.0
   source_gen: ^2.0.0
   code_builder: ^4.10.0
   dart_style: ^3.0.0
+  glob: ^2.1.0
   path: ^1.9.0
   app_intents_annotations:
     path: ../app_intents_annotations
+
+executables:
+  generate_swift: generate_swift
 
 dev_dependencies:
   lints: ^6.0.0

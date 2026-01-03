@@ -97,6 +97,8 @@ void main() {
           'a|lib/greet_intent.dart': '''
             import 'package:app_intents_annotations/app_intents_annotations.dart';
 
+            part 'greet_intent.intent.dart';
+
             @IntentSpec(
               identifier: 'com.example.greet',
               title: 'Greet User',
@@ -196,6 +198,8 @@ void main() {
           ''',
           'a|lib/task_entity.dart': '''
             import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            part 'task_entity.intent.dart';
 
             @EntitySpec(
               identifier: 'com.example.task',

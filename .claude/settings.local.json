@@ -1,17 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents log -1 --format=fuller)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show --name-status d5967fe)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show --name-status f6875f0)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents show d5967fe)",
       "WebSearch",
       "Bash(git add:*)",
       "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
       "Bash(dart pub get:*)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents status)",
       "Bash(dart analyze:*)",
-      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents diff --staged --name-only)"
+      "Bash(dart test:*)",
+      "Bash(dart run:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents status)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents add -A)",
+      "Bash(git -C /Users/touyou/Developer/Private/flutter_intents status --short)"
     ]
   }
 }

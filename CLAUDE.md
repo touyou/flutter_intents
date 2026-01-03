@@ -14,7 +14,10 @@ packages/
 ios-spm/
 └── AppIntentsBridge/         # Swift Package for iOS native bridge
 app/                          # Example Flutter application
-docs/                         # Documentation
+docs/
+├── architecture.md           # System architecture and design rationale
+├── packages.md               # Package responsibilities and dependencies
+└── usage.md                  # User guide and integration instructions
 ```
 
 ## Key Design Decisions
@@ -109,6 +112,55 @@ Use conventional commit prefixes:
 2. `ios-spm/AppIntentsBridge/Tests/AppIntentsBridgeTests/` - Swift tests
 3. `ios-spm/AppIntentsBridge/Package.swift` - Package manifest
 
+## Communication Flow (MethodChannel ↔ AppIntentsBridge)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        iOS App Intents                          │
+│  (Siri / Shortcuts / Spotlight)                                 │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ triggers
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Generated AppIntent struct (from SwiftGenerator)               │
+│  └── perform() calls FlutterBridge.shared.invoke()              │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  ios-spm/AppIntentsBridge/FlutterBridge.swift                   │
+│  └── actor FlutterBridge (thread-safe singleton)                │
+│      └── invoke(intent:params:) → looks up registered handler   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ (currently needs wiring)
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  packages/app_intents/ios/Classes/AppIntentsPlugin.swift        │
+│  └── executeIntent() → MethodChannel.invokeMethod("executeIntent")
+│  └── queryEntities() → MethodChannel.invokeMethod("queryEntities")
+│  └── getSuggestedEntities() → MethodChannel.invokeMethod(...)   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ FlutterMethodChannel
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  packages/app_intents/lib/app_intents_method_channel.dart       │
+│  └── setMethodCallHandler for "executeIntent", "queryEntities"  │
+│  └── Calls registered handlers from registerIntentHandler()    │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Generated Dart code (from DartGenerator)                       │
+│  └── initializeAppIntents() registers all handlers              │
+│  └── User-implemented handler functions are called              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Integration Points
+- **FlutterBridge ↔ AppIntentsPlugin**: Currently separate; need to wire FlutterBridge to call AppIntentsPlugin.shared
+- **MethodChannel name**: `"app_intents"`
+- **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
+
 ## Running Tests
 
 ```bash
@@ -194,3 +246,62 @@ void _registerEntityHandlers() {
 ```
 
 **Note**: User must implement `createTaskIntentHandler()` and `taskEntityQuery()` functions.
+
+## Knowledge Accumulation Workflow
+
+### After Each Task: Update Documentation
+
+1. **CLAUDE.md** (this file) - For project-wide, persistent knowledge
+   - New design decisions → Add to "Key Design Decisions" table
+   - New gotchas/conventions → Add to "Code Conventions" section
+   - Implementation progress → Update "Implementation Status" section
+   - New file patterns → Add to "Key Files for Each Task" section
+
+2. **`.claude/settings.local.json`** - For frequently used commands
+   - Add new Bash command patterns as needed (use wildcards)
+   - Keep commands minimal and DRY
+
+3. **Memory (via conversation)** - For session-specific context
+   - Complex debugging sessions
+   - Temporary workarounds
+
+### Progressive Disclosure Structure
+
+CLAUDE.md follows progressive disclosure:
+```
+Quick Reference (top)     → Project Overview, Package Structure
+├── Design Context        → Key Design Decisions, Implementation Status
+├── How-To Guides         → Code Conventions, Key Files for Each Task
+├── Architecture Deep Dive → Communication Flow diagram
+└── Examples (bottom)     → Generated Code Examples
+```
+
+When adding new content:
+- **Frequent lookups** → Place higher in the file
+- **Reference material** → Place lower in the file
+- **One-time setup info** → Consider moving to `docs/` instead
+
+### What Goes Where
+
+| Content Type | Location |
+|--------------|----------|
+| API gotchas (e.g., TypeChecker usage) | CLAUDE.md → Code Conventions |
+| Design rationale | `docs/architecture.md` |
+| User-facing guides | `docs/usage.md` |
+| Package dependencies | `docs/packages.md` |
+| Allowed shell commands | `.claude/settings.local.json` |
+| Test fixtures/mocks | In-code comments or test files |
+
+### Trigger Points for Updates
+
+Update CLAUDE.md when:
+- ✅ A new annotation/analyzer/generator is added
+- ✅ A non-obvious API usage pattern is discovered
+- ✅ Implementation status changes (pending → completed)
+- ✅ A design decision is made or changed
+- ✅ Integration between components is clarified
+
+Do NOT update CLAUDE.md for:
+- ❌ Routine bug fixes
+- ❌ Test-only changes
+- ❌ Formatting/style changes

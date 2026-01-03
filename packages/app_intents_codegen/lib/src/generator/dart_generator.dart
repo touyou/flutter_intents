@@ -17,7 +17,15 @@ class DartGenerator {
   /// Generates Dart code for registering intent and entity handlers.
   ///
   /// Returns `null` if there are no dart implementation intents and no entities.
-  String? generate(List<IntentInfo> intents, List<EntityInfo> entities) {
+  ///
+  /// The [baseName] parameter is used to create unique function names to avoid
+  /// conflicts when multiple files generate code. If not provided, generic
+  /// names are used.
+  String? generate(
+    List<IntentInfo> intents,
+    List<EntityInfo> entities, {
+    String? baseName,
+  }) {
     // Filter to only dart implementation intents
     final dartIntents = intents
         .where((i) => i.implementation == IntentImplementationType.dart)
@@ -27,14 +35,30 @@ class DartGenerator {
       return null;
     }
 
+    // Generate unique function name suffix based on baseName
+    final suffix = baseName != null ? _toPascalCase(baseName) : '';
+    final initFuncName = baseName != null
+        ? 'initialize${suffix}AppIntents'
+        : 'initializeAppIntents';
+    final intentFuncName = baseName != null
+        ? '_register${suffix}IntentHandlers'
+        : '_registerIntentHandlers';
+    final entityFuncName = baseName != null
+        ? '_register${suffix}EntityHandlers'
+        : '_registerEntityHandlers';
+
     final library = Library((b) => b
       ..comments.add('GENERATED CODE - DO NOT MODIFY BY HAND')
-      ..directives.add(Directive.import('package:app_intents/app_intents.dart'))
       ..body.addAll([
-        _buildInitializeAppIntentsFunction(dartIntents, entities),
+        _buildInitializeFunction(
+          initFuncName,
+          dartIntents.isNotEmpty ? intentFuncName : null,
+          entities.isNotEmpty ? entityFuncName : null,
+        ),
         if (dartIntents.isNotEmpty)
-          _buildRegisterIntentHandlersFunction(dartIntents),
-        if (entities.isNotEmpty) _buildRegisterEntityHandlersFunction(entities),
+          _buildRegisterIntentHandlersFunction(dartIntents, intentFuncName),
+        if (entities.isNotEmpty)
+          _buildRegisterEntityHandlersFunction(entities, entityFuncName),
       ]));
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
@@ -50,30 +74,34 @@ class DartGenerator {
     }
   }
 
-  /// Builds the initializeAppIntents() function.
-  Method _buildInitializeAppIntentsFunction(
-    List<IntentInfo> intents,
-    List<EntityInfo> entities,
+  /// Builds the initialize function with dynamic name.
+  Method _buildInitializeFunction(
+    String funcName,
+    String? intentFuncName,
+    String? entityFuncName,
   ) {
     final statements = <Code>[];
 
-    if (intents.isNotEmpty) {
-      statements.add(const Code('_registerIntentHandlers();'));
+    if (intentFuncName != null) {
+      statements.add(Code('$intentFuncName();'));
     }
 
-    if (entities.isNotEmpty) {
-      statements.add(const Code('_registerEntityHandlers();'));
+    if (entityFuncName != null) {
+      statements.add(Code('$entityFuncName();'));
     }
 
     return Method((b) => b
-      ..name = 'initializeAppIntents'
+      ..name = funcName
       ..returns = refer('void')
       ..docs.add('/// Initialize all App Intents handlers.')
       ..body = Block.of(statements));
   }
 
   /// Builds the _registerIntentHandlers() function.
-  Method _buildRegisterIntentHandlersFunction(List<IntentInfo> intents) {
+  Method _buildRegisterIntentHandlersFunction(
+    List<IntentInfo> intents,
+    String funcName,
+  ) {
     final statements = <Code>[];
 
     for (final intent in intents) {
@@ -81,14 +109,15 @@ class DartGenerator {
     }
 
     return Method((b) => b
-      ..name = '_registerIntentHandlers'
+      ..name = funcName
       ..returns = refer('void')
       ..body = Block.of(statements));
   }
 
   /// Builds a single intent handler registration.
   Code _buildIntentHandlerRegistration(IntentInfo intent) {
-    final handlerName = '${_toCamelCase(intent.className)}Handler';
+    final cleanName = _cleanClassName(intent.className);
+    final handlerName = '${_toCamelCase(cleanName)}Handler';
     final paramExtractions = StringBuffer();
     final handlerArgs = StringBuffer();
 
@@ -103,10 +132,20 @@ class DartGenerator {
     }
 
     final hasOutput = intent.outputType != null && intent.outputType != 'void';
+    final isNullableOutput = intent.outputType?.endsWith('?') ?? false;
+
+    String returnStatement;
+    if (!hasOutput) {
+      returnStatement = 'return <String, dynamic>{};';
+    } else if (isNullableOutput) {
+      returnStatement = 'return result?.toJson() ?? <String, dynamic>{};';
+    } else {
+      returnStatement = 'return result.toJson();';
+    }
 
     final handlerBody = '''
 ${paramExtractions}final result = await $handlerName(${intent.parameters.isNotEmpty ? handlerArgs.toString() : ''});
-return ${hasOutput ? 'result.toMap()' : '<String, dynamic>{}'};
+$returnStatement
 ''';
 
     return Code('''
@@ -138,7 +177,10 @@ AppIntents().registerIntentHandler(
   }
 
   /// Builds the _registerEntityHandlers() function.
-  Method _buildRegisterEntityHandlersFunction(List<EntityInfo> entities) {
+  Method _buildRegisterEntityHandlersFunction(
+    List<EntityInfo> entities,
+    String funcName,
+  ) {
     final statements = <Code>[];
 
     for (final entity in entities) {
@@ -154,21 +196,22 @@ AppIntents().registerIntentHandler(
     }
 
     return Method((b) => b
-      ..name = '_registerEntityHandlers'
+      ..name = funcName
       ..returns = refer('void')
       ..body = Block.of(statements));
   }
 
   /// Builds an entity query handler registration.
   Code _buildEntityQueryHandlerRegistration(EntityInfo entity) {
-    final queryHandlerName = '${_toCamelCase(entity.className)}Query';
+    final cleanName = _cleanClassName(entity.className);
+    final queryHandlerName = '${_toCamelCase(cleanName)}Query';
 
     return Code('''
 AppIntents().registerEntityQueryHandler(
   '${entity.identifier}',
   (identifiers) async {
     final entities = await $queryHandlerName(identifiers);
-    return entities.map((e) => e.toMap()).toList();
+    return entities.map((e) => e.toJson()).toList();
   },
 );
 ''');
@@ -176,15 +219,16 @@ AppIntents().registerEntityQueryHandler(
 
   /// Builds a suggested entities handler registration.
   Code _buildSuggestedEntitiesHandlerRegistration(EntityInfo entity) {
+    final cleanName = _cleanClassName(entity.className);
     final suggestedHandlerName =
-        '${_toCamelCase(entity.className)}SuggestedEntities';
+        '${_toCamelCase(cleanName)}SuggestedEntities';
 
     return Code('''
 AppIntents().registerSuggestedEntitiesHandler(
   '${entity.identifier}',
   () async {
     final entities = await $suggestedHandlerName();
-    return entities.map((e) => e.toMap()).toList();
+    return entities.map((e) => e.toJson()).toList();
   },
 );
 ''');
@@ -194,5 +238,38 @@ AppIntents().registerSuggestedEntitiesHandler(
   String _toCamelCase(String pascalCase) {
     if (pascalCase.isEmpty) return pascalCase;
     return pascalCase[0].toLowerCase() + pascalCase.substring(1);
+  }
+
+  /// Converts a camelCase or snake_case string to PascalCase.
+  String _toPascalCase(String name) {
+    if (name.isEmpty) return name;
+    // Handle snake_case
+    if (name.contains('_')) {
+      return name
+          .split('_')
+          .map((part) =>
+              part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1))
+          .join();
+    }
+    // Handle camelCase - just capitalize first letter
+    return name[0].toUpperCase() + name.substring(1);
+  }
+
+  /// Removes common suffixes from class names for cleaner handler names.
+  String _cleanClassName(String className) {
+    final suffixes = ['Spec', 'Intent', 'Entity'];
+    var result = className;
+    for (final suffix in suffixes) {
+      if (result.endsWith(suffix) && result.length > suffix.length) {
+        result = result.substring(0, result.length - suffix.length);
+      }
+    }
+    // Re-add Intent/Entity for clarity
+    if (className.contains('Intent')) {
+      result = '${result}Intent';
+    } else if (className.contains('Entity')) {
+      result = '${result}Entity';
+    }
+    return result;
   }
 }

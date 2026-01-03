@@ -35,7 +35,7 @@ void main() {
         expect(result, contains('// GENERATED CODE - DO NOT MODIFY BY HAND'));
       });
 
-      test('generates import for app_intents package', () {
+      test('does not generate import (part files inherit imports)', () {
         final intents = [
           const IntentInfo(
             className: 'TestIntent',
@@ -49,7 +49,8 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        expect(result, contains("import 'package:app_intents/app_intents.dart'"));
+        // Part files inherit imports from the parent library
+        expect(result, isNot(contains("import 'package:app_intents/app_intents.dart'")));
       });
 
       test('generates initializeAppIntents function', () {
@@ -269,7 +270,7 @@ void main() {
         expect(result, contains("'com.example.TaskEntity'"));
       });
 
-      test('generates entity query handler with toMap call', () {
+      test('generates entity query handler with toJson call', () {
         final entities = [
           const EntityInfo(
             className: 'TaskEntity',
@@ -284,7 +285,7 @@ void main() {
 
         expect(result, isNotNull);
         expect(result, contains('taskEntityQuery'));
-        expect(result, contains('toMap'));
+        expect(result, contains('toJson'));
       });
 
       test('generates registerSuggestedEntitiesHandler when defaultQuery exists', () {
@@ -436,9 +437,9 @@ void main() {
         final result = generator.generate(intents, entities);
 
         expect(result, isNotNull);
-        // Check structure
+        // Check structure (no import since it's a part file)
         expect(result, contains('// GENERATED CODE - DO NOT MODIFY BY HAND'));
-        expect(result, contains("import 'package:app_intents/app_intents.dart'"));
+        expect(result, isNot(contains("import 'package:app_intents/app_intents.dart'")));
         expect(result, contains('void initializeAppIntents()'));
         expect(result, contains('void _registerIntentHandlers()'));
         expect(result, contains('void _registerEntityHandlers()'));

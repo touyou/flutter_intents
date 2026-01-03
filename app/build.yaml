@@ -1,0 +1,7 @@
+targets:
+  $default:
+    builders:
+      app_intents_codegen|appIntentsBuilder:
+        enabled: true
+        generate_for:
+          - lib/**/*.dart
