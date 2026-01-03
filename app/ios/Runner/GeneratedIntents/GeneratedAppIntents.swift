@@ -10,6 +10,9 @@ struct CompleteTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
 
+    // Run in main app process to access Flutter engine
+    static var openAppWhenRun: Bool = true
+
     @Parameter(title: "Task")
     var task: TaskEntitySpec
 
@@ -30,6 +33,9 @@ struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
+
+    // Run in main app process to access Flutter engine
+    static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Title", description: "The title of the task")
     var title: String

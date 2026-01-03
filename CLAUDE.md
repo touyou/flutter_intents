@@ -127,6 +127,11 @@ Use conventional commit prefixes:
 - `docs:` documentation
 - `chore:` maintenance
 
+**Important**: Always commit changes BEFORE testing on device/simulator. This ensures:
+1. Changes are saved even if testing reveals issues
+2. Easy rollback if needed
+3. Clear separation between implementation and debug iterations
+
 ## Key Files for Each Task
 
 ### Adding New Annotations
