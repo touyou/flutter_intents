@@ -44,18 +44,25 @@ docs/
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
   - `IntentAnalyzer`, `EntityAnalyzer` for annotation parsing
   - `SwiftGenerator`: Generates iOS 16+ AppIntent/AppEntity/AppShortcutsProvider Swift code
-  - `DartGenerator`: Generates `initializeAppIntents()` and handler registration code
-  - `AppIntentsGenerator` builder (integrates DartGenerator)
+  - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
+  - `AppIntentsBuilder` using `PartBuilder` for proper part file generation
+  - CLI command: `dart run app_intents_codegen:generate_swift` for Swift file output
   - 70+ tests covering analyzers, generators, and builder
 - `ios-spm/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
+- `app/` Example App: Task management demo
+  - `CreateTaskIntentSpec`, `CompleteTaskIntentSpec` intents
+  - `TaskEntitySpec` entity with query handler
+  - `Task` model with JSON serialization
+  - `TaskRepository` in-memory storage
+  - Handlers defined inline with specs (part file pattern)
 
 ### Pending
-- Swift code output to file system (currently DartGenerator is integrated, SwiftGenerator needs file output)
-- Integration tests with Example app
-- Example app completion
-- End-to-end testing with actual iOS device/simulator
+- iOS AppDelegate integration (wire FlutterBridge ↔ AppIntentsPlugin)
+- Run `generate_swift` CLI to output Swift code for Example App
+- Add generated Swift to Xcode project
+- End-to-end testing on iOS device/simulator
 
 ## Code Conventions
 
@@ -71,6 +78,24 @@ const _intentSpecChecker = TypeChecker.fromRuntime(IntentSpec);
 
 ### Deprecation Warnings
 Add `// ignore_for_file: deprecated_member_use` for `ClassElement` deprecation warnings in analyzer files.
+
+### Part File Pattern (DartGenerator)
+Generated Dart code uses the `part`/`part of` directive pattern:
+1. User adds `part 'filename.intent.dart';` to their spec file
+2. User imports `package:app_intents/app_intents.dart` in spec file
+3. Handler function is defined in the same spec file
+4. Generated part file inherits imports and can access the handler
+
+### CLI Swift Generator
+Generate Swift code for iOS:
+```bash
+cd app
+dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+```
+Options:
+- `-i, --input`: Input directory (default: `lib`)
+- `-o, --output`: Output directory (default: `ios/Runner/GeneratedIntents`)
+- `-f, --file`: Output filename (default: `GeneratedAppIntents.swift`)
 
 ### TDD Approach
 Follow Red-Green-Refactor:
@@ -210,42 +235,52 @@ struct CreateTaskIntent: AppIntent {
 
 ## Generated Dart Code Example
 
-The DartGenerator produces code like:
+The DartGenerator produces **part files** that integrate with the user's spec files:
 
+**User's spec file** (`create_task_intent.dart`):
 ```dart
-// GENERATED CODE - DO NOT MODIFY BY HAND
-
 import 'package:app_intents/app_intents.dart';
+import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-/// Initialize all App Intents handlers.
-void initializeAppIntents() {
-  _registerIntentHandlers();
-  _registerEntityHandlers();
+part 'create_task_intent.intent.dart';  // ← Generated part file
+
+@IntentSpec(
+  identifier: 'com.example.taskapp.createTask',
+  title: 'Create Task',
+)
+class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+  @IntentParam(title: 'Title')
+  final String title;
+
+  CreateTaskIntentSpec({required this.title});
 }
 
-void _registerIntentHandlers() {
-  AppIntents().registerIntentHandler(
-    'com.example.createTask',
-    (params) async {
-      final title = params['title'] as String;
-      final result = await createTaskIntentHandler(title: title);
-      return <String, dynamic>{};
-    },
-  );
-}
-
-void _registerEntityHandlers() {
-  AppIntents().registerEntityQueryHandler(
-    'com.example.TaskEntity',
-    (identifiers) async {
-      final entities = await taskEntityQuery(identifiers);
-      return entities.map((e) => e.toMap()).toList();
-    },
-  );
+// Handler defined in same file (accessed by generated code)
+Future<Task> createTaskIntentHandler({required String title}) async {
+  return TaskRepository.instance.createTask(title: title);
 }
 ```
 
-**Note**: User must implement `createTaskIntentHandler()` and `taskEntityQuery()` functions.
+**Generated part file** (`create_task_intent.intent.dart`):
+```dart
+part of 'create_task_intent.dart';
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+void initializeCreateTaskAppIntents() {
+  _registerCreateTaskIntentHandlers();
+}
+
+void _registerCreateTaskIntentHandlers() {
+  AppIntents().registerIntentHandler('com.example.taskapp.createTask', (params) async {
+    final title = params['title'] as String;
+    final result = await createTaskIntentHandler(title: title);
+    return result.toJson();
+  });
+}
+```
+
+**Note**: Each spec file generates its own `initializeXxxAppIntents()` function. Call all of them in `main.dart`.
 
 ## Knowledge Accumulation Workflow
 
