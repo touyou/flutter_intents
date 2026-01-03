@@ -122,9 +122,9 @@ Future<void> generateSwift({
 
   stdout.writeln('Found ${dartFiles.length} Dart files');
 
-  // Analyze files
-  final intents = <IntentInfo>[];
-  final entities = <EntityInfo>[];
+  // Analyze files (use Maps to deduplicate by identifier)
+  final intentsMap = <String, IntentInfo>{};
+  final entitiesMap = <String, EntityInfo>{};
 
   final collection = AnalysisContextCollection(
     includedPaths: [absoluteInputDir],
@@ -149,8 +149,8 @@ Future<void> generateSwift({
               // Check for @IntentSpec
               if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
                 final info = intentAnalyzer.analyze(element);
-                if (info != null) {
-                  intents.add(info);
+                if (info != null && !intentsMap.containsKey(info.identifier)) {
+                  intentsMap[info.identifier] = info;
                   stdout.writeln('  Found intent: ${info.className}');
                 }
               }
@@ -158,8 +158,8 @@ Future<void> generateSwift({
               // Check for @EntitySpec
               if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
                 final info = entityAnalyzer.analyze(element);
-                if (info != null) {
-                  entities.add(info);
+                if (info != null && !entitiesMap.containsKey(info.identifier)) {
+                  entitiesMap[info.identifier] = info;
                   stdout.writeln('  Found entity: ${info.className}');
                 }
               }
@@ -172,6 +172,9 @@ Future<void> generateSwift({
       stderr.writeln('  Warning: Could not analyze $filePath: $e');
     }
   }
+
+  final intents = intentsMap.values.toList();
+  final entities = entitiesMap.values.toList();
 
   if (intents.isEmpty && entities.isEmpty) {
     stdout.writeln('No @IntentSpec or @EntitySpec annotations found.');
