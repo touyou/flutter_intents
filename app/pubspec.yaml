@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  app_links: ^6.3.3
   app_intents:
     path: ../packages/app_intents
   app_intents_annotations:

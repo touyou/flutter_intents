@@ -21,7 +21,9 @@
       "Bash(flutter build:*)",
       "Bash(xcrun simctl:*)",
       "Bash(open -a Simulator)",
-      "Bash(flutter run:*)"
+      "Bash(flutter run:*)",
+      "WebFetch(domain:pub.dev)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

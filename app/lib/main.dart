@@ -1,3 +1,4 @@
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
 import 'entities/task_entity.dart';
@@ -6,7 +7,7 @@ import 'intents/create_task_intent.dart';
 import 'models/task.dart';
 import 'repositories/task_repository.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize all App Intents handlers
@@ -42,6 +43,7 @@ class TaskListPage extends StatefulWidget {
 
 class _TaskListPageState extends State<TaskListPage> {
   List<Task> _tasks = [];
+  late AppLinks _appLinks;
 
   @override
   void initState() {
@@ -52,6 +54,85 @@ class _TaskListPageState extends State<TaskListPage> {
         setState(() => _tasks = tasks);
       }
     });
+
+    // Initialize app links handler
+    _initAppLinks();
+  }
+
+  Future<void> _initAppLinks() async {
+    _appLinks = AppLinks();
+
+    // Handle link when app is started from terminated state
+    final initialUri = await _appLinks.getInitialLink();
+    if (initialUri != null) {
+      _handleDeepLink(initialUri);
+    }
+
+    // Handle links when app is running
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    debugPrint('Deep link received: $uri');
+
+    switch (uri.host) {
+      case 'create':
+        _handleCreateTask(uri.queryParameters);
+        break;
+      case 'complete':
+        _handleCompleteTask(uri.queryParameters);
+        break;
+      default:
+        debugPrint('Unknown deep link action: ${uri.host}');
+    }
+  }
+
+  Future<void> _handleCreateTask(Map<String, String> params) async {
+    final title = params['title'];
+    if (title == null || title.isEmpty) {
+      _showSnackBar('Task title is required');
+      return;
+    }
+
+    final description = params['description'];
+    DateTime? dueDate;
+    if (params['dueDate'] != null) {
+      dueDate = DateTime.tryParse(params['dueDate']!);
+    }
+
+    await TaskRepository.instance.createTask(
+      title: title,
+      description: description,
+      dueDate: dueDate,
+    );
+
+    _showSnackBar('Task "$title" created via Shortcut!');
+  }
+
+  Future<void> _handleCompleteTask(Map<String, String> params) async {
+    final taskId = params['taskId'];
+    if (taskId == null || taskId.isEmpty) {
+      _showSnackBar('Task ID is required');
+      return;
+    }
+
+    final task = TaskRepository.instance.getTask(taskId);
+    if (task == null) {
+      _showSnackBar('Task not found');
+      return;
+    }
+
+    await TaskRepository.instance.toggleTaskCompletion(taskId);
+    _showSnackBar('Task "${task.title}" completed via Shortcut!');
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _loadTasks() {

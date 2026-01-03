@@ -3,6 +3,30 @@
 // Run `dart run app_intents_codegen:generate_swift` to regenerate
 
 import AppIntents
+import UIKit
+
+// MARK: - URL Scheme Helper
+
+@available(iOS 16.0, *)
+private enum AppIntentURLHelper {
+    static let scheme = "taskapp"
+
+    static func openURL(_ urlString: String) async throws {
+        guard let url = URL(string: urlString) else {
+            throw AppIntentError.custom(code: "INVALID_URL", message: "Failed to create URL")
+        }
+
+        await MainActor.run {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        }
+    }
+
+    static func encodeParam(_ value: String) -> String {
+        return value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+    }
+}
+
+// MARK: - App Intents
 
 @available(iOS 16.0, *)
 struct CompleteTaskIntentSpec: AppIntent {
@@ -10,7 +34,6 @@ struct CompleteTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
 
-    // Run in main app process to access Flutter engine
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Task")
@@ -18,12 +41,9 @@ struct CompleteTaskIntentSpec: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let _ = try await FlutterBridge.shared.invoke(
-            intent: "CompleteTaskIntentSpec",
-            params: [
-                "taskId": task.id
-            ]
-        )
+        // Open app with URL scheme to complete task
+        let urlString = "\(AppIntentURLHelper.scheme)://complete?taskId=\(AppIntentURLHelper.encodeParam(task.id))"
+        try await AppIntentURLHelper.openURL(urlString)
         return .result()
     }
 }
@@ -34,7 +54,6 @@ struct CreateTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
 
-    // Run in main app process to access Flutter engine
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Title", description: "The title of the task")
@@ -46,14 +65,19 @@ struct CreateTaskIntentSpec: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let _ = try await FlutterBridge.shared.invoke(
-            intent: "CreateTaskIntentSpec",
-            params: [
-                "title": title,
-                "description": description,
-                "dueDate": dueDate.map { ISO8601DateFormatter().string(from: $0) }
-            ]
-        )
+        // Build URL with parameters
+        var urlString = "\(AppIntentURLHelper.scheme)://create?title=\(AppIntentURLHelper.encodeParam(title))"
+
+        if let desc = description {
+            urlString += "&description=\(AppIntentURLHelper.encodeParam(desc))"
+        }
+
+        if let date = dueDate {
+            let dateString = ISO8601DateFormatter().string(from: date)
+            urlString += "&dueDate=\(AppIntentURLHelper.encodeParam(dateString))"
+        }
+
+        try await AppIntentURLHelper.openURL(urlString)
         return .result()
     }
 }
