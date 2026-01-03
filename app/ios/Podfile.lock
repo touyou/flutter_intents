@@ -1,0 +1,22 @@
+PODS:
+  - app_intents (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - app_intents (from `.symlinks/plugins/app_intents/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  app_intents:
+    :path: ".symlinks/plugins/app_intents/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  app_intents: 704ec446661f7908cb797cf2c37b9f0b2bd91646
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+
+PODFILE CHECKSUM: 7ea13765d9d05bde6927c5f6ef2f395d46cf3f62
+
+COCOAPODS: 1.16.2
