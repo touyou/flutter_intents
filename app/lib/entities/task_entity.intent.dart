@@ -22,4 +22,9 @@ void _registerTaskEntityHandlers() {
     final entities = await taskEntityQuery(identifiers);
     return entities.map((e) => e.toJson()).toList();
   });
+
+  AppIntents().registerSuggestedEntitiesHandler('com.example.taskapp.TaskEntity', () async {
+    final entities = await taskEntitySuggestedEntities();
+    return entities.map((e) => e.toJson()).toList();
+  });
 }

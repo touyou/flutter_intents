@@ -44,12 +44,61 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// - Returns: The result from the Dart handler.
     /// - Throws: An error if the intent execution fails.
     @available(iOS 13.0, *)
+    @MainActor
     public func executeIntentAsync(
         identifier: String,
         params: [String: Any]
     ) async throws -> Any {
         return try await withCheckedThrowingContinuation { continuation in
             executeIntent(identifier: identifier, params: params) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Queries entities asynchronously for use with FlutterBridge.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity.
+    ///   - identifiers: The list of entity identifiers to query.
+    /// - Returns: The list of entities from the Dart handler.
+    /// - Throws: An error if the query fails.
+    @available(iOS 13.0, *)
+    @MainActor
+    public func queryEntitiesAsync(
+        entityIdentifier: String,
+        identifiers: [String]
+    ) async throws -> [[String: Any]] {
+        return try await withCheckedThrowingContinuation { continuation in
+            queryEntities(entityIdentifier: entityIdentifier, identifiers: identifiers) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Gets suggested entities asynchronously for use with FlutterBridge.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity.
+    /// - Returns: The list of suggested entities from the Dart handler.
+    /// - Throws: An error if the query fails.
+    @available(iOS 13.0, *)
+    @MainActor
+    public func getSuggestedEntitiesAsync(
+        entityIdentifier: String
+    ) async throws -> [[String: Any]] {
+        return try await withCheckedThrowingContinuation { continuation in
+            getSuggestedEntities(entityIdentifier: entityIdentifier) { result in
                 switch result {
                 case .success(let value):
                     continuation.resume(returning: value)

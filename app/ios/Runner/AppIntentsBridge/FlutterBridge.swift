@@ -30,6 +30,12 @@ public actor FlutterBridge {
     /// Executor for delegating intent execution to Flutter via plugin
     private var intentExecutor: (@Sendable (String, [String: Any]) async throws -> Any)?
 
+    /// Executor for querying entities from Flutter
+    private var entityQueryExecutor: (@Sendable (String, [String]) async throws -> [[String: Any]])?
+
+    /// Executor for getting suggested entities from Flutter
+    private var suggestedEntitiesExecutor: (@Sendable (String) async throws -> [[String: Any]])?
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
@@ -43,6 +49,24 @@ public actor FlutterBridge {
         _ executor: @escaping @Sendable (String, [String: Any]) async throws -> Any
     ) {
         intentExecutor = executor
+    }
+
+    /// Sets the entity query executor that fetches entities from Flutter.
+    ///
+    /// - Parameter executor: An async closure that queries entities by identifiers.
+    public func setEntityQueryExecutor(
+        _ executor: @escaping @Sendable (String, [String]) async throws -> [[String: Any]]
+    ) {
+        entityQueryExecutor = executor
+    }
+
+    /// Sets the suggested entities executor that fetches suggestions from Flutter.
+    ///
+    /// - Parameter executor: An async closure that fetches suggested entities.
+    public func setSuggestedEntitiesExecutor(
+        _ executor: @escaping @Sendable (String) async throws -> [[String: Any]]
+    ) {
+        suggestedEntitiesExecutor = executor
     }
 
     /// Invokes a registered intent handler with the given parameters.
@@ -97,5 +121,40 @@ public actor FlutterBridge {
     /// - Parameter identifier: The intent identifier to unregister
     public func unregisterHandler(_ identifier: String) {
         intentHandlers.removeValue(forKey: identifier)
+    }
+
+    // MARK: - Entity Queries
+
+    /// Queries entities by their identifiers.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity (e.g., "TaskEntitySpec")
+    ///   - identifiers: The list of entity IDs to fetch
+    /// - Returns: An array of entity dictionaries
+    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set
+    public func queryEntities(
+        entityIdentifier: String,
+        identifiers: [String]
+    ) async throws -> [[String: Any]] {
+        guard let executor = entityQueryExecutor else {
+            throw AppIntentError.entityQueryNotConfigured
+        }
+        return try await executor(entityIdentifier, identifiers)
+    }
+
+    /// Gets suggested entities for the given entity type.
+    ///
+    /// This is used by iOS to populate entity pickers in Shortcuts.
+    ///
+    /// - Parameter entityIdentifier: The type identifier of the entity
+    /// - Returns: An array of suggested entity dictionaries
+    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set
+    public func suggestedEntities(
+        entityIdentifier: String
+    ) async throws -> [[String: Any]] {
+        guard let executor = suggestedEntitiesExecutor else {
+            throw AppIntentError.entityQueryNotConfigured
+        }
+        return try await executor(entityIdentifier)
     }
 }

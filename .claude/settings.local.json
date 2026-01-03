@@ -19,7 +19,9 @@
       "Bash(flutter test:*)",
       "Bash(pod install)",
       "Bash(flutter build:*)",
-      "Bash(xcrun simctl:*)"
+      "Bash(xcrun simctl:*)",
+      "Bash(open -a Simulator)",
+      "Bash(flutter run:*)"
     ]
   }
 }

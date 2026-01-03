@@ -8,6 +8,8 @@ public enum AppIntentError: LocalizedError {
     case handlerFailed(String)
     /// A custom error with code and message
     case custom(code: String, message: String)
+    /// Entity query executor is not configured
+    case entityQueryNotConfigured
 
     public var errorDescription: String? {
         switch self {
@@ -17,6 +19,8 @@ public enum AppIntentError: LocalizedError {
             return "Handler failed: \(reason)"
         case .custom(let code, let message):
             return "[\(code)] \(message)"
+        case .entityQueryNotConfigured:
+            return "Entity query executor is not configured"
         }
     }
 
@@ -29,6 +33,8 @@ public enum AppIntentError: LocalizedError {
             return "HANDLER_FAILED"
         case .custom(let code, _):
             return code
+        case .entityQueryNotConfigured:
+            return "ENTITY_QUERY_NOT_CONFIGURED"
         }
     }
 }

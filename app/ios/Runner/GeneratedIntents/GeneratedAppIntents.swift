@@ -10,15 +10,15 @@ struct CompleteTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
 
-    @Parameter(title: "Task ID", description: "The ID of the task to complete")
-    var taskId: String
+    @Parameter(title: "Task")
+    var task: TaskEntitySpec
 
     @MainActor
     func perform() async throws -> some IntentResult {
         let _ = try await FlutterBridge.shared.invoke(
             intent: "CompleteTaskIntentSpec",
             params: [
-                "taskId": taskId
+                "taskId": task.id
             ]
         )
         return .result()
@@ -70,9 +70,39 @@ struct TaskEntitySpec: AppEntity {
 
 @available(iOS 16.0, *)
 struct TaskEntitySpecQuery: EntityQuery {
+    private static let entityIdentifier = "com.example.taskapp.TaskEntity"
+
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
-        // TODO: Implement entity fetching via FlutterBridge
-        return []
+        let result = try await FlutterBridge.shared.queryEntities(
+            entityIdentifier: Self.entityIdentifier,
+            identifiers: identifiers
+        )
+
+        return result.compactMap { json in
+            guard let id = json["id"] as? String,
+                  let title = json["title"] as? String else { return nil }
+            return TaskEntitySpec(
+                id: id,
+                title: title,
+                description: json["description"] as? String
+            )
+        }
+    }
+
+    func suggestedEntities() async throws -> [TaskEntitySpec] {
+        let result = try await FlutterBridge.shared.suggestedEntities(
+            entityIdentifier: Self.entityIdentifier
+        )
+
+        return result.compactMap { json in
+            guard let id = json["id"] as? String,
+                  let title = json["title"] as? String else { return nil }
+            return TaskEntitySpec(
+                id: id,
+                title: title,
+                description: json["description"] as? String
+            )
+        }
     }
 }
 

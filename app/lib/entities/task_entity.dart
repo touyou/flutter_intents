@@ -37,3 +37,9 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 Future<List<Task>> taskEntityQuery(List<String> identifiers) async {
   return TaskRepository.instance.getTasksByIds(identifiers);
 }
+
+/// Suggested entities handler for TaskEntity.
+/// Returns all incomplete tasks as suggestions.
+Future<List<Task>> taskEntitySuggestedEntities() async {
+  return TaskRepository.instance.getAllTasks().where((t) => !t.isCompleted).toList();
+}
