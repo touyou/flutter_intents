@@ -12,6 +12,7 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/annotations/intent_param.dart';
         export 'src/annotations/entity_spec.dart';
         export 'src/annotations/entity_params.dart';
+        export 'src/annotations/app_shortcut.dart';
         export 'src/bases/intent_spec_base.dart';
         export 'src/bases/entity_spec_base.dart';
       ''',
@@ -92,6 +93,25 @@ Future<LibraryElement> resolveSource(String source) async {
       'app_intents_annotations|lib/src/bases/entity_spec_base.dart': '''
         abstract class EntitySpecBase<M> {
           const EntitySpecBase();
+        }
+      ''',
+      'app_intents_annotations|lib/src/annotations/app_shortcut.dart': '''
+        class AppShortcut {
+          final String intentIdentifier;
+          final List<String> phrases;
+          final String shortTitle;
+          final String? systemImageName;
+
+          const AppShortcut({
+            required this.intentIdentifier,
+            required this.phrases,
+            required this.shortTitle,
+            this.systemImageName,
+          });
+        }
+
+        class AppShortcutsProvider {
+          const AppShortcutsProvider();
         }
       ''',
       'test_lib|lib/test.dart': source,

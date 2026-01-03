@@ -80,6 +80,12 @@ docs/
   - Flutter engine may not be initialized when intent executes
   - Solution: Use URL scheme to open app, then process action after Flutter is ready
 
+- **Unused Intent Handlers**: With URL scheme approach, the generated Dart `registerIntentHandler` calls are not invoked at runtime:
+  - `initializeCreateTaskAppIntents()` and similar register handlers via MethodChannel
+  - These handlers are never called because intent execution uses URL scheme instead
+  - Entity query handlers (`registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`) are still used
+  - Keeping unused handlers is harmless (minimal overhead) and useful for testing
+
 ### Pending
 - macOS platform support (future)
 - Background intent execution without opening app (requires native-only fallback)

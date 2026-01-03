@@ -135,6 +135,8 @@ Future<void> generateSwift({
 
   final intentAnalyzer = const IntentAnalyzer();
   final entityAnalyzer = const EntityAnalyzer();
+  final shortcutAnalyzer = const ShortcutAnalyzer();
+  final allShortcuts = <AppShortcutInfo>[];
 
   for (final filePath in dartFiles) {
     try {
@@ -165,6 +167,15 @@ Future<void> generateSwift({
                   stdout.writeln('  Found entity: ${info.className}');
                 }
               }
+
+              // Check for @AppShortcutsProvider
+              if (shortcutAnalyzer.hasAppShortcutsProviderAnnotation(element)) {
+                final shortcuts = shortcutAnalyzer.analyze(element);
+                for (final shortcut in shortcuts) {
+                  allShortcuts.add(shortcut);
+                  stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
+                }
+              }
             }
           }
         }
@@ -178,20 +189,20 @@ Future<void> generateSwift({
   final intents = intentsMap.values.toList();
   final entities = entitiesMap.values.toList();
 
-  if (intents.isEmpty && entities.isEmpty) {
-    stdout.writeln('No @IntentSpec or @EntitySpec annotations found.');
+  if (intents.isEmpty && entities.isEmpty && allShortcuts.isEmpty) {
+    stdout.writeln('No @IntentSpec, @EntitySpec, or @AppShortcutsProvider annotations found.');
     exit(0);
   }
 
   stdout.writeln('');
-  stdout.writeln('Found ${intents.length} intents and ${entities.length} entities');
+  stdout.writeln('Found ${intents.length} intents, ${entities.length} entities, and ${allShortcuts.length} shortcuts');
 
   // Generate Swift code
   final generator = SwiftGenerator();
   final swiftCode = generator.generateAll(
     intents: intents,
     entities: entities,
-    shortcuts: [], // TODO: Support shortcuts from annotations
+    shortcuts: allShortcuts,
   );
 
   // Write output
