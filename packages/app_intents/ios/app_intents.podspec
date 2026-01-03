@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'app_intents'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.version          = '0.1.0'
+  s.summary          = 'Flutter plugin for iOS App Intents integration.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spotlight support.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/touyou/flutter_intents'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'touyou' => 'https://github.com/touyou' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
