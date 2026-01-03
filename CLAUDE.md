@@ -223,17 +223,39 @@ if #available(iOS 16.0, *) {
 ```
 5. Set iOS deployment target to 16.0 in Podfile
 
+## Development Commands
+
+Use the Makefile for common tasks:
+
+```bash
+make help       # Show all available commands
+make ios        # Build and run Example App on iOS simulator
+make ios-build  # Build iOS app only (no run)
+make codegen    # Run Dart code generation (build_runner)
+make swift-gen  # Generate Swift code from annotations
+make test       # Run all tests
+make clean      # Clean build artifacts
+```
+
+Or use the script directly with options:
+
+```bash
+./scripts/run_ios.sh                    # Build and run on simulator
+./scripts/run_ios.sh --no-run           # Build only
+./scripts/run_ios.sh --release          # Release build
+./scripts/run_ios.sh -d <DEVICE_ID>     # Specify device
+```
+
 ## Running Tests
 
 ```bash
-# Dart packages
+# All tests via Makefile
+make test
+
+# Or individually:
 dart test packages/app_intents_codegen
 dart test packages/app_intents_annotations
-
-# Flutter plugin
 cd packages/app_intents && flutter test
-
-# Swift Package
 cd ios-spm/AppIntentsBridge && swift test
 ```
 
