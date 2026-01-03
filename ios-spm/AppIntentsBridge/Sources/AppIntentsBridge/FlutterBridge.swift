@@ -24,10 +24,28 @@ public actor FlutterBridge {
     /// Registered intent handlers keyed by intent identifier
     private var intentHandlers: [String: @Sendable (Any) async throws -> Any] = [:]
 
+    /// Executor for delegating intent execution to Flutter via plugin
+    private var intentExecutor: (@Sendable (String, [String: Any]) async throws -> Any)?
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
+    /// Sets the intent executor that handles communication with Flutter.
+    ///
+    /// This should be called during app initialization to wire FlutterBridge
+    /// to the Flutter plugin (AppIntentsPlugin).
+    ///
+    /// - Parameter executor: An async closure that executes intents via Flutter.
+    public func setIntentExecutor(
+        _ executor: @escaping @Sendable (String, [String: Any]) async throws -> Any
+    ) {
+        intentExecutor = executor
+    }
+
     /// Invokes a registered intent handler with the given parameters.
+    ///
+    /// The method first checks for a locally registered handler. If none is found,
+    /// it falls back to the intent executor (which communicates with Flutter).
     ///
     /// - Parameters:
     ///   - intent: The identifier of the intent to invoke
@@ -36,11 +54,17 @@ public actor FlutterBridge {
     /// - Throws: `AppIntentError.intentNotFound` if no handler is registered for the intent,
     ///           or any error thrown by the handler
     public func invoke(intent: String, params: [String: Any]) async throws -> Any {
-        guard let handler = intentHandlers[intent] else {
-            throw AppIntentError.intentNotFound(intent)
+        // Try local handler first
+        if let handler = intentHandlers[intent] {
+            return try await handler(params)
         }
 
-        return try await handler(params)
+        // Fall back to Flutter executor
+        if let executor = intentExecutor {
+            return try await executor(intent, params)
+        }
+
+        throw AppIntentError.intentNotFound(intent)
     }
 
     /// Registers a handler for the specified intent identifier.

@@ -31,6 +31,35 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         }
     }
 
+    // MARK: - Flutter Bridge Integration
+
+    /// Executes an intent asynchronously for use with FlutterBridge.
+    ///
+    /// This method wraps `executeIntent` with async/await support for integration
+    /// with FlutterBridge actor.
+    ///
+    /// - Parameters:
+    ///   - identifier: The unique identifier of the intent.
+    ///   - params: The parameters to pass to the intent handler.
+    /// - Returns: The result from the Dart handler.
+    /// - Throws: An error if the intent execution fails.
+    @available(iOS 13.0, *)
+    public func executeIntentAsync(
+        identifier: String,
+        params: [String: Any]
+    ) async throws -> Any {
+        return try await withCheckedThrowingContinuation { continuation in
+            executeIntent(identifier: identifier, params: params) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     // MARK: - Intent Execution
 
     /// Executes an intent by invoking the Dart handler.
