@@ -2,7 +2,7 @@
 ///
 /// This plugin enables Flutter apps to integrate with iOS App Intents,
 /// allowing them to be controlled via Siri and Shortcuts.
-library app_intents;
+library;
 
 export 'src/models/models.dart';
 export 'app_intents_platform_interface.dart' show AppIntentsPlatform;

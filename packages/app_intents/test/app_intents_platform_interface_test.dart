@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_intents/app_intents_platform_interface.dart';
-import 'package:app_intents/src/models/models.dart';
 
 void main() {
   group('AppIntentsPlatform', () {

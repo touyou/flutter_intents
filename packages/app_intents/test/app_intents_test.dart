@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_intents/app_intents.dart';
-import 'package:app_intents/app_intents_platform_interface.dart';
 import 'package:app_intents/app_intents_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 

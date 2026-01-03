@@ -176,7 +176,7 @@ Future<void> simulateIncomingMethodCall(
   String method,
   Map<String, dynamic> arguments,
 ) async {
-  final ByteData? message = const StandardMethodCodec().encodeMethodCall(
+  final ByteData message = const StandardMethodCodec().encodeMethodCall(
     MethodCall(method, arguments),
   );
 

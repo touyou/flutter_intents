@@ -104,7 +104,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return handleSuggestedEntitiesQuery(entityIdentifier);
   }
 
-  /// Converts a dynamic map to Map<String, dynamic>.
+  /// Converts a dynamic map to `Map<String, dynamic>`.
   Map<String, dynamic> _convertToStringDynamicMap(Object? value) {
     if (value == null) return {};
     if (value is Map<String, dynamic>) return value;
