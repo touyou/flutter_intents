@@ -58,11 +58,16 @@ docs/
   - `TaskRepository` in-memory storage
   - Handlers defined inline with specs (part file pattern)
 
+- iOS Integration Complete:
+  - FlutterBridge wired to AppIntentsPlugin via `setIntentExecutor()` closure
+  - AppIntentsBridge Swift files copied to `app/ios/Runner/AppIntentsBridge/`
+  - Generated Swift code at `app/ios/Runner/GeneratedIntents/GeneratedAppIntents.swift`
+  - Xcode project.pbxproj updated with Swift file references
+  - iOS build verified successful
+
 ### Pending
-- iOS AppDelegate integration (wire FlutterBridge ↔ AppIntentsPlugin)
-- Run `generate_swift` CLI to output Swift code for Example App
-- Add generated Swift to Xcode project
-- End-to-end testing on iOS device/simulator
+- End-to-end testing on iOS simulator with Siri
+- macOS platform support (future)
 
 ## Code Conventions
 
@@ -96,6 +101,16 @@ Options:
 - `-i, --input`: Input directory (default: `lib`)
 - `-o, --output`: Output directory (default: `ios/Runner/GeneratedIntents`)
 - `-f, --file`: Output filename (default: `GeneratedAppIntents.swift`)
+
+### MethodChannel Type Serialization
+MethodChannel only supports specific types. Non-supported types need conversion:
+
+| Dart Type | Swift Type | Serialization |
+|-----------|------------|---------------|
+| `DateTime` | `Date` | ISO8601 string via `ISO8601DateFormatter()` |
+| `DateTime?` | `Date?` | `.map { ISO8601DateFormatter().string(from: $0) }` |
+
+SwiftGenerator automatically handles this conversion in generated code.
 
 ### TDD Approach
 Follow Red-Green-Refactor:
@@ -155,9 +170,9 @@ Use conventional commit prefixes:
 ┌─────────────────────────────────────────────────────────────────┐
 │  ios-spm/AppIntentsBridge/FlutterBridge.swift                   │
 │  └── actor FlutterBridge (thread-safe singleton)                │
-│      └── invoke(intent:params:) → looks up registered handler   │
+│      └── invoke(intent:params:) → uses intentExecutor closure   │
 └──────────────────────────┬──────────────────────────────────────┘
-                           │ (currently needs wiring)
+                           │ setIntentExecutor() wired in AppDelegate
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  packages/app_intents/ios/Classes/AppIntentsPlugin.swift        │
@@ -182,9 +197,31 @@ Use conventional commit prefixes:
 ```
 
 ### Key Integration Points
-- **FlutterBridge ↔ AppIntentsPlugin**: Currently separate; need to wire FlutterBridge to call AppIntentsPlugin.shared
+- **FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()` in AppDelegate
 - **MethodChannel name**: `"app_intents"`
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
+
+### iOS App Integration Steps
+1. Copy AppIntentsBridge Swift files to `ios/Runner/AppIntentsBridge/`
+2. Run `dart run app_intents_codegen:generate_swift` to generate Swift code
+3. Add Swift files to Xcode project (update project.pbxproj)
+4. Wire FlutterBridge in AppDelegate:
+```swift
+import app_intents
+
+// In didFinishLaunchingWithOptions:
+if #available(iOS 16.0, *) {
+  Task {
+    await FlutterBridge.shared.setIntentExecutor { identifier, params in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentsError.channelNotAvailable
+      }
+      return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+  }
+}
+```
+5. Set iOS deployment target to 16.0 in Podfile
 
 ## Running Tests
 

@@ -16,7 +16,10 @@
       "Bash(tree:*)",
       "Bash(flutter pub get:*)",
       "Bash(flutter analyze:*)",
-      "Bash(flutter test:*)"
+      "Bash(flutter test:*)",
+      "Bash(pod install)",
+      "Bash(flutter build:*)",
+      "Bash(xcrun simctl:*)"
     ]
   }
 }
