@@ -96,10 +96,10 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 ## 技術スタック
 
-- **Dart SDK**: ^3.10.1
-- **Flutter**: 3.38.3
-- **Swift**: 6.2.1
-- **iOS**: 13.0+
+- **Dart SDK**: ^3.10.0
+- **Flutter**: 3.38+
+- **Swift**: 5.9+ / Swift Tools 6.0
+- **iOS**: 16.0+ (App Intents requires iOS 16)
 
 ## ライセンス
 
