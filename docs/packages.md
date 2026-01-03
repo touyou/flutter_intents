@@ -326,28 +326,32 @@ Dartアノテーションからコードを生成するツール。
 ### 依存関係
 
 - Dart SDK: ^3.10.1
+- analyzer: ^7.4.5
+- build: ^2.4.2
+- source_gen: ^2.0.0
 - path: ^1.9.0
 
-### 現在の状態
+### 実装済み機能
 
-基本構造のみ実装済み。コード生成機能は開発中。
-
-### 計画されている機能
-
-1. **Swiftコード生成**
+1. **Swiftコード生成** ✅
    - AppIntent準拠型の生成
    - AppEntity準拠型の生成
    - EntityQueryの生成
+   - AppShortcutsProviderの生成
 
-2. **Dartバインディング生成**
-   - Intent Handler登録コード
-   - Entity Resolver登録コード
+2. **Dartバインディング生成** ✅
+   - Intent Handler登録コード（part file形式）
+   - Entity Query Handler登録コード
+   - Suggested Entities Handler登録コード
 
-3. **build_runner統合**
-   - `Builder`実装
-   - インクリメンタルビルド
+3. **build_runner統合** ✅
+   - `PartBuilder`実装（`.intent.dart`ファイル生成）
+   - インクリメンタルビルド対応
 
-### 想定される使用方法
+4. **CLIコマンド** ✅
+   - `dart run app_intents_codegen:generate_swift` でSwiftファイル生成
+
+### 使用方法
 
 ```yaml
 # pubspec.yaml
@@ -357,21 +361,30 @@ dev_dependencies:
 ```
 
 ```bash
-# コード生成実行
+# Dartバインディング生成
 dart run build_runner build
+
+# Swift App Intents生成
+dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
 ```
 
-### 生成ファイル（想定）
+### 生成ファイル
 
+**Dartファイル** (build_runner経由):
 ```
 lib/
 ├── intents/
-│   └── create_task_intent.dart
+│   ├── create_task_intent.dart
+│   └── create_task_intent.intent.dart  # 生成されたpart file
 ├── entities/
-│   └── task_entity_spec.dart
-└── generated/
-    ├── intents.g.dart           # Dart bindings
-    └── intents.g.swift          # Swift App Intents
+│   ├── task_entity.dart
+│   └── task_entity.intent.dart         # 生成されたpart file
+```
+
+**Swiftファイル** (CLIコマンド経由):
+```
+ios/Runner/GeneratedIntents/
+└── GeneratedAppIntents.swift           # 全Intent/Entity/AppShortcuts
 ```
 
 ### ファイル構成
@@ -379,9 +392,18 @@ lib/
 ```
 app_intents_codegen/
 ├── lib/
-│   └── app_intents_codegen.dart # エントリポイント
-└── test/
-    └── app_intents_codegen_test.dart
+│   ├── app_intents_codegen.dart    # エントリポイント
+│   └── src/
+│       ├── analyzer/               # アノテーション解析
+│       │   ├── intent_analyzer.dart
+│       │   └── entity_analyzer.dart
+│       ├── generator/              # コード生成
+│       │   ├── swift_generator.dart
+│       │   └── dart_generator.dart
+│       └── builder.dart            # build_runner統合
+├── bin/
+│   └── generate_swift.dart         # CLIコマンド
+└── test/                           # 70+テスト
 ```
 
 ---
@@ -411,8 +433,39 @@ let package = Package(
 ### 役割
 
 1. FlutterプラグインとiOS App Intentsフレームワークの橋渡し
-2. 生成されたSwift Intentの配置先
-3. App Intents関連のSwiftユーティリティ
+2. 生成されたSwift IntentからFlutterへの通信
+3. スレッドセーフなFlutterBridge actor
+
+### 主要コンポーネント
+
+#### FlutterBridge
+
+スレッドセーフなシングルトンactorで、App IntentsからFlutterへの通信を管理。
+
+```swift
+public actor FlutterBridge {
+    public static let shared = FlutterBridge()
+
+    // Intent実行用（URL scheme移行後は主にEntity Query用）
+    public func setIntentExecutor(_ executor: @escaping @Sendable (...) async throws -> Any)
+
+    // Entity Query用
+    public func setEntityQueryExecutor(_ executor: @escaping @Sendable (...) async throws -> [[String: Any]])
+    public func setSuggestedEntitiesExecutor(_ executor: @escaping @Sendable (...) async throws -> [[String: Any]])
+}
+```
+
+#### AppIntentError
+
+共通エラー型。
+
+```swift
+public enum AppIntentError: Error {
+    case executorNotSet
+    case channelNotAvailable
+    case custom(code: String, message: String)
+}
+```
 
 ### ファイル構成
 
@@ -422,5 +475,23 @@ ios-spm/
     ├── Package.swift
     └── Sources/
         └── AppIntentsBridge/
-            └── AppIntentsBridge.swift
+            ├── FlutterBridge.swift     # メイン通信ブリッジ
+            ├── AppIntentError.swift    # エラー型
+            └── EntityImageSource.swift # Entity画像ソース
+```
+
+### 統合方法
+
+1. `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/`のファイルを`ios/Runner/AppIntentsBridge/`にコピー
+2. Xcodeプロジェクトに追加
+3. AppDelegateでexecutorを設定:
+
+```swift
+if #available(iOS 16.0, *) {
+    Task {
+        await FlutterBridge.shared.setIntentExecutor { identifier, params in
+            // AppIntentsPlugin経由でDartハンドラーを呼び出し
+        }
+    }
+}
 ```

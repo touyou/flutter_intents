@@ -46,7 +46,7 @@ Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提�
 
 ## データフロー
 
-### Intent実行フロー
+### Intent実行フロー (URL Scheme)
 
 ```
 [Siri/Shortcuts/Spotlight]
@@ -55,18 +55,19 @@ Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提�
 [iOS App Intents Framework]
          │
          ▼
-[Generated Swift Intent] ─── implementation: swift ──► [Swift Handler]
-         │
-         │ implementation: dart
+[Generated Swift Intent]
+         │ openAppWhenRun = true
          ▼
-[Flutter Method Channel]
+[UIApplication.shared.open(url)]
+         │ taskapp://action?params
+         ▼
+[Flutter App (via app_links)]
          │
          ▼
-[Dart Intent Handler]
-         │
-         ▼
-[Response → Swift → iOS]
+[Dart Handler → Business Logic]
 ```
+
+> **Note**: URL schemeを使用する理由は、App IntentsがiOSの分離プロセス（WFIsolatedShortcutRunner）で実行される場合があり、Flutterエンジンが利用できないためです。URL schemeならアプリが完全に起動してから処理が実行されます。
 
 ### コード生成フロー
 
@@ -283,23 +284,25 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 | iOS機能 | 対応状況 | 説明 |
 |---------|----------|------|
-| AppIntent | 実装中 | Siri/Shortcutsからのアクション実行 |
-| AppEntity | 実装中 | エンティティ検索・表示 |
-| AppShortcut | 実装中 | 事前定義ショートカット |
-| EntityQuery | 実装中 | エンティティ検索クエリ |
-| AppShortcutsProvider | 実装中 | ショートカット自動登録 |
+| AppIntent | ✅ 完了 | Siri/Shortcutsからのアクション実行（URL scheme経由） |
+| AppEntity | ✅ 完了 | エンティティ検索・表示 |
+| AppShortcut | ✅ 完了 | 事前定義ショートカット |
+| EntityQuery | ✅ 完了 | エンティティ検索クエリ（MethodChannel経由） |
+| AppShortcutsProvider | ✅ 完了 | ショートカット自動登録 |
 
 ### 生成されるSwiftコード
 
 ```swift
 // Generated from CreateTaskIntentSpec (iOS 16+)
 import AppIntents
+import UIKit
 
 @available(iOS 16.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Creates a new task")
+    static var openAppWhenRun: Bool = true  // アプリを起動してから実行
 
     @Parameter(title: "Title")
     var title: String
@@ -309,10 +312,15 @@ struct CreateTaskIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let result = try await FlutterBridge.shared.invoke(
-            intent: "CreateTaskIntent",
-            params: ["title": title, "dueDate": dueDate]
-        )
+        // URL schemeでアプリに処理を委譲
+        var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
+        if let dueDate = dueDate {
+            let formatter = ISO8601DateFormatter()
+            urlString += "&dueDate=\(formatter.string(from: dueDate))"
+        }
+        if let url = URL(string: urlString) {
+            await UIApplication.shared.open(url)
+        }
         return .result()
     }
 }

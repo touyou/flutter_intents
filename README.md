@@ -30,9 +30,9 @@ flutter_intents/
 
 | パッケージ | 説明 |
 |-----------|------|
-| [app_intents_annotations](packages.md#app_intents_annotations) | Intent/Entityを定義するためのアノテーションとベースクラス |
-| [app_intents](packages.md#app_intents) | iOS連携用Flutterプラグイン |
-| [app_intents_codegen](packages.md#app_intents_codegen) | SwiftコードジェネレーターTool |
+| [app_intents_annotations](docs/packages.md#app_intents_annotations) | Intent/Entityを定義するためのアノテーションとベースクラス |
+| [app_intents](docs/packages.md#app_intents) | iOS連携用Flutterプラグイン |
+| [app_intents_codegen](docs/packages.md#app_intents_codegen) | SwiftコードジェネレーターTool |
 
 ## クイックスタート
 
@@ -90,9 +90,9 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 ## ドキュメント
 
-- [アーキテクチャ](architecture.md) - 設計思想と全体構成
-- [パッケージ詳細](packages.md) - 各パッケージの詳細仕様
-- [使用方法](usage.md) - 実装ガイドとサンプル
+- [アーキテクチャ](docs/architecture.md) - 設計思想と全体構成
+- [パッケージ詳細](docs/packages.md) - 各パッケージの詳細仕様
+- [使用方法](docs/usage.md) - 実装ガイドとサンプル
 
 ## 技術スタック
 

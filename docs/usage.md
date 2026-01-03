@@ -328,10 +328,13 @@ struct TaskQuery: EntityQuery {
 ```swift
 // Generated: CreateTaskIntent.swift
 import AppIntents
+import UIKit
 
+@available(iOS 16.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description = IntentDescription("Create a new task in your task list")
+    static var openAppWhenRun: Bool = true  // アプリ起動を保証
 
     @Parameter(title: "Task Title", description: "The title of the task")
     var title: String
@@ -339,13 +342,98 @@ struct CreateTaskIntent: AppIntent {
     @Parameter(title: "Due Date", description: "Optional due date for the task")
     var dueDate: Date?
 
+    @MainActor
     func perform() async throws -> some IntentResult {
-        let result = try await FlutterBridge.invoke(
-            intent: "CreateTaskIntent",
-            params: ["title": title, "dueDate": dueDate]
-        )
-        return .result(value: result)
+        // URL schemeでFlutterアプリに処理を委譲
+        var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
+        if let dueDate = dueDate {
+            let formatter = ISO8601DateFormatter()
+            urlString += "&dueDate=\(formatter.string(from: dueDate))"
+        }
+        if let url = URL(string: urlString) {
+            await UIApplication.shared.open(url)
+        }
+        return .result()
     }
+}
+```
+
+> **Note**: URL schemeを使用する理由は、App IntentsがiOSの分離プロセスで実行される場合があり、直接MethodChannelを呼び出せないためです。URL schemeならアプリが完全に起動してからFlutter側で処理が実行されます。
+
+## Deep Link受信 (Flutter側)
+
+生成されたSwift IntentからのURL schemeを受信するため、`app_links`パッケージを使用します。
+
+### セットアップ
+
+```yaml
+# pubspec.yaml
+dependencies:
+  app_links: ^6.3.3
+```
+
+### Info.plist設定
+
+```xml
+<!-- ios/Runner/Info.plist -->
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLName</key>
+        <string>com.example.app</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>taskapp</string>  <!-- アプリ固有のスキーム -->
+        </array>
+    </dict>
+</array>
+<key>FlutterDeepLinkingEnabled</key>
+<false/>  <!-- app_linksパッケージを使う場合はfalse -->
+```
+
+### Flutter実装
+
+```dart
+import 'package:app_links/app_links.dart';
+
+class _MyAppState extends State<MyApp> {
+  late AppLinks _appLinks;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAppLinks();
+  }
+
+  Future<void> _initAppLinks() async {
+    _appLinks = AppLinks();
+
+    // アプリ起動時の初期リンク
+    final initialUri = await _appLinks.getInitialLink();
+    if (initialUri != null) {
+      _handleDeepLink(initialUri);
+    }
+
+    // アプリ実行中のリンク
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    switch (uri.host) {
+      case 'create':
+        // taskapp://create?title=xxx&dueDate=xxx
+        _handleCreateTask(uri.queryParameters);
+        break;
+      case 'complete':
+        // taskapp://complete?taskId=xxx
+        _handleCompleteTask(uri.queryParameters);
+        break;
+    }
+  }
 }
 ```
 
@@ -480,13 +568,15 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
 
 ### iOSビルドエラー
 
-**問題**: `Deployment target below iOS 13.0`
+**問題**: `Deployment target below iOS 16.0`
 
 **解決**: `ios/Podfile`を更新
 
 ```ruby
-platform :ios, '13.0'
+platform :ios, '16.0'
 ```
+
+> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
 
 ### コード生成が動作しない
 
