@@ -69,10 +69,14 @@ public actor FlutterBridge {
         suggestedEntitiesExecutor = executor
     }
 
+    /// Maximum time to wait for executor to be set (in seconds)
+    private let executorWaitTimeout: Double = 5.0
+
     /// Invokes a registered intent handler with the given parameters.
     ///
     /// The method first checks for a locally registered handler. If none is found,
     /// it falls back to the intent executor (which communicates with Flutter).
+    /// If the executor is not yet set, waits up to `executorWaitTimeout` seconds.
     ///
     /// - Parameters:
     ///   - intent: The identifier of the intent to invoke
@@ -86,12 +90,28 @@ public actor FlutterBridge {
             return try await handler(params)
         }
 
-        // Fall back to Flutter executor
+        // Wait for Flutter executor to be set
+        let executor = try await waitForIntentExecutor()
+        return try await executor(intent, params)
+    }
+
+    /// Waits for the intent executor to be set with timeout
+    private func waitForIntentExecutor() async throws -> @Sendable (String, [String: Any]) async throws -> Any {
+        // Try immediately first
         if let executor = intentExecutor {
-            return try await executor(intent, params)
+            return executor
         }
 
-        throw AppIntentError.intentNotFound(intent)
+        // Wait with retries (50 x 100ms = 5 seconds max)
+        let maxRetries = Int(executorWaitTimeout * 10)
+        for _ in 0..<maxRetries {
+            try await Task.sleep(nanoseconds: 100_000_000)  // 100ms
+            if let executor = intentExecutor {
+                return executor
+            }
+        }
+
+        throw AppIntentError.custom(code: "EXECUTOR_NOT_SET", message: "Intent executor was not set within timeout")
     }
 
     /// Registers a handler for the specified intent identifier.
@@ -131,14 +151,12 @@ public actor FlutterBridge {
     ///   - entityIdentifier: The type identifier of the entity (e.g., "TaskEntitySpec")
     ///   - identifiers: The list of entity IDs to fetch
     /// - Returns: An array of entity dictionaries
-    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set
+    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set within timeout
     public func queryEntities(
         entityIdentifier: String,
         identifiers: [String]
     ) async throws -> [[String: Any]] {
-        guard let executor = entityQueryExecutor else {
-            throw AppIntentError.entityQueryNotConfigured
-        }
+        let executor = try await waitForEntityQueryExecutor()
         return try await executor(entityIdentifier, identifiers)
     }
 
@@ -148,13 +166,45 @@ public actor FlutterBridge {
     ///
     /// - Parameter entityIdentifier: The type identifier of the entity
     /// - Returns: An array of suggested entity dictionaries
-    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set
+    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set within timeout
     public func suggestedEntities(
         entityIdentifier: String
     ) async throws -> [[String: Any]] {
-        guard let executor = suggestedEntitiesExecutor else {
-            throw AppIntentError.entityQueryNotConfigured
-        }
+        let executor = try await waitForSuggestedEntitiesExecutor()
         return try await executor(entityIdentifier)
+    }
+
+    /// Waits for the entity query executor to be set with timeout
+    private func waitForEntityQueryExecutor() async throws -> @Sendable (String, [String]) async throws -> [[String: Any]] {
+        if let executor = entityQueryExecutor {
+            return executor
+        }
+
+        let maxRetries = Int(executorWaitTimeout * 10)
+        for _ in 0..<maxRetries {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            if let executor = entityQueryExecutor {
+                return executor
+            }
+        }
+
+        throw AppIntentError.entityQueryNotConfigured
+    }
+
+    /// Waits for the suggested entities executor to be set with timeout
+    private func waitForSuggestedEntitiesExecutor() async throws -> @Sendable (String) async throws -> [[String: Any]] {
+        if let executor = suggestedEntitiesExecutor {
+            return executor
+        }
+
+        let maxRetries = Int(executorWaitTimeout * 10)
+        for _ in 0..<maxRetries {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            if let executor = suggestedEntitiesExecutor {
+                return executor
+            }
+        }
+
+        throw AppIntentError.entityQueryNotConfigured
     }
 }
