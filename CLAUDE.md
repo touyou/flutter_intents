@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flutter Intents is a Flutter plugin that bridges iOS App Intents framework, enabling Flutter apps to integrate with Siri, Shortcuts, and Spotlight.
+Flutter Intents is a Flutter plugin that bridges iOS App Intents and Android AppFunctions frameworks, enabling Flutter apps to integrate with Siri, Shortcuts, Spotlight, and AI agents (Gemini etc.).
 
 ## Package Structure
 
@@ -30,8 +30,11 @@ docs/
 | Localization | **String Catalog** (iOS standard) |
 | Error Handling | **Both** (iOS standard + custom) |
 | Entity Images | **URL + Asset + SF Symbol** |
-| Intent Execution | **URL Scheme** (due to Flutter engine timing) |
+| Intent Execution (iOS) | **URL Scheme** (due to Flutter engine timing) |
+| Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
+| Android Minimum | **API 36** (Android 16, for AppFunctions) |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha07** |
 
 ## Implementation Status
 
@@ -89,6 +92,18 @@ docs/
   - `openAppWhenRun = true` ensures app is launched before intent executes
   - SnackBar feedback for successful intent actions
 
+- Android AppFunctions Integration:
+  - `KotlinGenerator`: Generates Android 16+ AppFunctions Kotlin code
+    - `@AppFunction(isDescribedByKdoc = true)` annotated methods
+    - `@AppFunctionSerializable` data classes for entities
+    - `AppFunctionsBridge` singleton for MethodChannel communication
+    - `GeneratedAppFunctions` class with no-arg constructor (KSP requirement)
+  - Android `AppIntentsPlugin.kt`: MethodChannel bridge (`"app_intents"`)
+  - CLI command: `dart run app_intents_codegen:generate_kotlin` for Kotlin file output
+  - Example app Gradle configured with KSP and AppFunctions dependencies
+  - `MainActivity` wires `AppFunctionsBridge` to plugin's MethodChannel
+  - Android APK build verified successful
+
 ### Known Limitations
 - **Flutter Engine Timing**: Direct MethodChannel calls from App Intents may fail because:
   - App Intents can run in isolated process (`WFIsolatedShortcutRunner`)
@@ -145,6 +160,30 @@ Options:
 - `-i, --input`: Input directory (default: `lib`)
 - `-o, --output`: Output directory (default: `ios/Runner/GeneratedIntents`)
 - `-f, --file`: Output filename (default: `GeneratedAppIntents.swift`)
+
+### CLI Kotlin Generator
+Generate Kotlin code for Android AppFunctions:
+```bash
+cd app
+dart run app_intents_codegen:generate_kotlin \
+  -i lib \
+  -o android/app/src/main/kotlin/com/example/app/generated \
+  -p com.example.app.generated
+```
+Options:
+- `-i, --input`: Input directory (default: `lib`)
+- `-o, --output`: Output directory (required)
+- `-p, --package`: Kotlin package name (required)
+- `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
+
+### Android AppFunctions API Gotchas
+- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`)
+- `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
+- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
+- Parameter name is `isDescribedByKdoc` (lowercase 'd'), NOT `isDescribedByKDoc`
+- KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
+- KSP version format: `{kotlin-version}-{ksp-version}` (e.g., `2.2.20-2.0.4`)
+- Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
 
 ### Entity Identifier Consistency
 The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
@@ -259,8 +298,42 @@ they only run when the app is foregrounded via `openAppWhenRun = true`.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Android AppFunctions (MethodChannel Approach)
+
+Android AppFunctions run in-process, so MethodChannel works directly (no URL scheme needed).
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  AI Agent (Gemini etc.) → AppFunctionService (KSP-generated)    │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ invokes
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  GeneratedAppFunctions.createTask()                             │
+│  └── @AppFunction annotated suspend method                      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ delegates to
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  AppFunctionsBridge.getInstance().executeIntent()                │
+│  └── Singleton, initialized with MethodChannel from plugin      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ MethodChannel invokeMethod
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  AppIntentsPlugin (MethodChannel "app_intents")                 │
+│  └── executeIntent → Dart _intentHandlers[identifier]           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Dart handlers (registered via initializeXxxAppIntents)         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### Key Integration Points
-- **FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()` in AppDelegate
+- **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()` in AppDelegate
+- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel)` in MainActivity
 - **MethodChannel name**: `"app_intents"`
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
 
@@ -286,27 +359,62 @@ if #available(iOS 17.0, *) {
 ```
 5. Set iOS deployment target to 17.0 in Podfile
 
+### Android App Integration Steps
+1. Add KSP plugin to `android/settings.gradle.kts`:
+   ```kotlin
+   id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+   ```
+2. Configure `android/app/build.gradle.kts`:
+   - Apply KSP plugin, set `compileSdk = 36`, `minSdk = 36`
+   - Add AppFunctions dependencies (`appfunctions`, `appfunctions-service`, `appfunctions-compiler`)
+   - Add KSP arg: `ksp { arg("appfunctions:aggregateAppFunctions", "true") }`
+3. Run `make kotlin-gen` to generate Kotlin code
+4. Wire AppFunctionsBridge in MainActivity:
+```kotlin
+import com.example.app_intents.AppIntentsPlugin
+import com.example.app.generated.AppFunctionsBridge
+
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        val plugin = AppIntentsPlugin.shared
+        if (plugin != null) {
+            AppFunctionsBridge.initialize(plugin.getChannel())
+        }
+    }
+}
+```
+5. Register AppFunctionService in `AndroidManifest.xml`
+
 ## Development Commands
 
 Use the Makefile for common tasks:
 
 ```bash
-make help       # Show all available commands
-make ios        # Build and run Example App on iOS simulator
-make ios-build  # Build iOS app only (no run)
-make codegen    # Run Dart code generation (build_runner)
-make swift-gen  # Generate Swift code from annotations
-make test       # Run all tests
-make clean      # Clean build artifacts
+make help          # Show all available commands
+make ios           # Build and run Example App on iOS simulator
+make ios-build     # Build iOS app only (no run)
+make android       # Build and run Example App on Android emulator/device
+make android-build # Build Android APK only (no run)
+make codegen       # Run Dart code generation (build_runner)
+make swift-gen     # Generate Swift code from annotations
+make kotlin-gen    # Generate Kotlin code for Android AppFunctions
+make test          # Run all tests
+make clean         # Clean build artifacts
 ```
 
-Or use the script directly with options:
+Or use the scripts directly with options:
 
 ```bash
-./scripts/run_ios.sh                    # Build and run on simulator
+./scripts/run_ios.sh                    # Build and run on iOS simulator
 ./scripts/run_ios.sh --no-run           # Build only
 ./scripts/run_ios.sh --release          # Release build
 ./scripts/run_ios.sh -d <DEVICE_ID>     # Specify device
+
+./scripts/run_android.sh                # Build and run on Android
+./scripts/run_android.sh --no-run       # Build APK only
+./scripts/run_android.sh --release      # Release build
+./scripts/run_android.sh -d <DEVICE_ID> # Specify device
 ```
 
 ## Running Tests
@@ -422,6 +530,49 @@ void _registerCreateTaskIntentHandlers() {
 ```
 
 **Note**: Each spec file generates its own `initializeXxxAppIntents()` function. Call all of them in `main.dart`.
+
+## Generated Kotlin Code Example
+
+The Kotlin codegen produces AppFunctions code for Android 16+:
+
+```kotlin
+package com.example.app.generated
+
+import androidx.appfunctions.AppFunctionContext
+import androidx.appfunctions.AppFunctionSerializable
+import androidx.appfunctions.service.AppFunction
+import io.flutter.plugin.common.MethodChannel
+
+@AppFunctionSerializable(isDescribedByKdoc = true)
+data class TaskEntitySpec(
+    val id: String,
+    val title: String,
+    val description: String? = null
+)
+
+class GeneratedAppFunctions {
+    private val bridge: AppFunctionsBridge
+        get() = AppFunctionsBridge.getInstance()
+
+    /**
+     * Create a new task in your task list
+     *
+     * @param appFunctionContext The context for this app function execution.
+     * @param title The title of the task
+     */
+    @AppFunction(isDescribedByKdoc = true)
+    suspend fun createTask(
+        appFunctionContext: AppFunctionContext,
+        title: String
+    ): String {
+        val params = mutableMapOf<String, Any?>()
+        params["title"] = title
+        return bridge.executeIntent("com.example.taskapp.createTask", params)
+    }
+}
+```
+
+KSP compiler auto-generates `GeneratedAppFunctionsAppFunctionService` from the `@AppFunction` annotations.
 
 ## Knowledge Accumulation Workflow
 

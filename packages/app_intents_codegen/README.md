@@ -3,18 +3,27 @@
 [![pub package](https://img.shields.io/pub/v/app_intents_codegen.svg)](https://pub.dev/packages/app_intents_codegen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Code generator for Flutter App Intents. Produces Swift and Dart code from `@IntentSpec` and `@EntitySpec` annotations.
+Code generator for Flutter App Intents. Produces Swift, Kotlin, and Dart code from `@IntentSpec` and `@EntitySpec` annotations.
 
 ## Features
 
+### iOS (Swift)
 - Generate iOS 17+ Swift code for App Intents
-- Generate Dart initialization code for intent handlers
-- Support for `@AppShortcut` and `@AppShortcutsProvider`
 - `ProvidesDialog` for Siri/Shortcuts dialog feedback
 - `ParameterSummary` for Shortcuts UI display
 - `AppEnum` generation for enum parameters
 - Entity `DisplayRepresentation` with SF Symbol image support
-- CLI tool for Swift code generation
+- Support for `@AppShortcut` and `@AppShortcutsProvider`
+
+### Android (Kotlin)
+- Generate Android 16+ (API 36) Kotlin code for AppFunctions
+- `@AppFunction` annotated methods for AI agent integration
+- `@AppFunctionSerializable` data classes for entities
+- `AppFunctionsBridge` singleton for MethodChannel communication
+
+### Common
+- Generate Dart initialization code for intent handlers
+- CLI tools for Swift and Kotlin code generation
 - Integration with `build_runner` for Dart code generation
 
 ## Installation
@@ -68,21 +77,34 @@ dart run build_runner build --delete-conflicting-outputs
 
 This creates `*.intent.dart` part files with `initializeXxxAppIntents()` functions.
 
-### 3. Generate Swift Code
+### 3. Generate Native Code
 
-Use the CLI tool to generate Swift code for iOS:
+Use the CLI tools to generate native code:
 
 ```bash
+# iOS: Generate Swift code
 dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+
+# Android: Generate Kotlin code
+dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotlin/com/example/app/generated -p com.example.app.generated
 ```
 
-#### CLI Options
+#### Swift CLI Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-i, --input` | Input directory to scan | `lib` |
 | `-o, --output` | Output directory for Swift files | `ios/Runner/GeneratedIntents` |
 | `-f, --file` | Output filename | `GeneratedAppIntents.swift` |
+
+#### Kotlin CLI Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-i, --input` | Input directory to scan | `lib` |
+| `-o, --output` | Output directory for Kotlin files | (required) |
+| `-p, --package` | Kotlin package name | (required) |
+| `-f, --file` | Output filename | `GeneratedAppFunctions.kt` |
 
 ### 4. Integrate Generated Code
 
@@ -142,7 +164,7 @@ void initializeCreateTaskAppIntents() {
 
 ## Related Packages
 
-- [app_intents](https://pub.dev/packages/app_intents) - Flutter plugin for iOS App Intents
+- [app_intents](https://pub.dev/packages/app_intents) - Flutter plugin for iOS App Intents and Android AppFunctions
 - [app_intents_annotations](https://pub.dev/packages/app_intents_annotations) - Annotations for defining intents and entities
 
 ## License

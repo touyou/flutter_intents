@@ -19,6 +19,7 @@ dependencies:
 
 executables:
   generate_swift: generate_swift
+  generate_kotlin: generate_kotlin
 
 dev_dependencies:
   lints: ^6.0.0

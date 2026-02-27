@@ -80,9 +80,14 @@ class IntentAnalyzer {
       return IntentImplementationType.dart;
     }
 
-    return enumValue == 1
-        ? IntentImplementationType.swift
-        : IntentImplementationType.dart;
+    switch (enumValue) {
+      case 1:
+        return IntentImplementationType.swift;
+      case 2:
+        return IntentImplementationType.kotlin;
+      default:
+        return IntentImplementationType.dart;
+    }
   }
 
   (String?, String?) _extractTypeArguments(ClassElement element) {

@@ -223,14 +223,14 @@ app_intents_annotations/
 
 ## app_intents
 
-Flutter plugin for iOS App Intents integration.
+Flutter plugin for iOS App Intents and Android AppFunctions integration.
 
 ### Dependencies
 
 - Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
-- iOS: 17.0+
-- Swift: 5.9+
+- iOS: 17.0+, Swift 5.9+
+- Android: API 36+ (AppFunctions)
 
 ### Architecture
 
@@ -375,7 +375,7 @@ Tool for generating code from Dart annotations.
 
 ### Implemented Features
 
-1. **Swift Code Generation** ✅
+1. **Swift Code Generation (iOS)** ✅
    - AppIntent conforming types with `ProvidesDialog` and `ParameterSummary`
    - AppEntity conforming types with SF Symbol image in `DisplayRepresentation`
    - AppEnum conforming types with `typeDisplayRepresentation` and `caseDisplayRepresentations`
@@ -383,17 +383,24 @@ Tool for generating code from Dart annotations.
    - AppShortcutsProvider generation (result builder pattern)
    - Proper error handling (`throw` on URL construction failure)
 
-2. **Dart Binding Generation** ✅
+2. **Kotlin Code Generation (Android)** ✅
+   - `@AppFunction` annotated methods for AppFunctions framework
+   - `@AppFunctionSerializable` data classes for entities
+   - `AppFunctionsBridge` singleton for MethodChannel communication
+   - Enum class generation with `fromValue()` companion
+
+3. **Dart Binding Generation** ✅
    - Intent Handler registration code (part file format)
    - Entity Query Handler registration code
    - Suggested Entities Handler registration code
 
-3. **build_runner Integration** ✅
+4. **build_runner Integration** ✅
    - `PartBuilder` implementation (`.intent.dart` file generation)
    - Incremental build support
 
-4. **CLI Command** ✅
+5. **CLI Commands** ✅
    - `dart run app_intents_codegen:generate_swift` for Swift file generation
+   - `dart run app_intents_codegen:generate_kotlin` for Kotlin file generation
 
 ### Usage
 
@@ -408,8 +415,11 @@ dev_dependencies:
 # Generate Dart bindings
 dart run build_runner build
 
-# Generate Swift App Intents
+# Generate Swift App Intents (iOS)
 dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+
+# Generate Kotlin AppFunctions (Android)
+dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotlin/com/example/app/generated -p com.example.app.generated
 ```
 
 ### Generated Files
@@ -444,6 +454,7 @@ app_intents_codegen/
 │       │   └── enum_analyzer.dart
 │       ├── generator/              # Code generation
 │       │   ├── swift_generator.dart
+│       │   ├── kotlin_generator.dart
 │       │   └── dart_generator.dart
 │       ├── models/                 # Data models
 │       │   ├── intent_info.dart
@@ -451,8 +462,9 @@ app_intents_codegen/
 │       │   └── enum_info.dart
 │       └── builder.dart            # build_runner integration
 ├── bin/
-│   └── generate_swift.dart         # CLI command
-└── test/                           # 114 tests
+│   ├── generate_swift.dart         # Swift CLI command
+│   └── generate_kotlin.dart        # Kotlin CLI command
+└── test/                           # 150+ tests
 ```
 
 ---
