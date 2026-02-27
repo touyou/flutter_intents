@@ -13,6 +13,7 @@
   - Caches params to UserDefaults via `AppIntentsPlugin.setPendingAction()`
   - `processPendingActions()` delivers cached actions via existing `executeIntent` mechanism
 - Add `IntentFile.fromMap()` extraction in DartGenerator for file parameters
+- Fix: Use `Map.from()` for IntentFile params from MethodChannel (avoid type cast errors)
 - Add `IntentModeType` enum and `fileType` field to codegen models
 - Update IntentAnalyzer to parse `supportedModes` and `fileType` annotations
 

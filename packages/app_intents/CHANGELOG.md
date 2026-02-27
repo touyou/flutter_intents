@@ -2,7 +2,10 @@
 
 - Add caching API: `getCachedValue()`, `setCachedValue()`, `clearCachedValue()`
 - Add `processPendingActions()` for delivering cached intent actions after Flutter startup
+- Add `pendingActionsStream` via FlutterEventChannel for buffered pending action notifications
 - iOS Plugin: `setPendingAction()` for caching intent params in UserDefaults
+- iOS Plugin: `PendingActionStreamHandler` with thread-safe buffered push
+- Fix: Return action data directly from `processPendingActions` instead of nested MethodChannel call
 
 ## 0.3.0
 

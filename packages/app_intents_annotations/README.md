@@ -17,11 +17,11 @@ Annotations for defining iOS App Intents and Android AppFunctions in Flutter. Us
 
 ```yaml
 dependencies:
-  app_intents: ^0.3.0
-  app_intents_annotations: ^0.3.0
+  app_intents: ^0.4.0
+  app_intents_annotations: ^0.4.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.3.0
+  app_intents_codegen: ^0.4.0
   build_runner: ^2.4.0
 ```
 
