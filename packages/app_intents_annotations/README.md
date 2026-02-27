@@ -3,7 +3,7 @@
 [![pub package](https://img.shields.io/pub/v/app_intents_annotations.svg)](https://pub.dev/packages/app_intents_annotations)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Annotations for defining iOS App Intents in Flutter. Use with `app_intents` and `app_intents_codegen` to generate Swift code for Siri, Shortcuts, and Spotlight integration.
+Annotations for defining iOS App Intents and Android AppFunctions in Flutter. Use with `app_intents` and `app_intents_codegen` to generate Swift/Kotlin code for Siri, Shortcuts, Spotlight, and AI agent integration.
 
 ## Features
 
@@ -106,8 +106,8 @@ class TaskShortcutsProvider {
 
 ## Related Packages
 
-- [app_intents](https://pub.dev/packages/app_intents) - Flutter plugin for iOS App Intents
-- [app_intents_codegen](https://pub.dev/packages/app_intents_codegen) - Code generator for Swift and Dart
+- [app_intents](https://pub.dev/packages/app_intents) - Flutter plugin for iOS App Intents and Android AppFunctions
+- [app_intents_codegen](https://pub.dev/packages/app_intents_codegen) - Code generator for Swift, Kotlin, and Dart
 
 ## License
 

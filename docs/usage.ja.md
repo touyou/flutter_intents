@@ -15,7 +15,9 @@ dev_dependencies:
   build_runner: ^2.4.0
 ```
 
-### 2. iOS設定
+### 2. プラットフォーム設定
+
+#### iOS
 
 `ios/Podfile`でiOSバージョンを17.0以上に設定（App Intentsフレームワーク要件）:
 
@@ -24,6 +26,39 @@ platform :ios, '17.0'
 ```
 
 > **Note**: App Intentsフレームワークは iOS 17.0 以上が必須です。
+
+#### Android
+
+`android/app/build.gradle.kts`で`compileSdk`、`minSdk`、`targetSdk`を36に設定（AppFunctionsはAndroid 16が必要）:
+
+```kotlin
+android {
+    compileSdk = 36
+    defaultConfig {
+        minSdk = 36
+        targetSdk = 36
+    }
+}
+```
+
+KSPとAppFunctionsの依存関係を追加:
+
+```kotlin
+// android/settings.gradle.kts
+id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+
+// android/app/build.gradle.kts
+plugins {
+    id("com.google.devtools.ksp")
+}
+dependencies {
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha07")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
+}
+```
+
+> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。
 
 ## Intentの定義
 

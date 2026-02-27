@@ -3,19 +3,21 @@
 [![pub package](https://img.shields.io/pub/v/app_intents.svg)](https://pub.dev/packages/app_intents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spotlight support for your Flutter app.
+Flutter plugin for iOS App Intents and Android AppFunctions integration. Enables Siri, Shortcuts, Spotlight, and AI agent (Gemini) support for your Flutter app.
 
 ## Features
 
-- Register intent handlers to respond to Siri and Shortcuts actions
+- Register intent handlers to respond to Siri, Shortcuts, and AI agent actions
 - Define entity queries for parameter pickers in Shortcuts
 - Stream-based intent execution events
+- Cross-platform: iOS App Intents + Android AppFunctions
 - Seamless integration with `app_intents_annotations` and `app_intents_codegen`
 
 ## Requirements
 
-- iOS 17.0 or later
-- Flutter 3.3+
+- **iOS**: 17.0+
+- **Android**: API 36+ (Android 16, for AppFunctions)
+- **Flutter**: 3.3+
 
 ## Installation
 
@@ -105,7 +107,7 @@ platform :ios, '17.0'
 ## Related Packages
 
 - [app_intents_annotations](https://pub.dev/packages/app_intents_annotations) - Annotations for defining intents and entities
-- [app_intents_codegen](https://pub.dev/packages/app_intents_codegen) - Code generator for Swift and Dart
+- [app_intents_codegen](https://pub.dev/packages/app_intents_codegen) - Code generator for Swift, Kotlin, and Dart
 
 ## License
 

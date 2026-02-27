@@ -223,14 +223,14 @@ app_intents_annotations/
 
 ## app_intents
 
-iOS App Intents連携用Flutterプラグイン。
+iOS App IntentsおよびAndroid AppFunctions連携用Flutterプラグイン。
 
 ### 依存関係
 
 - Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
-- iOS: 17.0+
-- Swift: 5.9+
+- iOS: 17.0+、Swift 5.9+
+- Android: API 36+（AppFunctions）
 
 ### アーキテクチャ
 
@@ -375,7 +375,7 @@ Dartアノテーションからコードを生成するツール。
 
 ### 実装済み機能
 
-1. **Swiftコード生成** ✅
+1. **Swiftコード生成（iOS）** ✅
    - AppIntent準拠型の生成（`ProvidesDialog`、`ParameterSummary` 対応）
    - AppEntity準拠型の生成（SF Symbol画像付き `DisplayRepresentation`）
    - AppEnum準拠型の生成（`typeDisplayRepresentation`、`caseDisplayRepresentations`）
@@ -383,17 +383,24 @@ Dartアノテーションからコードを生成するツール。
    - AppShortcutsProviderの生成（result builderパターン）
    - 適切なエラーハンドリング（URL構築失敗時に `throw`）
 
-2. **Dartバインディング生成** ✅
+2. **Kotlinコード生成（Android）** ✅
+   - `@AppFunction` アノテーション付きメソッド（AppFunctionsフレームワーク）
+   - `@AppFunctionSerializable` データクラス（エンティティ）
+   - `AppFunctionsBridge` シングルトン（MethodChannel通信）
+   - Enumクラス生成（`fromValue()` companion object）
+
+3. **Dartバインディング生成** ✅
    - Intent Handler登録コード（part file形式）
    - Entity Query Handler登録コード
    - Suggested Entities Handler登録コード
 
-3. **build_runner統合** ✅
+4. **build_runner統合** ✅
    - `PartBuilder`実装（`.intent.dart`ファイル生成）
    - インクリメンタルビルド対応
 
-4. **CLIコマンド** ✅
+5. **CLIコマンド** ✅
    - `dart run app_intents_codegen:generate_swift` でSwiftファイル生成
+   - `dart run app_intents_codegen:generate_kotlin` でKotlinファイル生成
 
 ### 使用方法
 
@@ -408,8 +415,11 @@ dev_dependencies:
 # Dartバインディング生成
 dart run build_runner build
 
-# Swift App Intents生成
+# Swift App Intents生成（iOS）
 dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+
+# Kotlin AppFunctions生成（Android）
+dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotlin/com/example/app/generated -p com.example.app.generated
 ```
 
 ### 生成ファイル
@@ -444,6 +454,7 @@ app_intents_codegen/
 │       │   └── enum_analyzer.dart
 │       ├── generator/              # コード生成
 │       │   ├── swift_generator.dart
+│       │   ├── kotlin_generator.dart
 │       │   └── dart_generator.dart
 │       ├── models/                 # データモデル
 │       │   ├── intent_info.dart
@@ -451,8 +462,9 @@ app_intents_codegen/
 │       │   └── enum_info.dart
 │       └── builder.dart            # build_runner統合
 ├── bin/
-│   └── generate_swift.dart         # CLIコマンド
-└── test/                           # 114テスト
+│   ├── generate_swift.dart         # Swift CLIコマンド
+│   └── generate_kotlin.dart        # Kotlin CLIコマンド
+└── test/                           # 150+テスト
 ```
 
 ---

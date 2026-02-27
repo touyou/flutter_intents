@@ -15,7 +15,9 @@ dev_dependencies:
   build_runner: ^2.4.0
 ```
 
-### 2. iOS Configuration
+### 2. Platform Configuration
+
+#### iOS
 
 Set iOS version to 17.0 or higher in `ios/Podfile` (App Intents framework requirement):
 
@@ -24,6 +26,39 @@ platform :ios, '17.0'
 ```
 
 > **Note**: App Intents framework requires iOS 17.0 or later.
+
+#### Android
+
+Set `compileSdk`, `minSdk`, and `targetSdk` to 36 in `android/app/build.gradle.kts` (AppFunctions requires Android 16):
+
+```kotlin
+android {
+    compileSdk = 36
+    defaultConfig {
+        minSdk = 36
+        targetSdk = 36
+    }
+}
+```
+
+Add KSP and AppFunctions dependencies:
+
+```kotlin
+// android/settings.gradle.kts
+id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+
+// android/app/build.gradle.kts
+plugins {
+    id("com.google.devtools.ksp")
+}
+dependencies {
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha07")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
+}
+```
+
+> **Note**: AppFunctions requires Android 16 (API 36) or later.
 
 ## Defining Intents
 

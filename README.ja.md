@@ -1,17 +1,17 @@
 # Flutter Intents
 
-FlutterアプリケーションからiOS App Intentsフレームワークを利用するためのパッケージ群です。
+FlutterアプリケーションからiOS App IntentsおよびAndroid AppFunctionsフレームワークを利用するためのパッケージ群です。
 
 ## 概要
 
-このプロジェクトは、FlutterアプリでiOSのApp Intents（Siri、Shortcuts、Spotlight連携）を宣言的に定義し、自動生成されたSwiftコードを通じてネイティブ連携を実現することを目指しています。
+このプロジェクトは、FlutterアプリでiOSのApp Intents（Siri、Shortcuts、Spotlight連携）とAndroidのAppFunctions（Gemini等AIエージェント連携）を宣言的に定義し、自動生成されたネイティブコードを通じてプラットフォーム連携を実現することを目指しています。
 
 ### 主な目標
 
 1. **宣言的なIntent定義**: Dartアノテーションを使用してApp Intentsを定義
 2. **型安全**: ジェネリクスによる入出力の型チェック
-3. **コード生成**: Dart定義からSwift App Intentsコードを自動生成
-4. **柔軟な実装選択**: DartまたはSwiftでIntent処理を実装可能
+3. **コード生成**: Dart定義からSwift/Kotlinコードを自動生成
+4. **クロスプラットフォーム**: 1つのDart定義からiOS・Android両方のネイティブコードを生成
 
 ## プロジェクト構成
 
@@ -31,8 +31,8 @@ flutter_intents/
 | パッケージ | 説明 |
 |-----------|------|
 | [app_intents_annotations](docs/packages.md#app_intents_annotations) | Intent/Entityを定義するためのアノテーションとベースクラス |
-| [app_intents](docs/packages.md#app_intents) | iOS連携用Flutterプラグイン |
-| [app_intents_codegen](docs/packages.md#app_intents_codegen) | SwiftコードジェネレーターTool |
+| [app_intents](docs/packages.md#app_intents) | iOS/Android連携用Flutterプラグイン |
+| [app_intents_codegen](docs/packages.md#app_intents_codegen) | Swift/Kotlinコードジェネレーター |
 
 ## クイックスタート
 
@@ -99,8 +99,8 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 - **Dart SDK**: ^3.10.0
 - **Flutter**: 3.3+
-- **Swift**: 5.9+
-- **iOS**: 17.0+ (App Intents requires iOS 17)
+- **iOS**: 17.0+（App Intents）、Swift 5.9+
+- **Android**: API 36+（Android 16、AppFunctions）
 
 ## ライセンス
 
