@@ -1,94 +1,97 @@
+---
+description: Release all Flutter Intents packages to pub.dev with version bump, commit, tag, and publish
+---
+
 # Publish Packages to pub.dev
 
-Publish Flutter Intents packages to pub.dev in the correct order.
+Release all Flutter Intents packages as version `$ARGUMENTS` (e.g., `0.3.0`).
 
-## Prerequisites
+If no version is provided, ask the user for the target version.
 
-1. Login to pub.dev: `dart pub login`
-2. Ensure all tests pass: `make test`
-3. Update version numbers in all `pubspec.yaml` files
-4. Update `CHANGELOG.md` files
+## Full Release Flow
 
-## Publish Order (respecting dependencies)
+Execute the following steps in order. Stop and report if any step fails.
 
-Packages must be published in this order due to dependencies:
-
-1. **app_intents_annotations** (no dependencies)
-2. **app_intents** (no internal dependencies)
-3. **app_intents_codegen** (depends on app_intents_annotations)
-
-## Steps
-
-### 1. Pre-publish Checks
+### 1. Run All Tests
 
 ```bash
-# Run dry-run for each package
+cd packages/app_intents_codegen && dart test
+cd packages/app_intents_annotations && dart test
+cd packages/app_intents && flutter test
+```
+
+All tests must pass before proceeding.
+
+### 2. Version Bump
+
+Update the version in ALL of these files (replace the old version with `$ARGUMENTS`):
+
+- `packages/app_intents_annotations/pubspec.yaml` → `version: $ARGUMENTS`
+- `packages/app_intents/pubspec.yaml` → `version: $ARGUMENTS`
+- `packages/app_intents/ios/app_intents.podspec` → `s.version = '$ARGUMENTS'`
+- `packages/app_intents_codegen/pubspec.yaml` → `version: $ARGUMENTS`
+- `packages/app_intents_codegen/pubspec.yaml` → `app_intents_annotations: ^$ARGUMENTS`
+
+### 3. Update CHANGELOGs
+
+Add a `## $ARGUMENTS` section at the top of each CHANGELOG.md with the new features/fixes:
+
+- `packages/app_intents_annotations/CHANGELOG.md`
+- `packages/app_intents/CHANGELOG.md`
+- `packages/app_intents_codegen/CHANGELOG.md`
+
+Summarize changes from `git log` since the last tag. Use bullet points.
+
+### 4. Dry-Run Validation
+
+```bash
 cd packages/app_intents_annotations && dart pub publish --dry-run
 cd packages/app_intents && flutter pub publish --dry-run
 cd packages/app_intents_codegen && dart pub publish --dry-run
 ```
 
-### 2. Update path dependencies (if using)
+All must show `Package has 0 warnings.` (hints are OK).
 
-Before publishing `app_intents_codegen`, update the dependency:
-
-```yaml
-# Change from:
-app_intents_annotations:
-  path: ../app_intents_annotations
-
-# To:
-app_intents_annotations: ^X.Y.Z
-```
-
-### 3. Publish
+### 5. Commit and Tag
 
 ```bash
-# 1. Publish annotations
-cd packages/app_intents_annotations
-dart pub publish --force
-
-# 2. Publish plugin
-cd packages/app_intents
-flutter pub publish --force
-
-# 3. Update path dependency and publish codegen
-cd packages/app_intents_codegen
-# Edit pubspec.yaml to use hosted dependency
-dart pub get
-dart pub publish --force
+git add <all changed files>
+git commit -m "chore: Release v$ARGUMENTS"
+git tag v$ARGUMENTS
+git push origin main --tags
 ```
 
-### 4. Post-publish
+### 6. Publish to pub.dev
+
+Publish in dependency order. Each must succeed before the next:
 
 ```bash
-# Commit dependency changes
-git add -A
-git commit -m "chore: Update dependencies for pub.dev release vX.Y.Z"
-git push
+# 1. annotations (no dependencies)
+cd packages/app_intents_annotations && dart pub publish --force
+
+# 2. plugin (no internal dependencies)
+cd packages/app_intents && flutter pub publish --force
+
+# 3. codegen (depends on annotations)
+cd packages/app_intents_codegen && dart pub publish --force
 ```
 
-## Version Bump Checklist
+### 7. Report
 
-When bumping versions, update:
+Print a summary:
+- Version released
+- Packages published (with pub.dev URLs)
+- Git tag created
 
-- [ ] `packages/app_intents/pubspec.yaml`
-- [ ] `packages/app_intents/ios/app_intents.podspec`
-- [ ] `packages/app_intents/CHANGELOG.md`
-- [ ] `packages/app_intents_annotations/pubspec.yaml`
-- [ ] `packages/app_intents_annotations/CHANGELOG.md`
-- [ ] `packages/app_intents_codegen/pubspec.yaml`
-- [ ] `packages/app_intents_codegen/CHANGELOG.md`
-- [ ] `README.md` and `README.ja.md` version references
-- [ ] `docs/usage.md` and `docs/usage.ja.md` version references
+## Publish Order (dependency chain)
+
+1. **app_intents_annotations** — no internal deps
+2. **app_intents** — no internal deps
+3. **app_intents_codegen** — depends on `app_intents_annotations`
 
 ## Troubleshooting
 
-### "path dependencies not allowed"
-Update `app_intents_codegen/pubspec.yaml` to use hosted dependency instead of path.
-
-### Package not found after publish
-Wait up to 10 minutes for pub.dev to index the new package.
-
-### Authentication error
-Run `dart pub login` and complete browser authentication.
+- **"path dependencies not allowed"**: Ensure `app_intents_codegen/pubspec.yaml` uses `app_intents_annotations: ^X.Y.Z`, not a path dependency
+- **Package not found after publish**: Wait up to 10 minutes for pub.dev indexing
+- **Authentication error**: Run `dart pub login` first
+- **podspec version mismatch**: Always update `app_intents.podspec` alongside `pubspec.yaml`
