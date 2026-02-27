@@ -24,7 +24,7 @@ docs/
 
 | Decision | Choice |
 |----------|--------|
-| iOS Minimum | **iOS 16** |
+| iOS Minimum | **iOS 17** |
 | AppShortcutsProvider | **Supported** |
 | Handler Registration | **Auto-registration** (code-generated) |
 | Localization | **String Catalog** (iOS standard) |
@@ -37,32 +37,40 @@ docs/
 
 ### Completed
 - `app_intents_annotations`: All annotations defined
-  - `@IntentSpec` (with `urlScheme`/`urlAction` for URL scheme execution)
-  - `@IntentParam` (with `entityType` for entity picker parameters)
+  - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
+  - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)
   - `@EntitySpec`, `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery`
+  - `@EnumSpec`, `@EnumCaseDisplay` for AppEnum support
   - `@AppShortcut`, `@AppShortcutsProvider`
 - `app_intents`: Platform Interface extended
   - `registerIntentHandler`, `registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`
   - `onIntentExecution` stream
   - iOS `AppIntentsPlugin.swift` updated
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
-  - `IntentAnalyzer`, `EntityAnalyzer` for annotation parsing
-  - `SwiftGenerator`: Generates iOS 16+ AppIntent/AppEntity/AppShortcutsProvider Swift code
+  - `IntentAnalyzer`, `EntityAnalyzer`, `EnumAnalyzer` for annotation parsing
+  - `SwiftGenerator`: Generates iOS 17+ AppIntent/AppEntity/AppEnum/AppShortcutsProvider Swift code
     - URL scheme execution (when `urlScheme` set) or FlutterBridge invocation
+    - `IntentResult & ProvidesDialog` for Siri/Shortcuts dialog feedback
+    - `ParameterSummary` for Shortcuts UI display
     - Entity parameter types with picker UI support
+    - Entity `DisplayRepresentation` with SF Symbol image support
+    - AppEnum generation with `typeDisplayRepresentation` and `caseDisplayRepresentations`
+    - Proper error handling (`throw` instead of silent `return .result()`)
     - FlutterBridge-backed EntityQuery with `entities(for:)` and `suggestedEntities()`
   - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
     - Always registers both `registerEntityQueryHandler` and `registerSuggestedEntitiesHandler`
   - `AppIntentsBuilder` using `PartBuilder` for proper part file generation
   - CLI command: `dart run app_intents_codegen:generate_swift` for Swift file output
-  - 90+ tests covering analyzers, generators, and builder
+  - 114 tests covering analyzers, generators, and builder
 - `ios-spm/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
 - `app/` Example App: Task management demo
-  - `CreateTaskIntentSpec` (URL scheme: `taskapp://create`), `CompleteTaskIntentSpec` (URL scheme: `taskapp://complete`)
+  - `CreateTaskIntentSpec` (URL scheme: `taskapp://create`, dialog + parameterSummary)
+  - `CompleteTaskIntentSpec` (URL scheme: `taskapp://complete`, dialog + parameterSummary)
   - `CompleteTask` uses entity parameter (`TaskEntitySpec`) for picker UI
-  - `TaskEntitySpec` entity with query handler + suggested entities handler
+  - `TaskEntitySpec` entity with query handler + suggested entities handler + SF Symbol image
+  - `TaskAppShortcuts` with `@AppShortcutsProvider` for Siri shortcuts
   - `Task` model with JSON serialization
   - `TaskRepository` in-memory storage
   - Handlers defined inline with specs (part file pattern)
@@ -93,11 +101,10 @@ docs/
   - Entity query handlers (`registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`) are still used
   - Keeping unused handlers is harmless (minimal overhead) and useful for testing
 
-### Future Migration (when iOS minimum is raised)
+### Future Migration
 - **`openAppWhenRun` → `supportedModes`** (iOS 26+): `static let supportedModes: IntentModes = .foreground` replaces deprecated `openAppWhenRun`
-- **`@Property` wrapper** (iOS 17+): Expose entity properties to system (Spotlight, etc.)
+- **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
 - **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
-- **`ParameterSummary`**: Enable Spotlight integration on Mac
 - **`IndexedEntity`** (iOS 26+): Spotlight semantic search on entities
 - **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
 - **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
@@ -266,7 +273,7 @@ they only run when the app is foregrounded via `openAppWhenRun = true`.
 import app_intents
 
 // In didFinishLaunchingWithOptions:
-if #available(iOS 16.0, *) {
+if #available(iOS 17.0, *) {
   Task {
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
       guard let plugin = AppIntentsPlugin.shared else {
@@ -277,7 +284,7 @@ if #available(iOS 16.0, *) {
   }
 }
 ```
-5. Set iOS deployment target to 16.0 in Podfile
+5. Set iOS deployment target to 17.0 in Podfile
 
 ## Development Commands
 
@@ -331,7 +338,7 @@ The codegen produces Swift with URL scheme execution (when `urlScheme` is set):
 import AppIntents
 import UIKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var openAppWhenRun: Bool { true }

@@ -266,7 +266,7 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 
 | Item | Requirement |
 |------|-------------|
-| **Minimum iOS Version** | iOS 16.0+ |
+| **Minimum iOS Version** | iOS 17.0+ |
 | **Swift** | 5.0+ |
 | **Xcode** | 14.0+ |
 
@@ -293,11 +293,11 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 ### Generated Swift Code
 
 ```swift
-// Generated from CreateTaskIntentSpec (iOS 16+)
+// Generated from CreateTaskIntentSpec (iOS 17+)
 import AppIntents
 import UIKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
@@ -326,7 +326,7 @@ struct CreateTaskIntent: AppIntent {
 }
 
 // Generated AppShortcutsProvider
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

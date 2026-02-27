@@ -16,10 +16,17 @@ class IntentParam {
   /// The entity's `.id` property is used for URL scheme parameters.
   final String? entityType;
 
+  /// The enum type for this parameter (e.g., 'Priority').
+  ///
+  /// When set, the generated Swift parameter uses the specified AppEnum type.
+  /// The enum's `.rawValue` is used for URL scheme parameters.
+  final String? enumType;
+
   const IntentParam({
     required this.title,
     this.description,
     this.isOptional = false,
     this.entityType,
+    this.enumType,
   });
 }

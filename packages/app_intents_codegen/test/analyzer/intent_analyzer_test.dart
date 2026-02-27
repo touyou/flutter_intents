@@ -255,6 +255,113 @@ void main() {
         expect(param.entityType, equals('TaskEntitySpec'));
       });
 
+      test('extracts resultDialogTemplate when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            resultDialogTemplate: 'Created task "{title}"',
+          )
+          class CreateTaskIntent extends IntentSpecBase<String, void> {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            CreateTaskIntent({required this.title});
+          }
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CreateTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.resultDialogTemplate, equals('Created task "{title}"'));
+      });
+
+      test('resultDialogTemplate is null when not provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.greet',
+            title: 'Greet User',
+          )
+          class GreetIntent extends IntentSpecBase<String, void> {}
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'GreetIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.resultDialogTemplate, isNull);
+      });
+
+      test('extracts parameterSummary when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            parameterSummary: 'Create "{title}"',
+          )
+          class CreateTaskIntent extends IntentSpecBase<String, void> {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            CreateTaskIntent({required this.title});
+          }
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CreateTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.parameterSummary, equals('Create "{title}"'));
+      });
+
+      test('extracts enumType from @IntentParam annotation', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+          )
+          class CreateTaskIntent extends IntentSpecBase<String, void> {
+            @IntentParam(
+              title: 'Priority',
+              enumType: 'TaskPriority',
+            )
+            final String priority;
+
+            CreateTaskIntent({required this.priority});
+          }
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CreateTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.parameters, hasLength(1));
+        final param = result.parameters.first;
+        expect(param.fieldName, equals('priority'));
+        expect(param.enumType, equals('TaskPriority'));
+      });
+
       test('returns null for class without @IntentSpec annotation', () async {
         final library = await resolveSource('''
           class PlainClass {}

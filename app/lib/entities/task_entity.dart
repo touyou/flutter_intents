@@ -26,10 +26,14 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntitySubtitle()
   final String? description;
 
+  @EntityImage()
+  final String? iconName;
+
   TaskEntitySpec({
     required this.id,
     required this.title,
     this.description,
+    this.iconName,
   });
 }
 

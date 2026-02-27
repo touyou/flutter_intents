@@ -13,6 +13,7 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/annotations/entity_spec.dart';
         export 'src/annotations/entity_params.dart';
         export 'src/annotations/app_shortcut.dart';
+        export 'src/annotations/enum_spec.dart';
         export 'src/bases/intent_spec_base.dart';
         export 'src/bases/entity_spec_base.dart';
       ''',
@@ -24,6 +25,8 @@ Future<LibraryElement> resolveSource(String source) async {
           final IntentImplementation implementation;
           final String? urlScheme;
           final String? urlAction;
+          final String? resultDialogTemplate;
+          final String? parameterSummary;
 
           const IntentSpec({
             required this.identifier,
@@ -32,6 +35,8 @@ Future<LibraryElement> resolveSource(String source) async {
             this.implementation = IntentImplementation.dart,
             this.urlScheme,
             this.urlAction,
+            this.resultDialogTemplate,
+            this.parameterSummary,
           });
         }
 
@@ -46,12 +51,14 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? description;
           final bool isOptional;
           final String? entityType;
+          final String? enumType;
 
           const IntentParam({
             required this.title,
             this.description,
             this.isOptional = false,
             this.entityType,
+            this.enumType,
           });
         }
       ''',
@@ -99,6 +106,25 @@ Future<LibraryElement> resolveSource(String source) async {
       'app_intents_annotations|lib/src/bases/entity_spec_base.dart': '''
         abstract class EntitySpecBase<M> {
           const EntitySpecBase();
+        }
+      ''',
+      'app_intents_annotations|lib/src/annotations/enum_spec.dart': '''
+        class EnumSpec {
+          final String identifier;
+          final String title;
+
+          const EnumSpec({
+            required this.identifier,
+            required this.title,
+          });
+        }
+
+        class EnumCaseDisplay {
+          final String title;
+
+          const EnumCaseDisplay({
+            required this.title,
+          });
         }
       ''',
       'app_intents_annotations|lib/src/annotations/app_shortcut.dart': '''

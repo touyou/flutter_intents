@@ -7,7 +7,7 @@ Code generator for Flutter App Intents. Produces Swift and Dart code from `@Inte
 
 ## Features
 
-- Generate iOS 16+ Swift code for App Intents
+- Generate iOS 17+ Swift code for App Intents
 - Generate Dart initialization code for intent handlers
 - Support for `@AppShortcut` and `@AppShortcutsProvider`
 - CLI tool for Swift code generation
@@ -98,12 +98,12 @@ void main() {
 
 ### Swift Output
 
-The generator produces iOS 16+ compatible Swift code:
+The generator produces iOS 17+ compatible Swift code:
 
 ```swift
 import AppIntents
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
 

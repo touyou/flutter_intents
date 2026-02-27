@@ -17,13 +17,13 @@ dev_dependencies:
 
 ### 2. iOS Configuration
 
-Set iOS version to 16.0 or higher in `ios/Podfile` (App Intents framework requirement):
+Set iOS version to 17.0 or higher in `ios/Podfile` (App Intents framework requirement):
 
 ```ruby
-platform :ios, '16.0'
+platform :ios, '17.0'
 ```
 
-> **Note**: App Intents framework requires iOS 16.0 or later.
+> **Note**: App Intents framework requires iOS 17.0 or later.
 
 ## Defining Intents
 
@@ -246,7 +246,7 @@ class MyAppShortcuts {
 // Generated: AppShortcuts.swift
 import AppIntents
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -330,7 +330,7 @@ struct TaskQuery: EntityQuery {
 import AppIntents
 import UIKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description = IntentDescription("Create a new task in your task list")
@@ -568,15 +568,15 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
 
 ### iOS Build Errors
 
-**Problem**: `Deployment target below iOS 16.0`
+**Problem**: `Deployment target below iOS 17.0`
 
 **Solution**: Update `ios/Podfile`
 
 ```ruby
-platform :ios, '16.0'
+platform :ios, '17.0'
 ```
 
-> **Note**: App Intents framework requires iOS 16.0 or later.
+> **Note**: App Intents framework requires iOS 17.0 or later.
 
 ### Code Generation Not Working
 

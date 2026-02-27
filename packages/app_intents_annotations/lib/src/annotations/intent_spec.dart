@@ -26,6 +26,19 @@ class IntentSpec {
   /// For example, identifier 'com.example.taskapp.createTask' becomes 'createTask'.
   final String? urlAction;
 
+  /// Template for the dialog shown after intent execution.
+  ///
+  /// Supports `{paramName}` interpolation for parameter values.
+  /// When set, `perform()` returns `some IntentResult & ProvidesDialog`.
+  /// Example: `'Created task "{title}"'`
+  final String? resultDialogTemplate;
+
+  /// Template for the parameter summary shown in Shortcuts UI.
+  ///
+  /// Supports `{paramName}` references to parameters.
+  /// Example: `'Create "{title}"'` generates `Summary("Create \(\.$title)")`
+  final String? parameterSummary;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -33,6 +46,8 @@ class IntentSpec {
     this.implementation = IntentImplementation.dart,
     this.urlScheme,
     this.urlAction,
+    this.resultDialogTemplate,
+    this.parameterSummary,
   });
 }
 

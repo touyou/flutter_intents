@@ -17,13 +17,13 @@ dev_dependencies:
 
 ### 2. iOS設定
 
-`ios/Podfile`でiOSバージョンを16.0以上に設定（App Intentsフレームワーク要件）:
+`ios/Podfile`でiOSバージョンを17.0以上に設定（App Intentsフレームワーク要件）:
 
 ```ruby
-platform :ios, '16.0'
+platform :ios, '17.0'
 ```
 
-> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
+> **Note**: App Intentsフレームワークは iOS 17.0 以上が必須です。
 
 ## Intentの定義
 
@@ -246,7 +246,7 @@ class MyAppShortcuts {
 // Generated: AppShortcuts.swift
 import AppIntents
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -330,7 +330,7 @@ struct TaskQuery: EntityQuery {
 import AppIntents
 import UIKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description = IntentDescription("Create a new task in your task list")
@@ -568,15 +568,15 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
 
 ### iOSビルドエラー
 
-**問題**: `Deployment target below iOS 16.0`
+**問題**: `Deployment target below iOS 17.0`
 
 **解決**: `ios/Podfile`を更新
 
 ```ruby
-platform :ios, '16.0'
+platform :ios, '17.0'
 ```
 
-> **Note**: App Intentsフレームワークは iOS 16.0 以上が必須です。
+> **Note**: App Intentsフレームワークは iOS 17.0 以上が必須です。
 
 ### コード生成が動作しない
 

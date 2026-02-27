@@ -19,7 +19,7 @@ import Foundation
 /// // Invoke from App Intent
 /// let result = try await FlutterBridge.shared.invoke(intent: "MyIntent", params: ["key": "value"])
 /// ```
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 public actor FlutterBridge {
     /// The shared singleton instance of FlutterBridge
     public static let shared = FlutterBridge()

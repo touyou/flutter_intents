@@ -14,7 +14,7 @@ Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spo
 
 ## Requirements
 
-- iOS 16.0 or later
+- iOS 17.0 or later
 - Flutter 3.38+
 
 ## Installation
@@ -94,10 +94,10 @@ appIntents.onIntentExecution.listen((request) {
 
 ## iOS Configuration
 
-1. Set iOS deployment target to 16.0+ in `ios/Podfile`:
+1. Set iOS deployment target to 17.0+ in `ios/Podfile`:
 
 ```ruby
-platform :ios, '16.0'
+platform :ios, '17.0'
 ```
 
 2. See the [full documentation](https://github.com/touyou/flutter_intents/blob/main/docs/usage.md) for complete iOS setup instructions including Swift code generation.

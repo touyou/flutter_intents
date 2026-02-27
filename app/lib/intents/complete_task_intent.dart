@@ -13,6 +13,8 @@ part 'complete_task_intent.intent.dart';
   description: 'Mark a task as completed',
   urlScheme: 'taskapp',
   urlAction: 'complete',
+  resultDialogTemplate: 'Completed task',
+  parameterSummary: 'Complete {task}',
 )
 class CompleteTaskIntentSpec extends IntentSpecBase<String, Task?> {
   @IntentParam(

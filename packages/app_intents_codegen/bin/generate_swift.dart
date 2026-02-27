@@ -127,6 +127,7 @@ Future<void> generateSwift({
   // Analyze files (use Maps to deduplicate by identifier)
   final intentsMap = <String, IntentInfo>{};
   final entitiesMap = <String, EntityInfo>{};
+  final enumsMap = <String, EnumInfo>{};
 
   final collection = AnalysisContextCollection(
     includedPaths: [absoluteInputDir],
@@ -136,6 +137,7 @@ Future<void> generateSwift({
   final intentAnalyzer = const IntentAnalyzer();
   final entityAnalyzer = const EntityAnalyzer();
   final shortcutAnalyzer = const ShortcutAnalyzer();
+  final enumAnalyzer = const EnumAnalyzer();
   final allShortcuts = <AppShortcutInfo>[];
 
   for (final filePath in dartFiles) {
@@ -177,6 +179,17 @@ Future<void> generateSwift({
                 }
               }
             }
+
+            // Check for @EnumSpec on enums
+            if (element is EnumElement) {
+              if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
+                final info = enumAnalyzer.analyze(element);
+                if (info != null && !enumsMap.containsKey(info.identifier)) {
+                  enumsMap[info.identifier] = info;
+                  stdout.writeln('  Found enum: ${info.className}');
+                }
+              }
+            }
           }
         }
       }
@@ -188,21 +201,37 @@ Future<void> generateSwift({
 
   final intents = intentsMap.values.toList();
   final entities = entitiesMap.values.toList();
+  final enums = enumsMap.values.toList();
 
-  if (intents.isEmpty && entities.isEmpty && allShortcuts.isEmpty) {
-    stdout.writeln('No @IntentSpec, @EntitySpec, or @AppShortcutsProvider annotations found.');
+  // Resolve shortcut intentIdentifier to intent className
+  final identifierToClassName = <String, String>{
+    for (final intent in intents) intent.identifier: intent.className,
+  };
+  final resolvedShortcuts = allShortcuts.map((s) {
+    final className = identifierToClassName[s.intentClassName] ?? s.intentClassName;
+    return AppShortcutInfo(
+      intentClassName: className,
+      phrases: s.phrases,
+      shortTitle: s.shortTitle,
+      systemImageName: s.systemImageName,
+    );
+  }).toList();
+
+  if (intents.isEmpty && entities.isEmpty && resolvedShortcuts.isEmpty && enums.isEmpty) {
+    stdout.writeln('No @IntentSpec, @EntitySpec, @EnumSpec, or @AppShortcutsProvider annotations found.');
     exit(0);
   }
 
   stdout.writeln('');
-  stdout.writeln('Found ${intents.length} intents, ${entities.length} entities, and ${allShortcuts.length} shortcuts');
+  stdout.writeln('Found ${intents.length} intents, ${entities.length} entities, ${enums.length} enums, and ${resolvedShortcuts.length} shortcuts');
 
   // Generate Swift code
   final generator = SwiftGenerator();
   final swiftCode = generator.generateAll(
     intents: intents,
     entities: entities,
-    shortcuts: allShortcuts,
+    shortcuts: resolvedShortcuts,
+    enums: enums,
   );
 
   // Write output

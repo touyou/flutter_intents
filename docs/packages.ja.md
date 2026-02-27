@@ -420,7 +420,7 @@ import PackageDescription
 
 let package = Package(
     name: "AppIntentsBridge",
-    platforms: [.iOS(.v16)],
+    platforms: [.iOS(.v17)],
     products: [
         .library(name: "AppIntentsBridge", targets: ["AppIntentsBridge"]),
     ],
@@ -487,7 +487,7 @@ ios-spm/
 3. AppDelegateでexecutorを設定:
 
 ```swift
-if #available(iOS 16.0, *) {
+if #available(iOS 17.0, *) {
     Task {
         await FlutterBridge.shared.setIntentExecutor { identifier, params in
             // AppIntentsPlugin経由でDartハンドラーを呼び出し

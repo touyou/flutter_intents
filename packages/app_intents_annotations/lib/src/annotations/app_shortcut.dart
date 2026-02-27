@@ -3,7 +3,7 @@
 /// AppShortcutsProviderを生成し、アプリインストール直後から
 /// Siri/Spotlightで利用可能にします。
 ///
-/// iOS 16以降で利用可能です。
+/// iOS 17以降で利用可能です。
 ///
 /// Example:
 /// ```dart
@@ -22,7 +22,11 @@ class AppShortcut {
   /// Siriが認識するフレーズ一覧
   ///
   /// 特殊な変数として `{applicationName}` を使用できます。
-  /// 例: ["Create a task in {applicationName}", "Add task"]
+  /// Swift生成時に `\(.applicationName)` に自動変換されます。
+  ///
+  /// **注意**: iOSの要件により、すべてのフレーズに `{applicationName}` を
+  /// 含める必要があります。
+  /// 例: ["Create a task in {applicationName}", "Add task to {applicationName}"]
   final List<String> phrases;
 
   /// 短いタイトル（Shortcuts.appで表示）
@@ -47,7 +51,7 @@ class AppShortcut {
 /// このアノテーションが付与されたクラスは、アプリのショートカットを
 /// 一元管理するProviderとして機能します。
 ///
-/// iOS 16以降で利用可能です。
+/// iOS 17以降で利用可能です。
 ///
 /// Example:
 /// ```dart

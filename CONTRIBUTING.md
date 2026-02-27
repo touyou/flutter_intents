@@ -9,7 +9,7 @@ Thank you for your interest in contributing to Flutter Intents! This document pr
 - Flutter SDK 3.38+
 - Dart SDK 3.10+
 - Xcode 15+ (for iOS development)
-- iOS 16+ device or simulator
+- iOS 17+ device or simulator
 
 ### Getting Started
 

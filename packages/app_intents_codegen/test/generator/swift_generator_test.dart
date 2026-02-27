@@ -1,5 +1,6 @@
 import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
+import 'package:app_intents_codegen/src/models/enum_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:test/test.dart';
 
@@ -24,7 +25,7 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(result, contains('import AppIntents'));
-        expect(result, contains('@available(iOS 16.0, *)'));
+        expect(result, contains('@available(iOS 17.0, *)'));
         expect(result, contains('struct GreetIntent: AppIntent'));
         expect(
             result, contains('static var title: LocalizedStringResource = "Greet User"'));
@@ -398,6 +399,207 @@ void main() {
       });
     });
 
+    group('generateIntent with resultDialogTemplate', () {
+      test('generates ProvidesDialog return type for FlutterBridge', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+          resultDialogTemplate: 'Created task "{title}"',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('func perform() async throws -> some IntentResult & ProvidesDialog'));
+        expect(result, contains(r'return .result(dialog: .init("Created task \"'));
+        expect(result, contains(r'\(title)'));
+      });
+
+      test('generates ProvidesDialog return type for URL scheme', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+          resultDialogTemplate: 'Created task "{title}"',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('func perform() async throws -> some IntentResult & ProvidesDialog'));
+        expect(result, contains(r'return .result(dialog: .init("Created task \"'));
+      });
+
+      test('without dialog returns plain IntentResult', () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('func perform() async throws -> some IntentResult'));
+        expect(result, isNot(contains('ProvidesDialog')));
+        expect(result, contains('return .result()'));
+      });
+    });
+
+    group('generateIntent with parameterSummary', () {
+      test('generates parameterSummary property', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+          parameterSummary: 'Create {title}',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('static var parameterSummary: some ParameterSummary'));
+        expect(result, contains(r'Summary("Create \(\.$title)")'));
+      });
+
+      test('does not generate parameterSummary when not provided', () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, isNot(contains('parameterSummary')));
+        expect(result, isNot(contains('Summary(')));
+      });
+    });
+
+    group('generateIntent with enum parameter', () {
+      test('generates enum type for parameter with enumType', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'priority',
+              dartType: 'String',
+              title: 'Priority',
+              isOptional: false,
+              enumType: 'TaskPriority',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var priority: TaskPriority'));
+        expect(result, contains('priority.rawValue'));
+      });
+
+      test('generates enum .rawValue in URL query items', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'priority',
+              dartType: 'String',
+              title: 'Priority',
+              isOptional: false,
+              enumType: 'TaskPriority',
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var priority: TaskPriority'));
+        expect(result, contains('priority.rawValue'));
+      });
+    });
+
+    group('generateIntent error handling', () {
+      test('URL scheme with no params throws on guard failure', () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet User',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          urlScheme: 'myapp',
+          urlAction: 'greet',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('throw AppIntentError.custom('));
+        expect(result, contains('URL_CONSTRUCTION_FAILED'));
+      });
+
+      test('URL scheme with params throws on guard failure', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('guard let url = components.url else'));
+        expect(result, contains('throw AppIntentError.custom('));
+        expect(result, contains('URL_CONSTRUCTION_FAILED'));
+      });
+    });
+
     group('generateAll with URL scheme', () {
       test('includes UIKit import when URL scheme intents exist', () {
         final intents = [
@@ -454,7 +656,7 @@ void main() {
         final result = generator.generateEntity(entityInfo);
 
         expect(result, contains('import AppIntents'));
-        expect(result, contains('@available(iOS 16.0, *)'));
+        expect(result, contains('@available(iOS 17.0, *)'));
         expect(result, contains('struct TaskEntity: AppEntity'));
       });
 
@@ -611,6 +813,98 @@ void main() {
         expect(result, contains('struct TaskEntityQuery: EntityQuery'));
       });
 
+      test('generates displayRepresentation with image', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntity',
+          identifier: 'com.example.task',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'iconName',
+              dartType: 'String',
+              role: EntityPropertyRole.image,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('image: .init(systemName: iconName)'));
+      });
+
+      test('generates displayRepresentation with nullable image', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntity',
+          identifier: 'com.example.task',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'iconName',
+              dartType: 'String?',
+              role: EntityPropertyRole.image,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('if let iconName'));
+        expect(result, contains('image: .init(systemName: iconName)'));
+      });
+
+      test('generates query struct with image mapping', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntity',
+          identifier: 'com.example.task',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'iconName',
+              dartType: 'String?',
+              role: EntityPropertyRole.image,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('let iconName = dict["iconName"] as? String'));
+        expect(result, contains('iconName: iconName'));
+      });
+
       test('uses entity identifier (not className) for FlutterBridge entityIdentifier', () {
         final entityInfo = EntityInfo(
           className: 'TaskEntitySpec',
@@ -653,7 +947,7 @@ void main() {
         final result = generator.generateAppShortcutsProvider(shortcuts);
 
         expect(result, contains('import AppIntents'));
-        expect(result, contains('@available(iOS 16.0, *)'));
+        expect(result, contains('@available(iOS 17.0, *)'));
         expect(result, contains('struct AppShortcuts: AppShortcutsProvider'));
         expect(result, contains('static var appShortcuts: [AppShortcut]'));
         expect(result, contains('AppShortcut('));
@@ -684,6 +978,44 @@ void main() {
 
         expect(result, contains('intent: CreateTaskIntent()'));
         expect(result, contains('intent: ListTasksIntent()'));
+      });
+
+      test('converts {applicationName} to Swift string interpolation', () {
+        final shortcuts = [
+          AppShortcutInfo(
+            intentClassName: 'CreateTaskIntent',
+            phrases: [
+              'Create a task in {applicationName}',
+              'Add new task',
+            ],
+            shortTitle: 'Create Task',
+            systemImageName: 'plus.circle',
+          ),
+        ];
+
+        final result = generator.generateAppShortcutsProvider(shortcuts);
+
+        expect(result, contains(r'"Create a task in \(.applicationName)"'));
+        expect(result, isNot(contains('{applicationName}')));
+        expect(result, contains('"Add new task"'));
+      });
+
+      test('converts \${applicationName} to Swift string interpolation', () {
+        final shortcuts = [
+          AppShortcutInfo(
+            intentClassName: 'CreateTaskIntent',
+            phrases: [
+              r'Create a task in ${applicationName}',
+            ],
+            shortTitle: 'Create Task',
+            systemImageName: 'plus.circle',
+          ),
+        ];
+
+        final result = generator.generateAppShortcutsProvider(shortcuts);
+
+        expect(result, contains(r'"Create a task in \(.applicationName)"'));
+        expect(result, isNot(contains(r'${applicationName}')));
       });
     });
 
@@ -762,6 +1094,81 @@ void main() {
 
         expect(result, contains('struct CreateTaskIntent: AppIntent'));
         expect(result, contains('struct AppShortcuts: AppShortcutsProvider'));
+      });
+    });
+
+    group('generateEnum', () {
+      test('generates basic AppEnum', () {
+        final enumInfo = EnumInfo(
+          className: 'TaskPriority',
+          identifier: 'com.example.taskPriority',
+          title: 'Priority',
+          cases: [
+            EnumCaseInfo(name: 'high', displayTitle: 'High'),
+            EnumCaseInfo(name: 'medium', displayTitle: 'Medium'),
+            EnumCaseInfo(name: 'low', displayTitle: 'Low'),
+          ],
+        );
+
+        final result = generator.generateEnum(enumInfo);
+
+        expect(result, contains('import AppIntents'));
+        expect(result, contains('@available(iOS 17.0, *)'));
+        expect(result, contains('enum TaskPriority: String, AppEnum'));
+        expect(result, contains('case high'));
+        expect(result, contains('case medium'));
+        expect(result, contains('case low'));
+        expect(result, contains('static var typeDisplayRepresentation: TypeDisplayRepresentation = "Priority"'));
+        expect(result, contains('static var caseDisplayRepresentations: [TaskPriority: DisplayRepresentation]'));
+        expect(result, contains('.high: "High"'));
+        expect(result, contains('.medium: "Medium"'));
+        expect(result, contains('.low: "Low"'));
+      });
+    });
+
+    group('generateAll with enums', () {
+      test('generates enums before intents', () {
+        final enums = [
+          EnumInfo(
+            className: 'TaskPriority',
+            identifier: 'com.example.taskPriority',
+            title: 'Priority',
+            cases: [
+              EnumCaseInfo(name: 'high', displayTitle: 'High'),
+              EnumCaseInfo(name: 'low', displayTitle: 'Low'),
+            ],
+          ),
+        ];
+
+        final intents = [
+          IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'priority',
+                dartType: 'String',
+                title: 'Priority',
+                isOptional: false,
+                enumType: 'TaskPriority',
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generateAll(
+          intents: intents,
+          enums: enums,
+        );
+
+        // Enum should appear before intent
+        final enumIndex = result.indexOf('enum TaskPriority');
+        final intentIndex = result.indexOf('struct CreateTaskIntent');
+        expect(enumIndex, lessThan(intentIndex));
+        expect(result, contains('enum TaskPriority: String, AppEnum'));
+        expect(result, contains('var priority: TaskPriority'));
       });
     });
 

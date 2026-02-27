@@ -6,7 +6,7 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
 /// available in Siri and Spotlight immediately after app installation.
 ///
 /// Requirements:
-/// - iOS 16.0 or later
+/// - iOS 17.0 or later
 @AppShortcutsProvider()
 class TaskAppShortcuts {
   /// Shortcut for creating a new task

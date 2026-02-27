@@ -1,3 +1,12 @@
+## 0.2.0
+
+- **BREAKING**: Raise iOS minimum to 17.0
+- Add `resultDialogTemplate` to `@IntentSpec` for Siri/Shortcuts dialog feedback
+- Add `parameterSummary` to `@IntentSpec` for Shortcuts UI parameter display
+- Add `enumType` to `@IntentParam` for AppEnum parameter support
+- Add `@EnumSpec` and `@EnumCaseDisplay` annotations for AppEnum definitions
+- Update `@AppShortcut` phrase docs: all phrases require `{applicationName}`
+
 ## 0.1.0
 
 - Initial release

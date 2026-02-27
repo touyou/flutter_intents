@@ -1,0 +1,3 @@
+dependency_overrides:
+  app_intents_annotations:
+    path: ../app_intents_annotations

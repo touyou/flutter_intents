@@ -11,12 +11,12 @@ import app_intents
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
     // Wire FlutterBridge to AppIntentsPlugin for intent execution
-    if #available(iOS 16.0, *) {
+    if #available(iOS 17.0, *) {
       Self.setupFlutterBridgeExecutorsIfNeeded()
     }
   }
 
-  @available(iOS 16.0, *)
+  @available(iOS 17.0, *)
   static func setupFlutterBridgeExecutorsIfNeeded() {
     guard !executorsConfigured else { return }
     executorsConfigured = true
@@ -52,7 +52,7 @@ import app_intents
   }
 
   /// Waits for AppIntentsPlugin to become available with timeout
-  @available(iOS 16.0, *)
+  @available(iOS 17.0, *)
   private static func waitForPlugin() async throws -> AppIntentsPlugin {
     // Try immediately first
     if let plugin = AppIntentsPlugin.shared {

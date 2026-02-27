@@ -42,6 +42,10 @@ class IntentAnalyzer {
     final implementation = _parseImplementation(implementationField);
     final urlScheme = annotation.getField('urlScheme')?.toStringValue();
     final urlAction = annotation.getField('urlAction')?.toStringValue();
+    final resultDialogTemplate =
+        annotation.getField('resultDialogTemplate')?.toStringValue();
+    final parameterSummary =
+        annotation.getField('parameterSummary')?.toStringValue();
 
     if (identifier == null || title == null) {
       return null;
@@ -61,6 +65,8 @@ class IntentAnalyzer {
       outputType: typeArgs.$2,
       urlScheme: urlScheme,
       urlAction: urlAction,
+      resultDialogTemplate: resultDialogTemplate,
+      parameterSummary: parameterSummary,
     );
   }
 
@@ -113,6 +119,8 @@ class IntentAnalyzer {
           annotation.getField('isOptional')?.toBoolValue() ?? false;
       final entityType =
           annotation.getField('entityType')?.toStringValue();
+      final enumType =
+          annotation.getField('enumType')?.toStringValue();
 
       parameters.add(IntentParamInfo(
         fieldName: field.name,
@@ -121,6 +129,7 @@ class IntentAnalyzer {
         description: description,
         isOptional: isOptional,
         entityType: entityType,
+        enumType: enumType,
       ));
     }
 

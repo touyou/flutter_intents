@@ -1,5 +1,5 @@
-# iOS 16.0 required for App Intents framework
-platform :ios, '16.0'
+# iOS 17.0 required for App Intents framework
+platform :ios, '17.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'

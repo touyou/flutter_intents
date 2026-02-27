@@ -31,6 +31,14 @@ class IntentInfo {
   /// The action segment in the URL (e.g., 'create' for 'taskapp://create?...').
   final String? urlAction;
 
+  /// Template for the dialog shown after intent execution.
+  /// Supports {paramName} interpolation.
+  final String? resultDialogTemplate;
+
+  /// Template for the parameter summary shown in Shortcuts UI.
+  /// Supports {paramName} references.
+  final String? parameterSummary;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -42,6 +50,8 @@ class IntentInfo {
     this.outputType,
     this.urlScheme,
     this.urlAction,
+    this.resultDialogTemplate,
+    this.parameterSummary,
   });
 
   @override
@@ -57,7 +67,9 @@ class IntentInfo {
         inputType == other.inputType &&
         outputType == other.outputType &&
         urlScheme == other.urlScheme &&
-        urlAction == other.urlAction;
+        urlAction == other.urlAction &&
+        resultDialogTemplate == other.resultDialogTemplate &&
+        parameterSummary == other.parameterSummary;
   }
 
   @override
@@ -72,6 +84,8 @@ class IntentInfo {
         outputType,
         urlScheme,
         urlAction,
+        resultDialogTemplate,
+        parameterSummary,
       );
 
   @override
@@ -79,7 +93,8 @@ class IntentInfo {
       'IntentInfo(className: $className, identifier: $identifier, title: $title, '
       'description: $description, implementation: $implementation, '
       'parameters: $parameters, inputType: $inputType, outputType: $outputType, '
-      'urlScheme: $urlScheme, urlAction: $urlAction)';
+      'urlScheme: $urlScheme, urlAction: $urlAction, '
+      'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary)';
 }
 
 /// The implementation language for the intent.
@@ -109,6 +124,10 @@ class IntentParamInfo {
   /// When set, the Swift parameter uses an AppEntity type with picker UI.
   final String? entityType;
 
+  /// The enum type for this parameter (e.g., 'Priority').
+  /// When set, the Swift parameter uses an AppEnum type.
+  final String? enumType;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -116,6 +135,7 @@ class IntentParamInfo {
     this.description,
     required this.isOptional,
     this.entityType,
+    this.enumType,
   });
 
   @override
@@ -127,7 +147,8 @@ class IntentParamInfo {
         title == other.title &&
         description == other.description &&
         isOptional == other.isOptional &&
-        entityType == other.entityType;
+        entityType == other.entityType &&
+        enumType == other.enumType;
   }
 
   @override
@@ -138,12 +159,14 @@ class IntentParamInfo {
         description,
         isOptional,
         entityType,
+        enumType,
       );
 
   @override
   String toString() =>
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
-      'description: $description, isOptional: $isOptional, entityType: $entityType)';
+      'description: $description, isOptional: $isOptional, entityType: $entityType, '
+      'enumType: $enumType)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

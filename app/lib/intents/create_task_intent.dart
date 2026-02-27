@@ -26,6 +26,8 @@ class CreateTaskInput {
   description: 'Create a new task in your task list',
   urlScheme: 'taskapp',
   urlAction: 'create',
+  resultDialogTemplate: 'Created task "{title}"',
+  parameterSummary: 'Create task {title}',
 )
 class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
   @IntentParam(title: 'Title', description: 'The title of the task')

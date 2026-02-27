@@ -1,4 +1,5 @@
 import '../models/entity_info.dart';
+import '../models/enum_info.dart';
 import '../models/intent_info.dart';
 
 /// Information about an App Shortcut to generate.
@@ -25,7 +26,7 @@ class AppShortcutInfo {
 
 /// Generates Swift code for iOS AppIntents from analyzed Dart specifications.
 ///
-/// This generator produces Swift code that can be used in iOS 16+ applications
+/// This generator produces Swift code that can be used in iOS 17+ applications
 /// to integrate with the App Intents framework.
 class SwiftGenerator {
   /// Mapping of Dart types to Swift types.
@@ -54,7 +55,7 @@ class SwiftGenerator {
   /// Generates a Swift AppIntent struct from an [IntentInfo].
   ///
   /// The generated struct includes:
-  /// - `@available(iOS 16.0, *)` availability attribute
+  /// - `@available(iOS 17.0, *)` availability attribute
   /// - Static title and optional description
   /// - `@Parameter` properties for each intent parameter
   /// - A `perform()` method that calls FlutterBridge or opens a URL
@@ -75,8 +76,8 @@ class SwiftGenerator {
 
   /// Writes a parameter declaration to the buffer.
   void _writeParameter(StringBuffer buffer, IntentParamInfo param) {
-    // Use entity type if specified, otherwise map Dart type to Swift type
-    final swiftType = param.entityType ?? dartTypeToSwiftType(param.dartType);
+    // Use entity type, enum type, or map Dart type to Swift type
+    final swiftType = param.entityType ?? param.enumType ?? dartTypeToSwiftType(param.dartType);
 
     // Build @Parameter annotation
     final paramParts = <String>['title: "${param.title}"'];
@@ -96,6 +97,11 @@ class SwiftGenerator {
     // Entity types: use .id
     if (param.entityType != null) {
       return '${param.fieldName}.id';
+    }
+
+    // Enum types: use .rawValue
+    if (param.enumType != null) {
+      return '${param.fieldName}.rawValue';
     }
 
     final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
@@ -122,8 +128,13 @@ class SwiftGenerator {
 
   /// Writes the perform method using FlutterBridge (MethodChannel).
   void _writeFlutterBridgePerformMethod(StringBuffer buffer, IntentInfo info) {
+    final hasDialog = info.resultDialogTemplate != null;
+    final returnType = hasDialog
+        ? 'some IntentResult & ProvidesDialog'
+        : 'some IntentResult';
+
     buffer.writeln('$_indent@MainActor');
-    buffer.writeln('${_indent}func perform() async throws -> some IntentResult {');
+    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
 
     // Build params dictionary
     if (info.parameters.isEmpty) {
@@ -145,7 +156,12 @@ class SwiftGenerator {
       buffer.writeln('$_indent$_indent)');
     }
 
-    buffer.writeln('$_indent${_indent}return .result()');
+    if (hasDialog) {
+      final dialogStr = _interpolateDialogTemplate(info.resultDialogTemplate!, info.parameters);
+      buffer.writeln('$_indent${_indent}return .result(dialog: .init("$dialogStr"))');
+    } else {
+      buffer.writeln('$_indent${_indent}return .result()');
+    }
     buffer.writeln('$_indent}');
   }
 
@@ -161,13 +177,17 @@ class SwiftGenerator {
   void _writeUrlSchemePerformMethod(StringBuffer buffer, IntentInfo info) {
     final scheme = info.urlScheme!;
     final action = info.urlAction ?? _defaultAction(info.identifier);
+    final hasDialog = info.resultDialogTemplate != null;
+    final returnType = hasDialog
+        ? 'some IntentResult & ProvidesDialog'
+        : 'some IntentResult';
 
     buffer.writeln('$_indent@MainActor');
-    buffer.writeln('${_indent}func perform() async throws -> some IntentResult {');
+    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
 
     if (info.parameters.isEmpty) {
       buffer.writeln('$_indent${_indent}guard let url = URL(string: "$scheme://$action") else {');
-      buffer.writeln('$_indent$_indent${_indent}return .result()');
+      buffer.writeln('$_indent$_indent${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
       buffer.writeln('$_indent$_indent}');
     } else {
       buffer.writeln('$_indent${_indent}var components = URLComponents()');
@@ -186,13 +206,18 @@ class SwiftGenerator {
       buffer.writeln('$_indent$_indent}');
       buffer.writeln();
       buffer.writeln('$_indent${_indent}guard let url = components.url else {');
-      buffer.writeln('$_indent$_indent${_indent}return .result()');
+      buffer.writeln('$_indent$_indent${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
       buffer.writeln('$_indent$_indent}');
     }
 
     buffer.writeln();
     buffer.writeln('$_indent${_indent}await UIApplication.shared.open(url)');
-    buffer.writeln('$_indent${_indent}return .result()');
+    if (hasDialog) {
+      final dialogStr = _interpolateDialogTemplate(info.resultDialogTemplate!, info.parameters);
+      buffer.writeln('$_indent${_indent}return .result(dialog: .init("$dialogStr"))');
+    } else {
+      buffer.writeln('$_indent${_indent}return .result()');
+    }
     buffer.writeln('$_indent}');
   }
 
@@ -201,10 +226,17 @@ class SwiftGenerator {
     final isNullable = param.dartType.endsWith('?');
     final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
     final isEntity = param.entityType != null;
+    final isEnum = param.enumType != null;
 
     // Entity types: use .id for the URL value
     if (isEntity) {
       buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.id))');
+      return;
+    }
+
+    // Enum types: use .rawValue for the URL value
+    if (isEnum) {
+      buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.rawValue))');
       return;
     }
 
@@ -228,7 +260,7 @@ class SwiftGenerator {
   /// Generates a Swift AppEntity struct from an [EntityInfo].
   ///
   /// The generated struct includes:
-  /// - `@available(iOS 16.0, *)` availability attribute
+  /// - `@available(iOS 17.0, *)` availability attribute
   /// - `typeDisplayRepresentation` static property
   /// - `displayRepresentation` computed property
   /// - ID and other properties based on EntityPropertyInfo
@@ -241,7 +273,7 @@ class SwiftGenerator {
     buffer.writeln();
 
     // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}: AppEntity {');
 
     // Type display representation
@@ -280,20 +312,37 @@ class SwiftGenerator {
     final subtitleProp = info.properties
         .where((p) => p.role == EntityPropertyRole.subtitle)
         .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
 
     buffer.writeln('${_indent}var displayRepresentation: DisplayRepresentation {');
 
-    if (titleProp == null) {
-      // Fallback to id if no title property
-      buffer.writeln('$_indent${_indent}DisplayRepresentation(title: "\\(id)")');
-    } else if (subtitleProp == null) {
-      buffer.writeln('$_indent${_indent}DisplayRepresentation(title: "\\(${titleProp.fieldName})")');
-    } else {
-      // Handle nullable subtitle
+    // Build arguments for DisplayRepresentation
+    final titleExpr = titleProp != null ? titleProp.fieldName : 'id';
+    final args = <String>['title: "\\($titleExpr)"'];
+
+    if (subtitleProp != null) {
       final subtitleExpr = subtitleProp.dartType.endsWith('?')
           ? '${subtitleProp.fieldName} ?? ""'
           : subtitleProp.fieldName;
-      buffer.writeln('$_indent${_indent}DisplayRepresentation(title: "\\(${titleProp.fieldName})", subtitle: "\\($subtitleExpr)")');
+      args.add('subtitle: "\\($subtitleExpr)"');
+    }
+
+    if (imageProp != null && !imageProp.dartType.endsWith('?')) {
+      args.add('image: .init(systemName: ${imageProp.fieldName})');
+    }
+
+    if (imageProp != null && imageProp.dartType.endsWith('?')) {
+      // Nullable image: use conditional logic
+      buffer.writeln('$_indent${_indent}if let ${imageProp.fieldName} {');
+      final argsWithImage = List<String>.from(args);
+      argsWithImage.add('image: .init(systemName: ${imageProp.fieldName})');
+      buffer.writeln('$_indent$_indent${_indent}return DisplayRepresentation(${argsWithImage.join(', ')})');
+      buffer.writeln('$_indent$_indent}');
+      buffer.writeln('$_indent${_indent}return DisplayRepresentation(${args.join(', ')})');
+    } else {
+      buffer.writeln('$_indent${_indent}DisplayRepresentation(${args.join(', ')})');
     }
 
     buffer.writeln('$_indent}');
@@ -310,8 +359,11 @@ class SwiftGenerator {
     final subtitleProp = info.properties
         .where((p) => p.role == EntityPropertyRole.subtitle)
         .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
 
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
 
     // entities(for:) method
@@ -321,7 +373,7 @@ class SwiftGenerator {
     buffer.writeln('$_indent$_indent${_indent}identifiers: identifiers');
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
-    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp);
+    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp, imageProp);
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
     buffer.writeln();
@@ -332,7 +384,7 @@ class SwiftGenerator {
     buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"');
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
-    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp);
+    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp, imageProp);
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
 
@@ -346,6 +398,7 @@ class SwiftGenerator {
     EntityPropertyInfo? idProp,
     EntityPropertyInfo? titleProp,
     EntityPropertyInfo? subtitleProp,
+    EntityPropertyInfo? imageProp,
   ) {
     final id = idProp?.fieldName ?? 'id';
     final title = titleProp?.fieldName ?? 'title';
@@ -360,10 +413,18 @@ class SwiftGenerator {
       buffer.writeln('$_indent$_indent${_indent}let $subtitle = dict["$subtitle"] as? String');
     }
 
+    if (imageProp != null) {
+      final image = imageProp.fieldName;
+      buffer.writeln('$_indent$_indent${_indent}let $image = dict["$image"] as? String');
+    }
+
     // Build initializer
     final initParts = <String>['$id: $id', '$title: $title'];
     if (subtitleProp != null) {
       initParts.add('${subtitleProp.fieldName}: ${subtitleProp.fieldName}');
+    }
+    if (imageProp != null) {
+      initParts.add('${imageProp.fieldName}: ${imageProp.fieldName}');
     }
     buffer.writeln('$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})');
   }
@@ -371,7 +432,7 @@ class SwiftGenerator {
   /// Generates an AppShortcutsProvider struct from shortcut information.
   ///
   /// The generated struct includes:
-  /// - `@available(iOS 16.0, *)` availability attribute
+  /// - `@available(iOS 17.0, *)` availability attribute
   /// - Static `appShortcuts` property with all configured shortcuts
   String generateAppShortcutsProvider(List<AppShortcutInfo> shortcuts) {
     final buffer = StringBuffer();
@@ -381,29 +442,25 @@ class SwiftGenerator {
     buffer.writeln();
 
     // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct AppShortcuts: AppShortcutsProvider {');
     buffer.writeln('${_indent}static var appShortcuts: [AppShortcut] {');
-    buffer.writeln('$_indent$_indent[');
 
-    for (var i = 0; i < shortcuts.length; i++) {
-      final shortcut = shortcuts[i];
-      final comma = i < shortcuts.length - 1 ? ',' : '';
-
-      buffer.writeln('$_indent$_indent${_indent}AppShortcut(');
-      buffer.writeln('$_indent$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
-      buffer.writeln('$_indent$_indent$_indent${_indent}phrases: [');
+    for (final shortcut in shortcuts) {
+      buffer.writeln('$_indent${_indent}AppShortcut(');
+      buffer.writeln('$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
+      buffer.writeln('$_indent$_indent${_indent}phrases: [');
       for (var j = 0; j < shortcut.phrases.length; j++) {
         final phraseComma = j < shortcut.phrases.length - 1 ? ',' : '';
-        buffer.writeln('$_indent$_indent$_indent$_indent$_indent"${shortcut.phrases[j]}"$phraseComma');
+        final swiftPhrase = _convertPhraseToSwift(shortcut.phrases[j]);
+        buffer.writeln('$_indent$_indent$_indent$_indent"$swiftPhrase"$phraseComma');
       }
-      buffer.writeln('$_indent$_indent$_indent$_indent],');
-      buffer.writeln('$_indent$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
-      buffer.writeln('$_indent$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
-      buffer.writeln('$_indent$_indent$_indent)$comma');
+      buffer.writeln('$_indent$_indent$_indent],');
+      buffer.writeln('$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
+      buffer.writeln('$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
+      buffer.writeln('$_indent$_indent)');
     }
 
-    buffer.writeln('$_indent$_indent]');
     buffer.writeln('$_indent}');
     buffer.writeln('}');
 
@@ -418,6 +475,7 @@ class SwiftGenerator {
     List<IntentInfo> intents = const [],
     List<EntityInfo> entities = const [],
     List<AppShortcutInfo> shortcuts = const [],
+    List<EnumInfo> enums = const [],
   }) {
     final buffer = StringBuffer();
 
@@ -427,6 +485,13 @@ class SwiftGenerator {
       buffer.writeln('import UIKit');
     }
     buffer.writeln();
+
+    // Generate enums (before intents, since intents may reference them)
+    for (final enumInfo in enums) {
+      _generateEnumBody(buffer, enumInfo);
+      buffer.writeln();
+      buffer.writeln();
+    }
 
     // Generate intents (without individual imports)
     for (final intent in intents) {
@@ -453,7 +518,7 @@ class SwiftGenerator {
   /// Generates intent body without import statement.
   void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
     // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}: AppIntent {');
 
     // Title
@@ -469,6 +534,15 @@ class SwiftGenerator {
     if (info.urlScheme != null) {
       buffer.writeln();
       buffer.writeln('${_indent}static var openAppWhenRun: Bool { true }');
+    }
+
+    // Parameter summary
+    if (info.parameterSummary != null) {
+      buffer.writeln();
+      final summaryStr = _interpolateParameterSummary(info.parameterSummary!);
+      buffer.writeln('${_indent}static var parameterSummary: some ParameterSummary {');
+      buffer.writeln('$_indent${_indent}Summary("$summaryStr")');
+      buffer.writeln('$_indent}');
     }
 
     // Parameters
@@ -491,7 +565,7 @@ class SwiftGenerator {
     final buffer = StringBuffer();
 
     // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}: AppEntity {');
 
     // Type display representation
@@ -527,32 +601,93 @@ class SwiftGenerator {
     final buffer = StringBuffer();
 
     // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
+    buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct AppShortcuts: AppShortcutsProvider {');
     buffer.writeln('${_indent}static var appShortcuts: [AppShortcut] {');
-    buffer.writeln('$_indent$_indent[');
 
-    for (var i = 0; i < shortcuts.length; i++) {
-      final shortcut = shortcuts[i];
-      final comma = i < shortcuts.length - 1 ? ',' : '';
-
-      buffer.writeln('$_indent$_indent${_indent}AppShortcut(');
-      buffer.writeln('$_indent$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
-      buffer.writeln('$_indent$_indent$_indent${_indent}phrases: [');
+    for (final shortcut in shortcuts) {
+      buffer.writeln('$_indent${_indent}AppShortcut(');
+      buffer.writeln('$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
+      buffer.writeln('$_indent$_indent${_indent}phrases: [');
       for (var j = 0; j < shortcut.phrases.length; j++) {
         final phraseComma = j < shortcut.phrases.length - 1 ? ',' : '';
-        buffer.writeln('$_indent$_indent$_indent$_indent$_indent"${shortcut.phrases[j]}"$phraseComma');
+        final swiftPhrase = _convertPhraseToSwift(shortcut.phrases[j]);
+        buffer.writeln('$_indent$_indent$_indent$_indent"$swiftPhrase"$phraseComma');
       }
-      buffer.writeln('$_indent$_indent$_indent$_indent],');
-      buffer.writeln('$_indent$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
-      buffer.writeln('$_indent$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
-      buffer.writeln('$_indent$_indent$_indent)$comma');
+      buffer.writeln('$_indent$_indent$_indent],');
+      buffer.writeln('$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
+      buffer.writeln('$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
+      buffer.writeln('$_indent$_indent)');
     }
 
-    buffer.writeln('$_indent$_indent]');
     buffer.writeln('$_indent}');
     buffer.write('}');
 
     return buffer.toString();
+  }
+
+  /// Generates a Swift AppEnum from an [EnumInfo].
+  String generateEnum(EnumInfo info) {
+    final buffer = StringBuffer();
+    buffer.writeln('import AppIntents');
+    buffer.writeln();
+    _generateEnumBody(buffer, info);
+    return buffer.toString();
+  }
+
+  /// Generates enum body without import statement.
+  void _generateEnumBody(StringBuffer buffer, EnumInfo info) {
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('enum ${info.className}: String, AppEnum {');
+
+    // Cases
+    for (final enumCase in info.cases) {
+      buffer.writeln('${_indent}case ${enumCase.name}');
+    }
+    buffer.writeln();
+
+    // typeDisplayRepresentation
+    buffer.writeln('${_indent}static var typeDisplayRepresentation: TypeDisplayRepresentation = "${info.title}"');
+    buffer.writeln();
+
+    // caseDisplayRepresentations
+    buffer.writeln('${_indent}static var caseDisplayRepresentations: [${info.className}: DisplayRepresentation] = [');
+    for (var i = 0; i < info.cases.length; i++) {
+      final c = info.cases[i];
+      final comma = i < info.cases.length - 1 ? ',' : '';
+      buffer.writeln('$_indent$_indent.${c.name}: "${c.displayTitle}"$comma');
+    }
+    buffer.writeln('$_indent]');
+
+    buffer.write('}');
+  }
+
+  /// Converts `{paramName}` to `\(paramName)` for Swift dialog string interpolation.
+  ///
+  /// Also escapes double quotes to prevent conflicts with Swift string delimiters.
+  String _interpolateDialogTemplate(String template, List<IntentParamInfo> params) {
+    var result = template;
+    // Escape double quotes for Swift string literals
+    result = result.replaceAll('"', '\\"');
+    for (final param in params) {
+      result = result.replaceAll('{${param.fieldName}}', '\\(${param.fieldName})');
+    }
+    return result;
+  }
+
+  /// Converts `{paramName}` to `\(\.$paramName)` for Swift ParameterSummary.
+  String _interpolateParameterSummary(String template) {
+    return template.replaceAllMapped(
+      RegExp(r'\{(\w+)\}'),
+      (match) => '\\(\\.\$${match.group(1)})',
+    );
+  }
+
+  /// Converts `{applicationName}` or `${applicationName}` to Swift's
+  /// `\(.applicationName)` string interpolation for AppShortcut phrases.
+  String _convertPhraseToSwift(String phrase) {
+    return phrase
+        .replaceAll(r'${applicationName}', '\\(.applicationName)')
+        .replaceAll('{applicationName}', '\\(.applicationName)');
   }
 }

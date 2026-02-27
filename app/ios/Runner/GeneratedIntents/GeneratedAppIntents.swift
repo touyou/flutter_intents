@@ -5,7 +5,7 @@
 import AppIntents
 import UIKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CompleteTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Complete Task"
     static var description: IntentDescription =
@@ -13,11 +13,15 @@ struct CompleteTaskIntentSpec: AppIntent {
 
     static var openAppWhenRun: Bool { true }
 
+    static var parameterSummary: some ParameterSummary {
+        Summary("Complete \(\.$task)")
+    }
+
     @Parameter(title: "Task", description: "The task to complete")
     var task: TaskEntitySpec
 
     @MainActor
-    func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         var components = URLComponents()
         components.scheme = "taskapp"
         components.host = "complete"
@@ -30,21 +34,25 @@ struct CompleteTaskIntentSpec: AppIntent {
         }
 
         guard let url = components.url else {
-            return .result()
+            throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")
         }
 
         await UIApplication.shared.open(url)
-        return .result()
+        return .result(dialog: .init("Completed task"))
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
 
     static var openAppWhenRun: Bool { true }
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create task \(\.$title)")
+    }
 
     @Parameter(title: "Title", description: "The title of the task")
     var title: String
@@ -54,7 +62,7 @@ struct CreateTaskIntentSpec: AppIntent {
     var dueDate: Date?
 
     @MainActor
-    func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         var components = URLComponents()
         components.scheme = "taskapp"
         components.host = "create"
@@ -73,15 +81,15 @@ struct CreateTaskIntentSpec: AppIntent {
         }
 
         guard let url = components.url else {
-            return .result()
+            throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")
         }
 
         await UIApplication.shared.open(url)
-        return .result()
+        return .result(dialog: .init("Created task \"\(title)\""))
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct TaskEntitySpec: AppEntity {
     static var typeDisplayRepresentation: TypeDisplayRepresentation =
         TypeDisplayRepresentation(name: "Task")
@@ -91,13 +99,17 @@ struct TaskEntitySpec: AppEntity {
     var id: String
     var title: String
     var description: String?
+    var iconName: String?
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(title)", subtitle: "\(description ?? "")")
+        if let iconName {
+            return DisplayRepresentation(title: "\(title)", subtitle: "\(description ?? "")", image: .init(systemName: iconName))
+        }
+        return DisplayRepresentation(title: "\(title)", subtitle: "\(description ?? "")")
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct TaskEntitySpecQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
         let results = try await FlutterBridge.shared.queryEntities(
@@ -110,7 +122,8 @@ struct TaskEntitySpecQuery: EntityQuery {
                 return nil
             }
             let description = dict["description"] as? String
-            return TaskEntitySpec(id: id, title: title, description: description)
+            let iconName = dict["iconName"] as? String
+            return TaskEntitySpec(id: id, title: title, description: description, iconName: iconName)
         }
     }
 
@@ -124,9 +137,33 @@ struct TaskEntitySpecQuery: EntityQuery {
                 return nil
             }
             let description = dict["description"] as? String
-            return TaskEntitySpec(id: id, title: title, description: description)
+            let iconName = dict["iconName"] as? String
+            return TaskEntitySpec(id: id, title: title, description: description, iconName: iconName)
         }
     }
 }
 
 
+@available(iOS 17.0, *)
+struct AppShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: CreateTaskIntentSpec(),
+            phrases: [
+                "Create a task in \(.applicationName)",
+                "Add a new task to \(.applicationName)"
+            ],
+            shortTitle: "Create Task",
+            systemImageName: "plus.circle"
+        )
+        AppShortcut(
+            intent: CompleteTaskIntentSpec(),
+            phrases: [
+                "Complete a task in \(.applicationName)",
+                "Mark task as done in \(.applicationName)"
+            ],
+            shortTitle: "Complete Task",
+            systemImageName: "checkmark.circle"
+        )
+    }
+}

@@ -3,7 +3,6 @@ import Foundation
 @testable import AppIntentsBridge
 
 @Suite("FlutterBridge Tests")
-@available(iOS 16.0, *)
 struct FlutterBridgeTests {
 
     @Test("FlutterBridge shared instance is singleton")

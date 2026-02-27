@@ -21,7 +21,7 @@ void main() {
         methodCalls.add(methodCall);
         switch (methodCall.method) {
           case 'getPlatformVersion':
-            return 'iOS 16.0';
+            return 'iOS 17.0';
           default:
             return null;
         }
