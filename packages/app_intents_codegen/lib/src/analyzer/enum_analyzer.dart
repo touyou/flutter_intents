@@ -55,10 +55,13 @@ class EnumAnalyzer {
       final displayTitle =
           displayAnnotation?.getField('title')?.toStringValue() ??
               _toDisplayTitle(field.name!);
+      final imageName =
+          displayAnnotation?.getField('imageName')?.toStringValue();
 
       cases.add(EnumCaseInfo(
         name: field.name!,
         displayTitle: displayTitle,
+        imageName: imageName,
       ));
     }
 

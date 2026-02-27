@@ -56,6 +56,11 @@ class EntityAnalyzer {
     final title = annotation.getField('title')?.toStringValue();
     final pluralTitle = annotation.getField('pluralTitle')?.toStringValue();
     final description = annotation.getField('description')?.toStringValue();
+    final displayImageName =
+        annotation.getField('displayImageName')?.toStringValue();
+    final indexed = annotation.getField('indexed')?.toBoolValue() ?? false;
+    final enumerable =
+        annotation.getField('enumerable')?.toBoolValue() ?? false;
 
     if (identifier == null || title == null || pluralTitle == null) {
       return null;
@@ -72,6 +77,9 @@ class EntityAnalyzer {
       description: description,
       modelType: modelType,
       properties: properties,
+      displayImageName: displayImageName,
+      indexed: indexed,
+      enumerable: enumerable,
     );
   }
 

@@ -60,6 +60,35 @@ dependencies {
 
 > **Note**: AppFunctionsは Android 16（API 36）以上が必須です。
 
+### 3. iOSネイティブ設定 (AppIntentsBridge)
+
+`AppIntentsBridge` Swiftパッケージは、FlutterアプリとiOS App Intentsのネイティブブリッジを提供します。Swift Package Manager (SPM) で追加できます:
+
+1. Xcodeプロジェクト（`ios/Runner.xcworkspace`）を開く
+2. **File → Add Package Dependencies** を選択
+3. リポジトリURL: `https://github.com/touyou/flutter_intents` を入力
+4. `AppIntentsBridge` パッケージプロダクトを選択
+5. `Runner` ターゲットに追加
+
+`AppDelegate.swift` に以下を追加:
+
+```swift
+import app_intents
+import AppIntentsBridge
+
+// didFinishLaunchingWithOptions内:
+if #available(iOS 16.0, *) {
+  Task {
+    await FlutterBridge.shared.setIntentExecutor { identifier, params in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.channelNotAvailable
+      }
+      return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+  }
+}
+```
+
 ## Intentの定義
 
 ### 基本的なIntent

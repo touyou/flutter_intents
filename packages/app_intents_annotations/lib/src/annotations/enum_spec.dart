@@ -33,5 +33,11 @@ class EnumCaseDisplay {
   /// The display title for this enum case.
   final String title;
 
-  const EnumCaseDisplay({required this.title});
+  /// Optional asset image name for this enum case.
+  ///
+  /// When set, generates `DisplayRepresentation` with
+  /// `.init(named: imageName, isTemplate: true)` image.
+  final String? imageName;
+
+  const EnumCaseDisplay({required this.title, this.imageName});
 }

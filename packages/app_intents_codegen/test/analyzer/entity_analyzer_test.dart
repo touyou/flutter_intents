@@ -170,6 +170,95 @@ void main() {
 
         expect(result, isNull);
       });
+
+      test('extracts displayImageName when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            displayImageName: 'team',
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.displayImageName, equals('team'));
+      });
+
+      test('extracts indexed when set to true', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            indexed: true,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.indexed, isTrue);
+      });
+
+      test('extracts enumerable when set to true', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            enumerable: true,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.enumerable, isTrue);
+      });
+
+      test('defaults indexed and enumerable to false', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.indexed, isFalse);
+        expect(result!.enumerable, isFalse);
+        expect(result!.displayImageName, isNull);
+      });
     });
 
     group('hasEntitySpecAnnotation', () {

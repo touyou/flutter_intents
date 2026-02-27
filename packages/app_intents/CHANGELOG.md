@@ -1,3 +1,8 @@
+## 0.5.0
+
+- Version bump to align with annotations/codegen packages
+- No API changes
+
 ## 0.4.0
 
 - Add caching API: `getCachedValue()`, `setCachedValue()`, `clearCachedValue()`

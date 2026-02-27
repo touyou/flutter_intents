@@ -51,24 +51,30 @@ class EnumCaseInfo {
   /// The display title for this case.
   final String displayTitle;
 
+  /// Optional asset image name for this case.
+  final String? imageName;
+
   const EnumCaseInfo({
     required this.name,
     required this.displayTitle,
+    this.imageName,
   });
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! EnumCaseInfo) return false;
-    return name == other.name && displayTitle == other.displayTitle;
+    return name == other.name &&
+        displayTitle == other.displayTitle &&
+        imageName == other.imageName;
   }
 
   @override
-  int get hashCode => Object.hash(name, displayTitle);
+  int get hashCode => Object.hash(name, displayTitle, imageName);
 
   @override
   String toString() =>
-      'EnumCaseInfo(name: $name, displayTitle: $displayTitle)';
+      'EnumCaseInfo(name: $name, displayTitle: $displayTitle, imageName: $imageName)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

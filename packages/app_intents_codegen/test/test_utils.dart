@@ -84,12 +84,18 @@ Future<LibraryElement> resolveSource(String source) async {
           final String title;
           final String pluralTitle;
           final String? description;
+          final String? displayImageName;
+          final bool indexed;
+          final bool enumerable;
 
           const EntitySpec({
             required this.identifier,
             required this.title,
             required this.pluralTitle,
             this.description,
+            this.displayImageName,
+            this.indexed = false,
+            this.enumerable = false,
           });
         }
       ''',
@@ -137,9 +143,11 @@ Future<LibraryElement> resolveSource(String source) async {
 
         class EnumCaseDisplay {
           final String title;
+          final String? imageName;
 
           const EnumCaseDisplay({
             required this.title,
+            this.imageName,
           });
         }
       ''',

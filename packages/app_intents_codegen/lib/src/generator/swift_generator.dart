@@ -422,10 +422,20 @@ class SwiftGenerator {
   String generateEntity(EntityInfo info) {
     final buffer = StringBuffer();
 
-    // Import statement
+    // Import statements
     buffer.writeln('import AppIntents');
+    if (info.indexed) {
+      buffer.writeln('import CoreSpotlight');
+    }
     buffer.writeln();
 
+    // Entity body
+    _generateEntityBody(buffer, info);
+
+    return buffer.toString();
+  }
+
+  void _generateEntityBody(StringBuffer buffer, EntityInfo info) {
     // Availability and struct declaration
     buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}: AppEntity {');
@@ -455,7 +465,15 @@ class SwiftGenerator {
     // Generate query struct
     _writeQueryStruct(buffer, info);
 
-    return buffer.toString();
+    // Generate EnumerableEntityQuery extension
+    if (info.enumerable) {
+      _writeEnumerableQueryExtension(buffer, info);
+    }
+
+    // Generate IndexedEntity extension
+    if (info.indexed) {
+      _writeIndexedEntityExtension(buffer, info);
+    }
   }
 
   /// Writes the displayRepresentation computed property.
@@ -485,18 +503,31 @@ class SwiftGenerator {
 
     if (imageProp != null && !imageProp.dartType.endsWith('?')) {
       args.add('image: .init(systemName: ${imageProp.fieldName})');
+    } else if (imageProp == null && info.displayImageName != null) {
+      // Static display image from @EntitySpec (asset bundle image)
+      args.add(
+          'image: .init(named: "${info.displayImageName}", isTemplate: true)');
     }
 
     if (imageProp != null && imageProp.dartType.endsWith('?')) {
-      // Nullable image: use conditional logic
+      // Nullable image: use conditional logic with fallback
       buffer.writeln('$_indent${_indent}if let ${imageProp.fieldName} {');
       final argsWithImage = List<String>.from(args);
       argsWithImage.add('image: .init(systemName: ${imageProp.fieldName})');
-      buffer.writeln('$_indent$_indent${_indent}return DisplayRepresentation(${argsWithImage.join(', ')})');
+      buffer.writeln(
+          '$_indent$_indent${_indent}return DisplayRepresentation(${argsWithImage.join(', ')})');
       buffer.writeln('$_indent$_indent}');
-      buffer.writeln('$_indent${_indent}return DisplayRepresentation(${args.join(', ')})');
+      // Fallback: use displayImageName if available
+      final fallbackArgs = List<String>.from(args);
+      if (info.displayImageName != null) {
+        fallbackArgs.add(
+            'image: .init(named: "${info.displayImageName}", isTemplate: true)');
+      }
+      buffer.writeln(
+          '$_indent${_indent}return DisplayRepresentation(${fallbackArgs.join(', ')})');
     } else {
-      buffer.writeln('$_indent${_indent}DisplayRepresentation(${args.join(', ')})');
+      buffer.writeln(
+          '$_indent${_indent}DisplayRepresentation(${args.join(', ')})');
     }
 
     buffer.writeln('$_indent}');
@@ -583,6 +614,43 @@ class SwiftGenerator {
     buffer.writeln('$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})');
   }
 
+  /// Writes EnumerableEntityQuery extension.
+  void _writeEnumerableQueryExtension(
+      StringBuffer buffer, EntityInfo info) {
+    buffer.writeln();
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln(
+        'extension ${info.className}Query: EnumerableEntityQuery {');
+    buffer.writeln(
+        '${_indent}func allEntities() async throws -> [${info.className}] {');
+    buffer.writeln('$_indent${_indent}try await suggestedEntities()');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+  }
+
+  /// Writes IndexedEntity extension with attributeSet.
+  void _writeIndexedEntityExtension(
+      StringBuffer buffer, EntityInfo info) {
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+
+    buffer.writeln();
+    buffer.writeln('@available(iOS 26.0, *)');
+    buffer.writeln('extension ${info.className}: IndexedEntity {');
+    buffer.writeln(
+        '${_indent}var attributeSet: CSSearchableItemAttributeSet {');
+    buffer.writeln(
+        '$_indent${_indent}let attributes = CSSearchableItemAttributeSet()');
+    if (titleProp != null) {
+      buffer.writeln(
+          '$_indent${_indent}attributes.displayName = ${titleProp.fieldName}');
+    }
+    buffer.writeln('$_indent${_indent}return attributes');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+  }
+
   /// Generates an AppShortcutsProvider struct from shortcut information.
   ///
   /// The generated struct includes:
@@ -644,6 +712,9 @@ class SwiftGenerator {
     if (intents.any((i) => _needsCacheImport(i))) {
       buffer.writeln('import app_intents');
     }
+    if (entities.any((e) => e.indexed)) {
+      buffer.writeln('import CoreSpotlight');
+    }
     buffer.writeln();
 
     // Generate enums (before intents, since intents may reference them)
@@ -663,7 +734,7 @@ class SwiftGenerator {
 
     // Generate entities (without individual imports)
     for (final entity in entities) {
-      buffer.writeln(_generateEntityBody(entity));
+      _generateEntityBody(buffer, entity);
       buffer.writeln();
     }
 
@@ -724,42 +795,6 @@ class SwiftGenerator {
     buffer.write('}');
   }
 
-  /// Generates entity body without import statement.
-  String _generateEntityBody(EntityInfo info) {
-    final buffer = StringBuffer();
-
-    // Availability and struct declaration
-    buffer.writeln('@available(iOS 17.0, *)');
-    buffer.writeln('struct ${info.className}: AppEntity {');
-
-    // Type display representation
-    buffer.writeln('$_indent' 'static var typeDisplayRepresentation: TypeDisplayRepresentation =');
-    buffer.writeln('$_indent$_indent' 'TypeDisplayRepresentation(name: "${info.title}")');
-    buffer.writeln();
-
-    // Default query
-    buffer.writeln('${_indent}static var defaultQuery = ${info.className}Query()');
-    buffer.writeln();
-
-    // Properties
-    for (final prop in info.properties) {
-      final swiftType = dartTypeToSwiftType(prop.dartType);
-      buffer.writeln('${_indent}var ${prop.fieldName}: $swiftType');
-    }
-
-    // Display representation
-    buffer.writeln();
-    _writeDisplayRepresentation(buffer, info);
-
-    buffer.writeln('}');
-    buffer.writeln();
-
-    // Generate query struct
-    _writeQueryStruct(buffer, info);
-
-    return buffer.toString();
-  }
-
   /// Generates shortcuts provider body without import statement.
   String _generateShortcutsProviderBody(List<AppShortcutInfo> shortcuts) {
     final buffer = StringBuffer();
@@ -815,11 +850,19 @@ class SwiftGenerator {
     buffer.writeln();
 
     // caseDisplayRepresentations
-    buffer.writeln('${_indent}static var caseDisplayRepresentations: [${info.className}: DisplayRepresentation] = [');
+    buffer.writeln(
+        '${_indent}static var caseDisplayRepresentations: [${info.className}: DisplayRepresentation] = [');
     for (var i = 0; i < info.cases.length; i++) {
       final c = info.cases[i];
       final comma = i < info.cases.length - 1 ? ',' : '';
-      buffer.writeln('$_indent$_indent.${c.name}: "${c.displayTitle}"$comma');
+      if (c.imageName != null) {
+        buffer.writeln(
+            '$_indent$_indent.${c.name}: .init(title: "${c.displayTitle}", '
+            'image: .init(named: "${c.imageName}", isTemplate: true))$comma');
+      } else {
+        buffer.writeln(
+            '$_indent$_indent.${c.name}: "${c.displayTitle}"$comma');
+      }
     }
     buffer.writeln('$_indent]');
 
@@ -847,11 +890,19 @@ class SwiftGenerator {
     );
   }
 
-  /// Converts `{applicationName}` or `${applicationName}` to Swift's
-  /// `\(.applicationName)` string interpolation for AppShortcut phrases.
+  /// Converts phrase placeholders to Swift string interpolation:
+  /// - `{applicationName}` → `\(.applicationName)` (system variable)
+  /// - `{paramName}` → `\(\.$paramName)` (intent parameter reference)
   String _convertPhraseToSwift(String phrase) {
-    return phrase
+    // First: convert {applicationName} to system variable syntax
+    var result = phrase
         .replaceAll(r'${applicationName}', '\\(.applicationName)')
         .replaceAll('{applicationName}', '\\(.applicationName)');
+    // Then: convert remaining {paramName} to parameter reference syntax
+    result = result.replaceAllMapped(
+      RegExp(r'\{(\w+)\}'),
+      (match) => '\\(\\.\$${match.group(1)})',
+    );
+    return result;
   }
 }

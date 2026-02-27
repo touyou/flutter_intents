@@ -21,6 +21,15 @@ class EntityInfo {
   /// The properties of the entity.
   final List<EntityPropertyInfo> properties;
 
+  /// Optional asset image name for entity display representation.
+  final String? displayImageName;
+
+  /// Whether to generate IndexedEntity conformance for Spotlight.
+  final bool indexed;
+
+  /// Whether to generate EnumerableEntityQuery conformance.
+  final bool enumerable;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -29,6 +38,9 @@ class EntityInfo {
     this.description,
     this.modelType,
     required this.properties,
+    this.displayImageName,
+    this.indexed = false,
+    this.enumerable = false,
   });
 
   @override
@@ -41,6 +53,9 @@ class EntityInfo {
         pluralTitle == other.pluralTitle &&
         description == other.description &&
         modelType == other.modelType &&
+        displayImageName == other.displayImageName &&
+        indexed == other.indexed &&
+        enumerable == other.enumerable &&
         _listEquals(properties, other.properties);
   }
 
@@ -52,6 +67,9 @@ class EntityInfo {
         pluralTitle,
         description,
         modelType,
+        displayImageName,
+        indexed,
+        enumerable,
         Object.hashAll(properties),
       );
 
@@ -59,6 +77,7 @@ class EntityInfo {
   String toString() =>
       'EntityInfo(className: $className, identifier: $identifier, title: $title, '
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
+      'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
       'properties: $properties)';
 }
 

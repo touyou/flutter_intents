@@ -1390,6 +1390,161 @@ void main() {
         expect(result, contains('entityIdentifier: "com.example.taskapp.TaskEntity"'));
         expect(result, isNot(contains('entityIdentifier: "TaskEntitySpec"')));
       });
+
+      test('generates displayRepresentation with displayImageName', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          displayImageName: 'team',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result,
+            contains('image: .init(named: "team", isTemplate: true)'));
+      });
+
+      test(
+          'displayImageName is fallback when @EntityImage property is nullable',
+          () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          displayImageName: 'team',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+            EntityPropertyInfo(
+                fieldName: 'iconName',
+                dartType: 'String?',
+                role: EntityPropertyRole.image),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        // Per-instance image takes priority
+        expect(result, contains('if let iconName'));
+        expect(result, contains('image: .init(systemName: iconName)'));
+        // Fallback to displayImageName
+        expect(result,
+            contains('image: .init(named: "team", isTemplate: true)'));
+      });
+
+      test('generates EnumerableEntityQuery extension when enumerable', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          enumerable: true,
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result,
+            contains('extension TeamEntityQuery: EnumerableEntityQuery'));
+        expect(result, contains('func allEntities()'));
+        expect(result, contains('try await suggestedEntities()'));
+      });
+
+      test('does not generate EnumerableEntityQuery when not enumerable', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, isNot(contains('EnumerableEntityQuery')));
+      });
+
+      test('generates IndexedEntity extension when indexed', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          indexed: true,
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('import CoreSpotlight'));
+        expect(result, contains('@available(iOS 26.0, *)'));
+        expect(result, contains('extension TeamEntity: IndexedEntity'));
+        expect(result,
+            contains('var attributeSet: CSSearchableItemAttributeSet'));
+        expect(result, contains('attributes.displayName = name'));
+      });
+
+      test('does not generate IndexedEntity when not indexed', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, isNot(contains('IndexedEntity')));
+        expect(result, isNot(contains('CoreSpotlight')));
+      });
     });
 
     group('generateAppShortcutsProvider', () {
@@ -1475,6 +1630,47 @@ void main() {
 
         expect(result, contains(r'"Create a task in \(.applicationName)"'));
         expect(result, isNot(contains(r'${applicationName}')));
+      });
+
+      test('converts {paramName} to Swift parameter reference', () {
+        final shortcuts = [
+          AppShortcutInfo(
+            intentClassName: 'CompleteTaskIntent',
+            phrases: [
+              'Complete {target} in {applicationName}',
+            ],
+            shortTitle: 'Complete Task',
+            systemImageName: 'checkmark.circle',
+          ),
+        ];
+
+        final result = generator.generateAppShortcutsProvider(shortcuts);
+
+        expect(
+            result,
+            contains(
+                r'"Complete \(\.$target) in \(.applicationName)"'));
+        expect(result, isNot(contains('{target}')));
+      });
+
+      test('converts multiple {paramName} in single phrase', () {
+        final shortcuts = [
+          AppShortcutInfo(
+            intentClassName: 'MoveTaskIntent',
+            phrases: [
+              'Move {task} to {category} in {applicationName}',
+            ],
+            shortTitle: 'Move Task',
+            systemImageName: 'arrow.right',
+          ),
+        ];
+
+        final result = generator.generateAppShortcutsProvider(shortcuts);
+
+        expect(
+            result,
+            contains(
+                r'Move \(\.$task) to \(\.$category) in \(.applicationName)'));
       });
     });
 
@@ -1582,6 +1778,27 @@ void main() {
         expect(result, contains('.high: "High"'));
         expect(result, contains('.medium: "Medium"'));
         expect(result, contains('.low: "Low"'));
+      });
+
+      test('generates caseDisplayRepresentations with image', () {
+        final enumInfo = EnumInfo(
+          className: 'FeedCategory',
+          identifier: 'com.example.category',
+          title: 'Category',
+          cases: [
+            EnumCaseInfo(
+                name: 'feed', displayTitle: 'Feed', imageName: 'feed'),
+            EnumCaseInfo(name: 'explore', displayTitle: 'Explore'),
+          ],
+        );
+
+        final result = generator.generateEnum(enumInfo);
+
+        expect(
+            result,
+            contains('.feed: .init(title: "Feed", '
+                'image: .init(named: "feed", isTemplate: true))'));
+        expect(result, contains('.explore: "Explore"'));
       });
     });
 

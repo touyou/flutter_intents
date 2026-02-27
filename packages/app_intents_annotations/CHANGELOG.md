@@ -1,3 +1,10 @@
+## 0.5.0
+
+- Add `imageName` field to `@EnumCaseDisplay` for AppEnum case icon support
+- Add `displayImageName` field to `@EntitySpec` for entity type-level display image
+- Add `indexed` field to `@EntitySpec` for `IndexedEntity` Spotlight integration (iOS 26+)
+- Add `enumerable` field to `@EntitySpec` for `EnumerableEntityQuery` support
+
 ## 0.4.0
 
 - Add `IntentMode` enum for intent execution mode control (`foreground`/`background`)

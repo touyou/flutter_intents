@@ -88,6 +88,33 @@ void main() {
 
         expect(result, isNull);
       });
+
+      test('extracts imageName from @EnumCaseDisplay', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EnumSpec(
+            identifier: 'com.example.category',
+            title: 'Category',
+          )
+          enum FeedCategory {
+            @EnumCaseDisplay(title: 'Feed', imageName: 'feed')
+            feed,
+            @EnumCaseDisplay(title: 'Explore')
+            explore,
+            discover,
+          }
+        ''');
+
+        final enumElement = findEnum(library, 'FeedCategory');
+
+        final result = analyzer.analyze(enumElement);
+
+        expect(result, isNotNull);
+        expect(result!.cases[0].imageName, equals('feed'));
+        expect(result.cases[1].imageName, isNull);
+        expect(result.cases[2].imageName, isNull);
+      });
     });
 
     group('hasEnumSpecAnnotation', () {

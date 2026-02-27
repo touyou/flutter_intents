@@ -58,7 +58,11 @@ docs/
     - `ParameterSummary` for Shortcuts UI display
     - Entity parameter types with picker UI support
     - Entity `DisplayRepresentation` with SF Symbol image support
-    - AppEnum generation with `typeDisplayRepresentation` and `caseDisplayRepresentations`
+    - AppEnum generation with `typeDisplayRepresentation` and `caseDisplayRepresentations` (with optional image)
+    - Entity `displayImageName` for type-level static image (asset bundle `named:`)
+    - `EnumerableEntityQuery` extension generation (when `enumerable: true`)
+    - `IndexedEntity` extension with `CSSearchableItemAttributeSet` (when `indexed: true`, iOS 26+)
+    - AppShortcut phrase `{paramName}` → `\(\.$paramName)` conversion
     - Proper error handling (`throw` instead of silent `return .result()`)
     - FlutterBridge-backed EntityQuery with `entities(for:)` and `suggestedEntities()`
   - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
@@ -122,7 +126,6 @@ docs/
 ### Future Migration
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
 - **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
-- **`IndexedEntity`** (iOS 26+): Spotlight semantic search on entities
 - **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
 - **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
 - **Advanced `IntentMode` submodes**: `.foreground(.immediate)`, `.foreground(.deferred)`, `.foreground(.dynamic)`
@@ -370,7 +373,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
 
 ### iOS App Integration Steps
-1. Copy AppIntentsBridge Swift files to `ios/Runner/AppIntentsBridge/`
+1. Add AppIntentsBridge: either via SPM (`File → Add Package Dependencies` → `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product) or copy Swift files to `ios/Runner/AppIntentsBridge/`
 2. Run `dart run app_intents_codegen:generate_swift` to generate Swift code
 3. Add Swift files to Xcode project (update project.pbxproj)
 4. Wire FlutterBridge in AppDelegate:

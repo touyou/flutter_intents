@@ -60,6 +60,35 @@ dependencies {
 
 > **Note**: AppFunctions requires Android 16 (API 36) or later.
 
+### 3. iOS Native Setup (AppIntentsBridge)
+
+The `AppIntentsBridge` Swift package provides the native bridge between your Flutter app and iOS App Intents. You can add it via Swift Package Manager (SPM):
+
+1. Open your Xcode project (`ios/Runner.xcworkspace`)
+2. Go to **File → Add Package Dependencies**
+3. Enter the repository URL: `https://github.com/touyou/flutter_intents`
+4. Select the `AppIntentsBridge` package product
+5. Add it to your `Runner` target
+
+Then in your `AppDelegate.swift`:
+
+```swift
+import app_intents
+import AppIntentsBridge
+
+// In didFinishLaunchingWithOptions:
+if #available(iOS 16.0, *) {
+  Task {
+    await FlutterBridge.shared.setIntentExecutor { identifier, params in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.channelNotAvailable
+      }
+      return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+  }
+}
+```
+
 ## Defining Intents
 
 ### Basic Intent

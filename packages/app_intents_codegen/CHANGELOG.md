@@ -1,3 +1,15 @@
+## 0.5.0
+
+- Fix AppShortcut phrase `{paramName}` to generate `\(\.$paramName)` Swift syntax
+- Add `imageName` support in `@EnumCaseDisplay` code generation (asset bundle image)
+- Add `displayImageName` support in `@EntitySpec` for entity `DisplayRepresentation` image
+  - Static image via `named:` for entity type, per-instance `@EntityImage` via `systemName:` takes priority
+- Add `EnumerableEntityQuery` extension generation when `enumerable: true`
+- Add `IndexedEntity` extension generation when `indexed: true` (iOS 26+, `import CoreSpotlight`)
+- Update `EnumAnalyzer` to extract `imageName` from `@EnumCaseDisplay`
+- Update `EntityAnalyzer` to extract `displayImageName`, `indexed`, `enumerable` from `@EntitySpec`
+- 189 tests (28 new tests for all new features)
+
 ## 0.4.1
 
 - Widen dependency constraints to resolve conflicts with other codegen packages (e.g., `go_router_builder`)
