@@ -61,10 +61,11 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             if let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
                let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
-                channel?.invokeMethod("executeIntent", arguments: action)
-                result(true)
+                // Return the action data directly instead of nested invokeMethod("executeIntent").
+                // The Dart side will call handleIntentExecution internally.
+                result(action)
             } else {
-                result(false)
+                result(nil)
             }
         default:
             result(FlutterMethodNotImplemented)

@@ -179,8 +179,21 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   @override
   Future<bool> processPendingActions() async {
     final result =
-        await methodChannel.invokeMethod<bool>('processPendingActions');
-    return result ?? false;
+        await methodChannel.invokeMethod<Map>('processPendingActions');
+    if (result == null) return false;
+
+    final identifier = result['identifier'] as String;
+    final params = _convertToStringDynamicMap(result['params']);
+
+    // Emit event to the stream
+    _intentExecutionController.add(IntentExecutionRequest(
+      identifier: identifier,
+      params: params,
+    ));
+
+    // Deliver to the registered handler directly (no nested MethodChannel call)
+    await handleIntentExecution(identifier, params);
+    return true;
   }
 
   /// Executes the registered handler for the given intent.
