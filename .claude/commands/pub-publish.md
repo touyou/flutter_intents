@@ -32,7 +32,21 @@ Update the version in ALL of these files (replace the old version with `$ARGUMEN
 - `packages/app_intents_codegen/pubspec.yaml` → `version: $ARGUMENTS`
 - `packages/app_intents_codegen/pubspec.yaml` → `app_intents_annotations: ^$ARGUMENTS`
 
-### 3. Update CHANGELOGs
+### 3. Update Version References in README/Docs
+
+Update `^OLD_VERSION` → `^$ARGUMENTS` in ALL these files:
+
+- `README.md`
+- `README.ja.md`
+- `docs/usage.md`
+- `docs/usage.ja.md`
+- `docs/packages.md`
+- `docs/packages.ja.md`
+- `packages/app_intents/README.md`
+- `packages/app_intents_annotations/README.md`
+- `packages/app_intents_codegen/README.md`
+
+### 4. Update CHANGELOGs
 
 Add a `## $ARGUMENTS` section at the top of each CHANGELOG.md with the new features/fixes:
 
@@ -42,7 +56,7 @@ Add a `## $ARGUMENTS` section at the top of each CHANGELOG.md with the new featu
 
 Summarize changes from `git log` since the last tag. Use bullet points.
 
-### 4. Dry-Run Validation
+### 5. Dry-Run Validation
 
 ```bash
 cd packages/app_intents_annotations && dart pub publish --dry-run
@@ -52,7 +66,7 @@ cd packages/app_intents_codegen && dart pub publish --dry-run
 
 All must show `Package has 0 warnings.` (hints are OK).
 
-### 5. Commit and Tag
+### 6. Commit and Tag
 
 ```bash
 git add <all changed files>
@@ -61,7 +75,7 @@ git tag v$ARGUMENTS
 git push origin main --tags
 ```
 
-### 6. Publish to pub.dev
+### 7. Publish to pub.dev
 
 Publish in dependency order. Each must succeed before the next:
 
@@ -76,7 +90,7 @@ cd packages/app_intents && flutter pub publish --force
 cd packages/app_intents_codegen && dart pub publish --force
 ```
 
-### 7. Report
+### 8. Report
 
 Print a summary:
 - Version released
