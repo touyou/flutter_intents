@@ -1,3 +1,10 @@
+## 0.3.0
+
+- Add Android AppFunctions support via `AppIntentsPlugin.kt`
+- Register Android platform in `pubspec.yaml` (`com.example.app_intents`)
+- MethodChannel bridge for Android AppFunctions ↔ Flutter communication
+- Update documentation for cross-platform support
+
 ## 0.2.1
 
 - Fix podspec: update iOS platform from 13.0 to 17.0

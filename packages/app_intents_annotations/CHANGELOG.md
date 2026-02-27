@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Add Android AppFunctions support (annotations shared across iOS and Android)
+- Update documentation for cross-platform (iOS App Intents + Android AppFunctions)
+
 ## 0.2.1
 
 - Documentation updates to reflect v0.2.0 features

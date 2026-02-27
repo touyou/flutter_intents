@@ -1,3 +1,15 @@
+## 0.3.0
+
+- Add `KotlinGenerator` for Android AppFunctions code generation
+  - `@AppFunction(isDescribedByKdoc = true)` annotated methods
+  - `@AppFunctionSerializable` data classes for entities
+  - `AppFunctionsBridge` singleton for MethodChannel communication
+  - Enum class generation with `fromValue()` companion object
+- Add CLI command `generate_kotlin` for Kotlin file output
+- Extract shared `analyzeSources()` utility for Swift/Kotlin CLI commands
+- 154 tests (38 new Kotlin generator tests)
+- Update documentation for cross-platform support
+
 ## 0.2.1
 
 - Documentation updates to reflect v0.2.0 features

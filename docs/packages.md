@@ -408,7 +408,7 @@ Tool for generating code from Dart annotations.
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.2.1
+  app_intents_codegen: ^0.3.0
 ```
 
 ```bash
