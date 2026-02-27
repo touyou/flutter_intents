@@ -174,11 +174,13 @@ AppIntents().registerIntentHandler(
     }
 
     if (param.fileType != null) {
+      // MethodChannel returns Map<Object?, Object?>, not Map<String, dynamic>.
+      // Use Map.from() for safe conversion.
       if (isNullable) {
-        return "final ${param.fieldName}Raw = params['${param.fieldName}'] as Map<String, dynamic>?;\n"
-            'final ${param.fieldName} = ${param.fieldName}Raw != null ? IntentFile.fromMap(${param.fieldName}Raw) : null;';
+        return "final ${param.fieldName}Raw = params['${param.fieldName}'] as Map?;\n"
+            'final ${param.fieldName} = ${param.fieldName}Raw != null ? IntentFile.fromMap(Map<String, dynamic>.from(${param.fieldName}Raw)) : null;';
       } else {
-        return "final ${param.fieldName} = IntentFile.fromMap(params['${param.fieldName}'] as Map<String, dynamic>);";
+        return "final ${param.fieldName} = IntentFile.fromMap(Map<String, dynamic>.from(params['${param.fieldName}'] as Map));";
       }
     }
 

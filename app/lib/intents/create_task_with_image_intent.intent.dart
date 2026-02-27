@@ -20,8 +20,10 @@ void _registerCreateTaskWithImageIntentHandlers() {
     'com.example.taskapp.createTaskWithImage',
     (params) async {
       final title = params['title'] as String;
-      final imageRaw = params['image'] as Map<String, dynamic>?;
-      final image = imageRaw != null ? IntentFile.fromMap(imageRaw) : null;
+      final imageRaw = params['image'] as Map?;
+      final image = imageRaw != null
+          ? IntentFile.fromMap(Map<String, dynamic>.from(imageRaw))
+          : null;
       final result = await createTaskWithImageIntentHandler(
         title: title,
         image: image,
