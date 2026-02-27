@@ -37,7 +37,9 @@ docs/
 
 ### Completed
 - `app_intents_annotations`: All annotations defined
-  - `@IntentSpec`, `@IntentParam`, `@EntitySpec`, `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery`
+  - `@IntentSpec` (with `urlScheme`/`urlAction` for URL scheme execution)
+  - `@IntentParam` (with `entityType` for entity picker parameters)
+  - `@EntitySpec`, `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery`
   - `@AppShortcut`, `@AppShortcutsProvider`
 - `app_intents`: Platform Interface extended
   - `registerIntentHandler`, `registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`
@@ -46,16 +48,21 @@ docs/
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
   - `IntentAnalyzer`, `EntityAnalyzer` for annotation parsing
   - `SwiftGenerator`: Generates iOS 16+ AppIntent/AppEntity/AppShortcutsProvider Swift code
+    - URL scheme execution (when `urlScheme` set) or FlutterBridge invocation
+    - Entity parameter types with picker UI support
+    - FlutterBridge-backed EntityQuery with `entities(for:)` and `suggestedEntities()`
   - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
+    - Always registers both `registerEntityQueryHandler` and `registerSuggestedEntitiesHandler`
   - `AppIntentsBuilder` using `PartBuilder` for proper part file generation
   - CLI command: `dart run app_intents_codegen:generate_swift` for Swift file output
-  - 70+ tests covering analyzers, generators, and builder
+  - 90+ tests covering analyzers, generators, and builder
 - `ios-spm/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
 - `app/` Example App: Task management demo
-  - `CreateTaskIntentSpec`, `CompleteTaskIntentSpec` intents
-  - `TaskEntitySpec` entity with query handler
+  - `CreateTaskIntentSpec` (URL scheme: `taskapp://create`), `CompleteTaskIntentSpec` (URL scheme: `taskapp://complete`)
+  - `CompleteTask` uses entity parameter (`TaskEntitySpec`) for picker UI
+  - `TaskEntitySpec` entity with query handler + suggested entities handler
   - `Task` model with JSON serialization
   - `TaskRepository` in-memory storage
   - Handlers defined inline with specs (part file pattern)
@@ -122,6 +129,9 @@ Options:
 - `-i, --input`: Input directory (default: `lib`)
 - `-o, --output`: Output directory (default: `ios/Runner/GeneratedIntents`)
 - `-f, --file`: Output filename (default: `GeneratedAppIntents.swift`)
+
+### Entity Identifier Consistency
+The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
 
 ### MethodChannel Type Serialization
 MethodChannel only supports specific types. Non-supported types need conversion:
@@ -306,28 +316,36 @@ cd packages/app_intents && flutter analyze
 
 ## Generated Swift Code Example
 
-The codegen should produce Swift like:
+The codegen produces Swift with URL scheme execution (when `urlScheme` is set):
 
 ```swift
 import AppIntents
+import UIKit
 
 @available(iOS 16.0, *)
-struct CreateTaskIntent: AppIntent {
+struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
+    static var openAppWhenRun: Bool { true }
 
     @Parameter(title: "Title")
     var title: String
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let result = try await FlutterBridge.shared.invoke(
-            intent: "CreateTaskIntent",
-            params: ["title": title]
-        )
+        var components = URLComponents()
+        components.scheme = "taskapp"
+        components.host = "create"
+        var queryItems = [URLQueryItem]()
+        queryItems.append(URLQueryItem(name: "title", value: String(describing: title)))
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else { return .result() }
+        await UIApplication.shared.open(url)
         return .result()
     }
 }
 ```
+
+Without `urlScheme`, FlutterBridge invocation is generated instead (for background execution).
 
 ## Generated Dart Code Example
 
