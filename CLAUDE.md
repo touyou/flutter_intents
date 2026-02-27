@@ -93,6 +93,15 @@ docs/
   - Entity query handlers (`registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`) are still used
   - Keeping unused handlers is harmless (minimal overhead) and useful for testing
 
+### Future Migration (when iOS minimum is raised)
+- **`openAppWhenRun` → `supportedModes`** (iOS 26+): `static let supportedModes: IntentModes = .foreground` replaces deprecated `openAppWhenRun`
+- **`@Property` wrapper** (iOS 17+): Expose entity properties to system (Spotlight, etc.)
+- **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
+- **`ParameterSummary`**: Enable Spotlight integration on Mac
+- **`IndexedEntity`** (iOS 26+): Spotlight semantic search on entities
+- **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
+- **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
+
 ### Pending
 - macOS platform support (future)
 - Background intent execution without opening app (requires native-only fallback)
