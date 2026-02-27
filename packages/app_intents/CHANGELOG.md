@@ -1,3 +1,7 @@
+## 0.5.1
+
+- No API changes; version bump to align with codegen package
+
 ## 0.5.0
 
 - Version bump to align with annotations/codegen packages

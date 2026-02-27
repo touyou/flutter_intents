@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Add root `Package.swift` so AppIntentsBridge can be fetched via standard SPM from repository URL
+
 ## 0.5.0
 
 - Fix AppShortcut phrase `{paramName}` to generate `\(\.$paramName)` Swift syntax

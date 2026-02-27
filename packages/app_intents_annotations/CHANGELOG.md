@@ -1,3 +1,7 @@
+## 0.5.1
+
+- No API changes; version bump to align with codegen package
+
 ## 0.5.0
 
 - Add `imageName` field to `@EnumCaseDisplay` for AppEnum case icon support
