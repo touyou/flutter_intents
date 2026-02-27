@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/entity_analyzer.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
@@ -34,9 +34,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TaskEntity');
+        final classElement = findClass(library, 'TaskEntity');
 
         final result = analyzer.analyze(classElement);
 
@@ -66,9 +64,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TaskEntity');
+        final classElement = findClass(library, 'TaskEntity');
 
         final result = analyzer.analyze(classElement);
 
@@ -93,9 +89,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TaskEntity');
+        final classElement = findClass(library, 'TaskEntity');
 
         final result = analyzer.analyze(classElement);
 
@@ -137,9 +131,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TaskEntity');
+        final classElement = findClass(library, 'TaskEntity');
 
         final result = analyzer.analyze(classElement);
 
@@ -172,9 +164,7 @@ void main() {
           class PlainClass {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'PlainClass');
+        final classElement = findClass(library, 'PlainClass');
 
         final result = analyzer.analyze(classElement);
 
@@ -197,9 +187,7 @@ void main() {
           class Test {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TestEntity');
+        final classElement = findClass(library, 'TestEntity');
 
         expect(analyzer.hasEntitySpecAnnotation(classElement), isTrue);
       });
@@ -209,9 +197,7 @@ void main() {
           class PlainClass {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'PlainClass');
+        final classElement = findClass(library, 'PlainClass');
 
         expect(analyzer.hasEntitySpecAnnotation(classElement), isFalse);
       });

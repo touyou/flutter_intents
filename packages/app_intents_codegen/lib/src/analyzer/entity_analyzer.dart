@@ -1,31 +1,37 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:app_intents_annotations/app_intents_annotations.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/entity_info.dart';
 
 /// Type checker for EntitySpec annotation.
-const _entitySpecChecker = TypeChecker.fromRuntime(EntitySpec);
+const _entitySpecChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_spec.dart#EntitySpec');
 
 /// Type checker for EntityId annotation.
-const _entityIdChecker = TypeChecker.fromRuntime(EntityId);
+const _entityIdChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityId');
 
 /// Type checker for EntityTitle annotation.
-const _entityTitleChecker = TypeChecker.fromRuntime(EntityTitle);
+const _entityTitleChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityTitle');
 
 /// Type checker for EntitySubtitle annotation.
-const _entitySubtitleChecker = TypeChecker.fromRuntime(EntitySubtitle);
+const _entitySubtitleChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_params.dart#EntitySubtitle');
 
 /// Type checker for EntityImage annotation.
-const _entityImageChecker = TypeChecker.fromRuntime(EntityImage);
+const _entityImageChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityImage');
 
 /// Type checker for EntityDefaultQuery annotation.
-const _entityDefaultQueryChecker = TypeChecker.fromRuntime(EntityDefaultQuery);
+const _entityDefaultQueryChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityDefaultQuery');
 
 /// Type checker for EntitySpecBase base class.
-const _entitySpecBaseChecker = TypeChecker.fromRuntime(EntitySpecBase);
+const _entitySpecBaseChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/bases/entity_spec_base.dart#EntitySpecBase');
 
 /// Analyzer for extracting entity information from annotated classes.
 class EntityAnalyzer {
@@ -59,7 +65,7 @@ class EntityAnalyzer {
     final properties = _extractProperties(element);
 
     return EntityInfo(
-      className: element.name,
+      className: element.name!,
       identifier: identifier,
       title: title,
       pluralTitle: pluralTitle,
@@ -93,7 +99,7 @@ class EntityAnalyzer {
       if (role == EntityPropertyRole.none) continue;
 
       properties.add(EntityPropertyInfo(
-        fieldName: field.name,
+        fieldName: field.name!,
         dartType: field.type.getDisplayString(),
         role: role,
       ));

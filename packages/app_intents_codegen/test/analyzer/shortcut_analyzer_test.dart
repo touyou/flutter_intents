@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/shortcut_analyzer.dart';
 import 'package:test/test.dart';
@@ -22,9 +22,7 @@ void main() {
           class MyAppShortcuts {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         expect(analyzer.hasAppShortcutsProviderAnnotation(classElement), isTrue);
       });
@@ -36,9 +34,7 @@ void main() {
           class MyAppShortcuts {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         expect(analyzer.hasAppShortcutsProviderAnnotation(classElement), isFalse);
       });
@@ -62,9 +58,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         final result = analyzer.analyze(classElement);
 
@@ -99,9 +93,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         final result = analyzer.analyze(classElement);
 
@@ -125,9 +117,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         final result = analyzer.analyze(classElement);
 
@@ -150,9 +140,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'MyAppShortcuts');
+        final classElement = findClass(library, 'MyAppShortcuts');
 
         final result = analyzer.analyze(classElement);
 

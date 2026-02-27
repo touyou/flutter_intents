@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/enum_analyzer.dart';
 import 'package:test/test.dart';
@@ -30,9 +30,7 @@ void main() {
           }
         ''');
 
-        final enumElement = library.topLevelElements
-            .whereType<EnumElement>()
-            .firstWhere((e) => e.name == 'TaskPriority');
+        final enumElement = findEnum(library, 'TaskPriority');
 
         final result = analyzer.analyze(enumElement);
 
@@ -66,9 +64,7 @@ void main() {
           }
         ''');
 
-        final enumElement = library.topLevelElements
-            .whereType<EnumElement>()
-            .firstWhere((e) => e.name == 'TaskPriority');
+        final enumElement = findEnum(library, 'TaskPriority');
 
         final result = analyzer.analyze(enumElement);
 
@@ -86,9 +82,7 @@ void main() {
           }
         ''');
 
-        final enumElement = library.topLevelElements
-            .whereType<EnumElement>()
-            .firstWhere((e) => e.name == 'PlainEnum');
+        final enumElement = findEnum(library, 'PlainEnum');
 
         final result = analyzer.analyze(enumElement);
 
@@ -111,9 +105,7 @@ void main() {
           }
         ''');
 
-        final enumElement = library.topLevelElements
-            .whereType<EnumElement>()
-            .firstWhere((e) => e.name == 'TaskPriority');
+        final enumElement = findEnum(library, 'TaskPriority');
 
         expect(analyzer.hasEnumSpecAnnotation(enumElement), isTrue);
       });
@@ -126,9 +118,7 @@ void main() {
           }
         ''');
 
-        final enumElement = library.topLevelElements
-            .whereType<EnumElement>()
-            .firstWhere((e) => e.name == 'PlainEnum');
+        final enumElement = findEnum(library, 'PlainEnum');
 
         expect(analyzer.hasEnumSpecAnnotation(enumElement), isFalse);
       });

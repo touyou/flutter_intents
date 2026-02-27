@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
@@ -112,56 +111,51 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
       final result = await context.currentSession.getResolvedLibrary(filePath);
 
       if (result is ResolvedLibraryResult) {
-        for (final unit in result.units) {
-          final library = unit.unit.declaredElement?.library;
-          if (library == null) continue;
+        final library = result.element;
 
-          for (final element in library.topLevelElements) {
-            if (element is ClassElement) {
-              // Check for @IntentSpec
-              if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
-                final info = intentAnalyzer.analyze(element);
-                if (info != null &&
-                    !intentsMap.containsKey(info.identifier)) {
-                  intentsMap[info.identifier] = info;
-                  stdout.writeln('  Found intent: ${info.className}');
-                }
-              }
-
-              // Check for @EntitySpec
-              if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
-                final info = entityAnalyzer.analyze(element);
-                if (info != null &&
-                    !entitiesMap.containsKey(info.identifier)) {
-                  entitiesMap[info.identifier] = info;
-                  stdout.writeln('  Found entity: ${info.className}');
-                }
-              }
-
-              // Check for @AppShortcutsProvider
-              if (shortcutAnalyzer
-                  .hasAppShortcutsProviderAnnotation(element)) {
-                final shortcuts = shortcutAnalyzer.analyze(element);
-                for (final shortcut in shortcuts) {
-                  allShortcuts.add(shortcut);
-                  stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
-                }
+          for (final element in library.classes) {
+            // Check for @IntentSpec
+            if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
+              final info = intentAnalyzer.analyze(element);
+              if (info != null &&
+                  !intentsMap.containsKey(info.identifier)) {
+                intentsMap[info.identifier] = info;
+                stdout.writeln('  Found intent: ${info.className}');
               }
             }
 
-            // Check for @EnumSpec on enums
-            if (element is EnumElement) {
-              if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
-                final info = enumAnalyzer.analyze(element);
-                if (info != null &&
-                    !enumsMap.containsKey(info.identifier)) {
-                  enumsMap[info.identifier] = info;
-                  stdout.writeln('  Found enum: ${info.className}');
-                }
+            // Check for @EntitySpec
+            if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
+              final info = entityAnalyzer.analyze(element);
+              if (info != null &&
+                  !entitiesMap.containsKey(info.identifier)) {
+                entitiesMap[info.identifier] = info;
+                stdout.writeln('  Found entity: ${info.className}');
+              }
+            }
+
+            // Check for @AppShortcutsProvider
+            if (shortcutAnalyzer
+                .hasAppShortcutsProviderAnnotation(element)) {
+              final shortcuts = shortcutAnalyzer.analyze(element);
+              for (final shortcut in shortcuts) {
+                allShortcuts.add(shortcut);
+                stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
               }
             }
           }
-        }
+
+          // Check for @EnumSpec on enums
+          for (final element in library.enums) {
+            if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
+              final info = enumAnalyzer.analyze(element);
+              if (info != null &&
+                  !enumsMap.containsKey(info.identifier)) {
+                enumsMap[info.identifier] = info;
+                stdout.writeln('  Found enum: ${info.className}');
+              }
+            }
+          }
       }
     } catch (e) {
       stderr.writeln('  Warning: Could not analyze $filePath: $e');

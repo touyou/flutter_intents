@@ -1,3 +1,14 @@
+## 0.4.1
+
+- Widen dependency constraints to resolve conflicts with other codegen packages (e.g., `go_router_builder`)
+  - `source_gen: ">=2.0.0 <5.0.0"` (was `^2.0.0`)
+  - `analyzer: ">=7.0.0 <11.0.0"` (was `^7.0.0`)
+  - `build: ">=2.4.0 <5.0.0"` (was `^2.4.0`)
+  - `build_test: ">=2.2.0 <4.0.0"` (was `^2.2.0`)
+- Migrate to `TypeChecker.fromUrl()` for compatibility with source_gen 4.x
+- Migrate to `LibraryElement.classes`/`.enums` API for compatibility with analyzer 10.x
+- Fix nullable `element.name` handling for analyzer 10.x
+
 ## 0.4.0
 
 - Add `supportedModes` support in SwiftGenerator

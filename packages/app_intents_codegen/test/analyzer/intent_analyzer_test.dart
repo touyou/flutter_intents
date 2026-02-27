@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/intent_analyzer.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
@@ -27,9 +27,7 @@ void main() {
           class GreetIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -53,9 +51,7 @@ void main() {
           class GreetIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -76,9 +72,7 @@ void main() {
           class GreetIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -97,9 +91,7 @@ void main() {
           class AddIntent extends IntentSpecBase<int, int> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'AddIntent');
+        final classElement = findClass(library, 'AddIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -131,9 +123,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -167,9 +157,7 @@ void main() {
           class CreateTaskIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CreateTaskIntent');
+        final classElement = findClass(library, 'CreateTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -189,9 +177,7 @@ void main() {
           class GreetIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -212,9 +198,7 @@ void main() {
           class CreateTaskIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CreateTaskIntent');
+        final classElement = findClass(library, 'CreateTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -242,9 +226,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CompleteTaskIntent');
+        final classElement = findClass(library, 'CompleteTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -272,9 +254,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CreateTaskIntent');
+        final classElement = findClass(library, 'CreateTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -293,9 +273,7 @@ void main() {
           class GreetIntent extends IntentSpecBase<String, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'GreetIntent');
+        final classElement = findClass(library, 'GreetIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -320,9 +298,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CreateTaskIntent');
+        final classElement = findClass(library, 'CreateTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -349,9 +325,7 @@ void main() {
           }
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'CreateTaskIntent');
+        final classElement = findClass(library, 'CreateTaskIntent');
 
         final result = analyzer.analyze(classElement);
 
@@ -367,9 +341,7 @@ void main() {
           class PlainClass {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'PlainClass');
+        final classElement = findClass(library, 'PlainClass');
 
         final result = analyzer.analyze(classElement);
 
@@ -389,9 +361,7 @@ void main() {
           class TestIntent extends IntentSpecBase<void, void> {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'TestIntent');
+        final classElement = findClass(library, 'TestIntent');
 
         expect(analyzer.hasIntentSpecAnnotation(classElement), isTrue);
       });
@@ -401,9 +371,7 @@ void main() {
           class PlainClass {}
         ''');
 
-        final classElement = library.topLevelElements
-            .whereType<ClassElement>()
-            .firstWhere((e) => e.name == 'PlainClass');
+        final classElement = findClass(library, 'PlainClass');
 
         expect(analyzer.hasIntentSpecAnnotation(classElement), isFalse);
       });

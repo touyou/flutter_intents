@@ -1,15 +1,16 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
-import 'package:app_intents_annotations/app_intents_annotations.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/enum_info.dart';
 
 /// Type checker for EnumSpec annotation.
-const _enumSpecChecker = TypeChecker.fromRuntime(EnumSpec);
+const _enumSpecChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumSpec');
 
 /// Type checker for EnumCaseDisplay annotation.
-const _enumCaseDisplayChecker = TypeChecker.fromRuntime(EnumCaseDisplay);
+const _enumCaseDisplayChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumCaseDisplay');
 
 /// Analyzer for extracting enum information from annotated enums.
 class EnumAnalyzer {
@@ -36,7 +37,7 @@ class EnumAnalyzer {
     final cases = _extractCases(element);
 
     return EnumInfo(
-      className: element.name,
+      className: element.name!,
       identifier: identifier,
       title: title,
       cases: cases,
@@ -53,10 +54,10 @@ class EnumAnalyzer {
           _enumCaseDisplayChecker.firstAnnotationOfExact(field);
       final displayTitle =
           displayAnnotation?.getField('title')?.toStringValue() ??
-              _toDisplayTitle(field.name);
+              _toDisplayTitle(field.name!);
 
       cases.add(EnumCaseInfo(
-        name: field.name,
+        name: field.name!,
         displayTitle: displayTitle,
       ));
     }

@@ -1,20 +1,22 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
-import 'package:app_intents_annotations/app_intents_annotations.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/intent_info.dart';
 
 /// Type checker for IntentSpec annotation.
-const _intentSpecChecker = TypeChecker.fromRuntime(IntentSpec);
+const _intentSpecChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/intent_spec.dart#IntentSpec');
 
 /// Type checker for IntentParam annotation.
-const _intentParamChecker = TypeChecker.fromRuntime(IntentParam);
+const _intentParamChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/intent_param.dart#IntentParam');
 
 /// Type checker for IntentSpecBase base class.
-const _intentSpecBaseChecker = TypeChecker.fromRuntime(IntentSpecBase);
+const _intentSpecBaseChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/bases/intent_spec_base.dart#IntentSpecBase');
 
 /// Analyzer for extracting intent information from annotated classes.
 class IntentAnalyzer {
@@ -57,7 +59,7 @@ class IntentAnalyzer {
     final parameters = _extractParameters(element);
 
     return IntentInfo(
-      className: element.name,
+      className: element.name!,
       identifier: identifier,
       title: title,
       description: description,
@@ -153,7 +155,7 @@ class IntentAnalyzer {
           annotation.getField('fileType')?.toStringValue();
 
       parameters.add(IntentParamInfo(
-        fieldName: field.name,
+        fieldName: field.name!,
         dartType: field.type.getDisplayString(),
         title: title,
         description: description,

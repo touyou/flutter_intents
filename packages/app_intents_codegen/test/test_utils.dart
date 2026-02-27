@@ -1,7 +1,23 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
+
+/// Finds a [ClassElement] by name in a library.
+ClassElement findClass(LibraryElement library, String name) {
+  for (final cls in library.classes) {
+    if (cls.name == name) return cls;
+  }
+  throw StateError('Class "$name" not found in library');
+}
+
+/// Finds an [EnumElement] by name in a library.
+EnumElement findEnum(LibraryElement library, String name) {
+  for (final e in library.enums) {
+    if (e.name == name) return e;
+  }
+  throw StateError('Enum "$name" not found in library');
+}
 
 /// Resolves a Dart source string and returns the library element.
 Future<LibraryElement> resolveSource(String source) async {

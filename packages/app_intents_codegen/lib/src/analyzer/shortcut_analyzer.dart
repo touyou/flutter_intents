@@ -1,15 +1,16 @@
 // ignore_for_file: deprecated_member_use
 import 'package:analyzer/dart/element/element.dart';
-import 'package:app_intents_annotations/app_intents_annotations.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../generator/swift_generator.dart';
 
 /// Type checker for AppShortcut annotation.
-const _appShortcutChecker = TypeChecker.fromRuntime(AppShortcut);
+const _appShortcutChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcut');
 
 /// Type checker for AppShortcutsProvider annotation.
-const _appShortcutsProviderChecker = TypeChecker.fromRuntime(AppShortcutsProvider);
+const _appShortcutsProviderChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcutsProvider');
 
 /// Analyzer for extracting shortcut information from annotated classes.
 class ShortcutAnalyzer {
