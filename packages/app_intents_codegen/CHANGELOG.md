@@ -1,3 +1,10 @@
+## 0.6.1
+
+- Fix: Map `IntentFile`/`IntentFile?` to `String`/`String?` in KotlinGenerator for KSP compatibility (#11)
+  - KSP compiler does not support `IntentFile` as `@AppFunction` parameter type
+  - File parameters now generate `mapOf("path" to value)` for Dart-side `IntentFile.fromMap()` compatibility
+- Documentation fixes: correct outdated code examples and API references
+
 ## 0.6.0
 
 - **BREAKING**: Remove `inputType`/`outputType` from `IntentInfo` model

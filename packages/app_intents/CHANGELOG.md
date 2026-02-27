@@ -1,3 +1,7 @@
+## 0.6.1
+
+- Documentation fixes: correct outdated code examples and API references
+
 ## 0.6.0
 
 - Version bump to align with annotations/codegen packages

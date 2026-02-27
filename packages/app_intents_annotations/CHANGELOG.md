@@ -1,3 +1,7 @@
+## 0.6.1
+
+- Documentation fixes: correct outdated code examples and API references
+
 ## 0.6.0
 
 - **BREAKING**: Remove generic type parameters from `IntentSpecBase`
