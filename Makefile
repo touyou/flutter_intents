@@ -1,7 +1,7 @@
 # Flutter Intents - Development Commands
 # Usage: make <target>
 
-.PHONY: help ios ios-build codegen swift-gen test clean
+.PHONY: help ios ios-build codegen swift-gen kotlin-gen test clean
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  make ios-build    Build iOS app only (no run)"
 	@echo "  make codegen      Run Dart code generation (build_runner)"
 	@echo "  make swift-gen    Generate Swift code from annotations"
+	@echo "  make kotlin-gen   Generate Kotlin code for Android AppFunctions"
 	@echo "  make test         Run all tests"
 	@echo "  make clean        Clean build artifacts"
 	@echo ""
@@ -30,6 +31,13 @@ codegen:
 # Generate Swift code
 swift-gen:
 	@cd app && dart run app_intents_codegen:generate_swift
+
+# Generate Kotlin code for Android AppFunctions
+kotlin-gen:
+	@cd app && dart run app_intents_codegen:generate_kotlin \
+	  -i lib \
+	  -o android/app/src/main/kotlin/com/example/app/generated \
+	  -p com.example.app.generated
 
 # Run all tests
 test:

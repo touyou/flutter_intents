@@ -51,7 +51,7 @@ class KotlinGenerator {
   String generateIntent(IntentInfo info) {
     final buffer = StringBuffer();
 
-    buffer.writeln('import androidx.appfunctions.AppFunction');
+    buffer.writeln('import androidx.appfunctions.service.AppFunction');
     buffer.writeln('import androidx.appfunctions.AppFunctionContext');
     buffer.writeln();
 
@@ -103,7 +103,7 @@ class KotlinGenerator {
     // Imports
     final imports = <String>{};
     if (intents.isNotEmpty) {
-      imports.add('import androidx.appfunctions.AppFunction');
+      imports.add('import androidx.appfunctions.service.AppFunction');
       imports.add('import androidx.appfunctions.AppFunctionContext');
     }
     if (entities.isNotEmpty) {
@@ -154,12 +154,12 @@ class KotlinGenerator {
     buffer.writeln(' * Generated AppFunctions from Flutter Intents annotations.');
     buffer.writeln(' * DO NOT MODIFY BY HAND.');
     buffer.writeln(' */');
-    buffer.writeln('class GeneratedAppFunctions(');
+    buffer.writeln('class GeneratedAppFunctions {');
     buffer.writeln('${_indent}private val bridge: AppFunctionsBridge');
-    buffer.writeln(') {');
+    buffer.writeln('$_indent${_indent}get() = AppFunctionsBridge.getInstance()');
 
     for (var i = 0; i < intents.length; i++) {
-      if (i > 0) buffer.writeln();
+      buffer.writeln();
       _generateIntentMethod(buffer, intents[i], indentLevel: 1);
     }
 
@@ -195,7 +195,7 @@ class KotlinGenerator {
     buffer.writeln('$prefix */');
 
     // @AppFunction annotation
-    buffer.writeln('$prefix@AppFunction(isDescribedByKDoc = true)');
+    buffer.writeln('$prefix@AppFunction(isDescribedByKdoc = true)');
 
     // Function signature
     final paramStrings = <String>[
@@ -215,7 +215,7 @@ class KotlinGenerator {
       final comma = i < paramStrings.length - 1 ? ',' : '';
       buffer.writeln('$prefix$_indent${paramStrings[i]}$comma');
     }
-    buffer.writeln('$prefix): Map<String, Any?> {');
+    buffer.writeln('$prefix): String {');
 
     // Function body: build params map and delegate to bridge
     buffer.writeln('$prefix${_indent}val params = mutableMapOf<String, Any?>()');
@@ -265,7 +265,7 @@ class KotlinGenerator {
     buffer.writeln(' */');
 
     // Annotation
-    buffer.writeln('@AppFunctionSerializable(isDescribedByKDoc = true)');
+    buffer.writeln('@AppFunctionSerializable(isDescribedByKdoc = true)');
 
     // Data class
     buffer.writeln('data class ${info.className}(');
@@ -331,13 +331,36 @@ class KotlinGenerator {
     buffer.writeln('/**');
     buffer.writeln(
         ' * Bridge between Android AppFunctions and Flutter MethodChannel.');
+    buffer.writeln(
+        ' * Call [initialize] with the MethodChannel from AppIntentsPlugin');
+    buffer.writeln(' * before any AppFunction methods are invoked.');
     buffer.writeln(' */');
-    buffer.writeln('class AppFunctionsBridge(private val channel: MethodChannel) {');
+    buffer.writeln(
+        'class AppFunctionsBridge private constructor(private val channel: MethodChannel) {');
+    buffer.writeln();
+    buffer.writeln('${_indent}companion object {');
+    buffer.writeln(
+        '$_indent${_indent}private var instance: AppFunctionsBridge? = null');
+    buffer.writeln();
+    buffer.writeln(
+        '$_indent${_indent}fun initialize(channel: MethodChannel) {');
+    buffer.writeln(
+        '$_indent$_indent${_indent}instance = AppFunctionsBridge(channel)');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln();
+    buffer.writeln(
+        '$_indent${_indent}fun getInstance(): AppFunctionsBridge =');
+    buffer.writeln(
+        '$_indent$_indent${_indent}instance ?: throw IllegalStateException(');
+    buffer.writeln(
+        '$_indent$_indent$_indent$_indent"AppFunctionsBridge not initialized. Call initialize() first."');
+    buffer.writeln('$_indent$_indent$_indent)');
+    buffer.writeln('$_indent}');
     buffer.writeln();
     buffer.writeln('${_indent}suspend fun executeIntent(');
     buffer.writeln('$_indent${_indent}identifier: String,');
     buffer.writeln('$_indent${_indent}params: Map<String, Any?>');
-    buffer.writeln('$_indent): Map<String, Any?> = withContext(Dispatchers.Main) {');
+    buffer.writeln('$_indent): String = withContext(Dispatchers.Main) {');
     buffer.writeln('$_indent${_indent}suspendCancellableCoroutine { cont ->');
     buffer.writeln('$_indent$_indent${_indent}channel.invokeMethod(');
     buffer.writeln('$_indent$_indent$_indent$_indent"executeIntent",');
@@ -347,9 +370,8 @@ class KotlinGenerator {
         '$_indent$_indent$_indent${_indent}object : MethodChannel.Result {');
     buffer.writeln(
         '$_indent$_indent$_indent$_indent${_indent}override fun success(result: Any?) {');
-    buffer.writeln('$_indent$_indent$_indent$_indent$_indent$_indent@Suppress("UNCHECKED_CAST")');
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resume(result as? Map<String, Any?> ?: emptyMap())');
+        '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")');
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln();
     buffer.writeln(

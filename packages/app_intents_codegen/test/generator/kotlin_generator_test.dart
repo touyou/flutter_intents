@@ -58,13 +58,13 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('import androidx.appfunctions.AppFunction'));
+        expect(result, contains('import androidx.appfunctions.service.AppFunction'));
         expect(
             result, contains('import androidx.appfunctions.AppFunctionContext'));
-        expect(result, contains('@AppFunction(isDescribedByKDoc = true)'));
+        expect(result, contains('@AppFunction(isDescribedByKdoc = true)'));
         expect(result, contains('suspend fun greet('));
         expect(result, contains('appFunctionContext: AppFunctionContext'));
-        expect(result, contains('): Map<String, Any?>'));
+        expect(result, contains('): String {'));
       });
 
       test('generates KDoc with title when no description', () {
@@ -356,7 +356,7 @@ void main() {
         expect(result, contains(
             'import androidx.appfunctions.AppFunctionSerializable'));
         expect(result, contains(
-            '@AppFunctionSerializable(isDescribedByKDoc = true)'));
+            '@AppFunctionSerializable(isDescribedByKdoc = true)'));
         expect(result, contains('data class TaskEntity('));
         expect(result, contains('val id: String'));
         expect(result, contains('val title: String'));
@@ -566,11 +566,14 @@ void main() {
     });
 
     group('generateBridge', () {
-      test('generates AppFunctionsBridge class', () {
+      test('generates AppFunctionsBridge singleton class', () {
         final result = generator.generateBridge();
 
-        expect(result, contains('class AppFunctionsBridge'));
+        expect(result, contains('class AppFunctionsBridge private constructor'));
         expect(result, contains('private val channel: MethodChannel'));
+        expect(result, contains('companion object {'));
+        expect(result, contains('fun initialize(channel: MethodChannel)'));
+        expect(result, contains('fun getInstance(): AppFunctionsBridge'));
         expect(result, contains('suspend fun executeIntent('));
         expect(result, contains('identifier: String'));
         expect(result, contains('params: Map<String, Any?>'));
@@ -615,7 +618,7 @@ void main() {
           ],
         );
 
-        expect(result, contains('import androidx.appfunctions.AppFunction'));
+        expect(result, contains('import androidx.appfunctions.service.AppFunction'));
         expect(result,
             contains('import androidx.appfunctions.AppFunctionContext'));
         expect(result,
@@ -739,8 +742,8 @@ void main() {
           ],
         );
 
-        expect(result, contains('class GeneratedAppFunctions('));
-        expect(result, contains('private val bridge: AppFunctionsBridge'));
+        expect(result, contains('class GeneratedAppFunctions {'));
+        expect(result, contains('get() = AppFunctionsBridge.getInstance()'));
         expect(result, contains('suspend fun createTask('));
         expect(result, contains('suspend fun completeTask('));
       });
