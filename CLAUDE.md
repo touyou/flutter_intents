@@ -391,23 +391,30 @@ class MainActivity : FlutterActivity() {
 Use the Makefile for common tasks:
 
 ```bash
-make help        # Show all available commands
-make ios         # Build and run Example App on iOS simulator
-make ios-build   # Build iOS app only (no run)
-make codegen     # Run Dart code generation (build_runner)
-make swift-gen   # Generate Swift code from annotations
-make kotlin-gen  # Generate Kotlin code for Android AppFunctions
-make test        # Run all tests
-make clean       # Clean build artifacts
+make help          # Show all available commands
+make ios           # Build and run Example App on iOS simulator
+make ios-build     # Build iOS app only (no run)
+make android       # Build and run Example App on Android emulator/device
+make android-build # Build Android APK only (no run)
+make codegen       # Run Dart code generation (build_runner)
+make swift-gen     # Generate Swift code from annotations
+make kotlin-gen    # Generate Kotlin code for Android AppFunctions
+make test          # Run all tests
+make clean         # Clean build artifacts
 ```
 
-Or use the script directly with options:
+Or use the scripts directly with options:
 
 ```bash
-./scripts/run_ios.sh                    # Build and run on simulator
+./scripts/run_ios.sh                    # Build and run on iOS simulator
 ./scripts/run_ios.sh --no-run           # Build only
 ./scripts/run_ios.sh --release          # Release build
 ./scripts/run_ios.sh -d <DEVICE_ID>     # Specify device
+
+./scripts/run_android.sh                # Build and run on Android
+./scripts/run_android.sh --no-run       # Build APK only
+./scripts/run_android.sh --release      # Release build
+./scripts/run_android.sh -d <DEVICE_ID> # Specify device
 ```
 
 ## Running Tests

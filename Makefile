@@ -1,19 +1,21 @@
 # Flutter Intents - Development Commands
 # Usage: make <target>
 
-.PHONY: help ios ios-build codegen swift-gen kotlin-gen test clean
+.PHONY: help ios ios-build android android-build codegen swift-gen kotlin-gen test clean
 
 # Default target
 help:
 	@echo "Flutter Intents - Available Commands"
 	@echo ""
-	@echo "  make ios          Build and run Example App on iOS simulator"
-	@echo "  make ios-build    Build iOS app only (no run)"
-	@echo "  make codegen      Run Dart code generation (build_runner)"
-	@echo "  make swift-gen    Generate Swift code from annotations"
-	@echo "  make kotlin-gen   Generate Kotlin code for Android AppFunctions"
-	@echo "  make test         Run all tests"
-	@echo "  make clean        Clean build artifacts"
+	@echo "  make ios            Build and run Example App on iOS simulator"
+	@echo "  make ios-build      Build iOS app only (no run)"
+	@echo "  make android        Build and run Example App on Android emulator/device"
+	@echo "  make android-build  Build Android APK only (no run)"
+	@echo "  make codegen        Run Dart code generation (build_runner)"
+	@echo "  make swift-gen      Generate Swift code from annotations"
+	@echo "  make kotlin-gen     Generate Kotlin code for Android AppFunctions"
+	@echo "  make test           Run all tests"
+	@echo "  make clean          Clean build artifacts"
 	@echo ""
 
 # Build and run on iOS simulator
@@ -23,6 +25,14 @@ ios:
 # Build iOS app only
 ios-build:
 	@./scripts/run_ios.sh --no-run
+
+# Build and run on Android emulator/device
+android:
+	@./scripts/run_android.sh
+
+# Build Android APK only
+android-build:
+	@./scripts/run_android.sh --no-run
 
 # Run Dart code generation
 codegen:
