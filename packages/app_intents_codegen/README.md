@@ -30,11 +30,11 @@ Code generator for Flutter App Intents. Produces Swift, Kotlin, and Dart code fr
 
 ```yaml
 dependencies:
-  app_intents: ^0.5.2
-  app_intents_annotations: ^0.5.2
+  app_intents: ^0.6.0
+  app_intents_annotations: ^0.6.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.5.2
+  app_intents_codegen: ^0.6.0
   build_runner: ^2.4.0
 ```
 

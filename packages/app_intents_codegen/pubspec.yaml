@@ -1,6 +1,6 @@
 name: app_intents_codegen
 description: Code generator for Flutter AppIntents. Produces Swift and Dart code from @IntentSpec and @EntitySpec annotations.
-version: 0.5.2
+version: 0.6.0
 repository: https://github.com/touyou/flutter_intents
 
 environment:
@@ -15,7 +15,7 @@ dependencies:
   dart_style: ^3.0.0
   glob: ^2.1.0
   path: ^1.9.0
-  app_intents_annotations: ^0.5.2
+  app_intents_annotations: ^0.6.0
 
 executables:
   generate_swift: generate_swift
