@@ -1,3 +1,13 @@
+## 0.6.0
+
+- **BREAKING**: Remove `inputType`/`outputType` from `IntentInfo` model
+- Generate type-safe `XxxParams` class for each intent with parameters
+  - `fromMap(Map<String, dynamic>)` for MethodChannel / cache mode
+  - `fromQueryParameters(Map<String, String>)` for URL scheme deep links
+  - Supports String, int, double, bool, DateTime, IntentFile types
+- Handler registration now uses Params class and always returns empty map
+- Remove `_extractTypeArguments()` from IntentAnalyzer
+
 ## 0.5.2
 
 - Fix Swift 6 strict concurrency errors in `FlutterBridge.swift` when used as SPM package

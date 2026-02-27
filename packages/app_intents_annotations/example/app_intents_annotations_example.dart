@@ -6,7 +6,7 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
   title: 'Create Task',
   description: 'Creates a new task',
 )
-class CreateTaskIntentSpec extends IntentSpecBase<void, void> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title')
   final String title;
 

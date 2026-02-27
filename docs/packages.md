@@ -26,7 +26,7 @@ Annotation for defining an Intent.
   resultDialogTemplate: 'Created task "{title}"', // Siri dialog feedback
   parameterSummary: 'Create task {title}',        // Shortcuts UI display
 )
-class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 | Property | Type | Required | Description |
@@ -54,7 +54,7 @@ enum IntentImplementation {
 Annotation for defining intent parameters.
 
 ```dart
-class MyIntentSpec extends IntentSpecBase<Input, Output> {
+class MyIntentSpec extends IntentSpecBase {
   @IntentParam(
     title: 'Task Title',        // Parameter display name
     description: 'The title',   // Parameter description
@@ -77,16 +77,14 @@ class MyIntentSpec extends IntentSpecBase<Input, Output> {
 
 #### IntentSpecBase
 
-Base class for intent definitions. Specify input/output types via generics.
+Base class for intent definitions.
 
 ```dart
-abstract class IntentSpecBase<I, O> {
+abstract class IntentSpecBase {
   const IntentSpecBase();
 }
 
-// I = Input type (parameters)
-// O = Output type (result)
-class MyIntentSpec extends IntentSpecBase<MyInput, MyOutput> {}
+class MyIntentSpec extends IntentSpecBase {}
 ```
 
 ### Entity Related
@@ -208,7 +206,7 @@ app_intents_annotations/
 │       │   ├── entity_params.dart    # Entity* annotations
 │       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
 │       └── bases/
-│           ├── intent_spec_base.dart # IntentSpecBase<I,O>
+│           ├── intent_spec_base.dart # IntentSpecBase
 │           └── entity_spec_base.dart # EntitySpecBase<M>
 ├── example/
 │   ├── create_task_intent.dart       # Intent example

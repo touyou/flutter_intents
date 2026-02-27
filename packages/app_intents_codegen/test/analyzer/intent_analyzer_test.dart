@@ -24,7 +24,7 @@ void main() {
             identifier: 'com.example.greet',
             title: 'Greet User',
           )
-          class GreetIntent extends IntentSpecBase<String, void> {}
+          class GreetIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'GreetIntent');
@@ -48,7 +48,7 @@ void main() {
             title: 'Greet User',
             description: 'Greets the user with a friendly message',
           )
-          class GreetIntent extends IntentSpecBase<String, void> {}
+          class GreetIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'GreetIntent');
@@ -69,7 +69,7 @@ void main() {
             title: 'Greet User',
             implementation: IntentImplementation.swift,
           )
-          class GreetIntent extends IntentSpecBase<String, void> {}
+          class GreetIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'GreetIntent');
@@ -80,26 +80,6 @@ void main() {
         expect(result!.implementation, equals(IntentImplementationType.swift));
       });
 
-      test('extracts input and output types from IntentSpecBase', () async {
-        final library = await resolveSource('''
-          import 'package:app_intents_annotations/app_intents_annotations.dart';
-
-          @IntentSpec(
-            identifier: 'com.example.add',
-            title: 'Add Numbers',
-          )
-          class AddIntent extends IntentSpecBase<int, int> {}
-        ''');
-
-        final classElement = findClass(library, 'AddIntent');
-
-        final result = analyzer.analyze(classElement);
-
-        expect(result, isNotNull);
-        expect(result!.inputType, equals('int'));
-        expect(result.outputType, equals('int'));
-      });
-
       test('extracts parameters with @IntentParam annotation', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
@@ -108,7 +88,7 @@ void main() {
             identifier: 'com.example.greet',
             title: 'Greet User',
           )
-          class GreetIntent extends IntentSpecBase<String, void> {
+          class GreetIntent extends IntentSpecBase {
             @IntentParam(title: 'User Name')
             final String name;
 
@@ -154,7 +134,7 @@ void main() {
             urlScheme: 'taskapp',
             urlAction: 'create',
           )
-          class CreateTaskIntent extends IntentSpecBase<String, void> {}
+          class CreateTaskIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'CreateTaskIntent');
@@ -174,7 +154,7 @@ void main() {
             identifier: 'com.example.greet',
             title: 'Greet User',
           )
-          class GreetIntent extends IntentSpecBase<String, void> {}
+          class GreetIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'GreetIntent');
@@ -195,7 +175,7 @@ void main() {
             title: 'Create Task',
             urlScheme: 'taskapp',
           )
-          class CreateTaskIntent extends IntentSpecBase<String, void> {}
+          class CreateTaskIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'CreateTaskIntent');
@@ -215,7 +195,7 @@ void main() {
             identifier: 'com.example.completeTask',
             title: 'Complete Task',
           )
-          class CompleteTaskIntent extends IntentSpecBase<String, void> {
+          class CompleteTaskIntent extends IntentSpecBase {
             @IntentParam(
               title: 'Task',
               entityType: 'TaskEntitySpec',
@@ -246,7 +226,7 @@ void main() {
             title: 'Create Task',
             resultDialogTemplate: 'Created task "{title}"',
           )
-          class CreateTaskIntent extends IntentSpecBase<String, void> {
+          class CreateTaskIntent extends IntentSpecBase {
             @IntentParam(title: 'Title')
             final String title;
 
@@ -270,7 +250,7 @@ void main() {
             identifier: 'com.example.greet',
             title: 'Greet User',
           )
-          class GreetIntent extends IntentSpecBase<String, void> {}
+          class GreetIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'GreetIntent');
@@ -290,7 +270,7 @@ void main() {
             title: 'Create Task',
             parameterSummary: 'Create "{title}"',
           )
-          class CreateTaskIntent extends IntentSpecBase<String, void> {
+          class CreateTaskIntent extends IntentSpecBase {
             @IntentParam(title: 'Title')
             final String title;
 
@@ -314,7 +294,7 @@ void main() {
             identifier: 'com.example.createTask',
             title: 'Create Task',
           )
-          class CreateTaskIntent extends IntentSpecBase<String, void> {
+          class CreateTaskIntent extends IntentSpecBase {
             @IntentParam(
               title: 'Priority',
               enumType: 'TaskPriority',
@@ -358,7 +338,7 @@ void main() {
             identifier: 'com.example.test',
             title: 'Test Intent',
           )
-          class TestIntent extends IntentSpecBase<void, void> {}
+          class TestIntent extends IntentSpecBase {}
         ''');
 
         final classElement = findClass(library, 'TestIntent');

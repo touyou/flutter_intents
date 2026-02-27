@@ -200,7 +200,6 @@ struct TaskEntitySpecQuery: EntityQuery {
     }
 }
 
-
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {

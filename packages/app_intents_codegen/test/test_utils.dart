@@ -121,7 +121,7 @@ Future<LibraryElement> resolveSource(String source) async {
         }
       ''',
       'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''
-        abstract class IntentSpecBase<I, O> {
+        abstract class IntentSpecBase {
           const IntentSpecBase();
         }
       ''',

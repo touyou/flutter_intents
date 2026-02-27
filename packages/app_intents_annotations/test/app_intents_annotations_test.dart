@@ -3,9 +3,9 @@ import 'package:test/test.dart';
 
 void main() {
   group('IntentSpecBase', () {
-    test('can be extended with specific input and output types', () {
+    test('can be extended', () {
       final intentSpec = MyIntentSpec();
-      expect(intentSpec, isA<IntentSpecBase<String, int>>());
+      expect(intentSpec, isA<IntentSpecBase>());
     });
   });
 
@@ -67,6 +67,6 @@ void main() {
   });
 }
 
-class MyIntentSpec extends IntentSpecBase<String, int> {
+class MyIntentSpec extends IntentSpecBase {
   const MyIntentSpec();
 }

@@ -26,7 +26,7 @@ Intentを定義するためのアノテーション。
   resultDialogTemplate: 'Created task "{title}"', // Siriダイアログフィードバック
   parameterSummary: 'Create task {title}',        // Shortcuts UI表示
 )
-class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 | プロパティ | 型 | 必須 | 説明 |
@@ -54,7 +54,7 @@ enum IntentImplementation {
 Intentパラメータを定義するアノテーション。
 
 ```dart
-class MyIntentSpec extends IntentSpecBase<Input, Output> {
+class MyIntentSpec extends IntentSpecBase {
   @IntentParam(
     title: 'Task Title',        // パラメータ表示名
     description: 'The title',   // パラメータ説明
@@ -77,16 +77,14 @@ class MyIntentSpec extends IntentSpecBase<Input, Output> {
 
 #### IntentSpecBase
 
-Intent定義の基底クラス。ジェネリクスで入出力型を指定。
+Intent定義の基底クラス。
 
 ```dart
-abstract class IntentSpecBase<I, O> {
+abstract class IntentSpecBase {
   const IntentSpecBase();
 }
 
-// I = Input型（パラメータ）
-// O = Output型（結果）
-class MyIntentSpec extends IntentSpecBase<MyInput, MyOutput> {}
+class MyIntentSpec extends IntentSpecBase {}
 ```
 
 ### Entity関連
@@ -208,7 +206,7 @@ app_intents_annotations/
 │       │   ├── entity_params.dart    # Entity*アノテーション
 │       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
 │       └── bases/
-│           ├── intent_spec_base.dart # IntentSpecBase<I,O>
+│           ├── intent_spec_base.dart # IntentSpecBase
 │           └── entity_spec_base.dart # EntitySpecBase<M>
 ├── example/
 │   ├── create_task_intent.dart       # Intent使用例

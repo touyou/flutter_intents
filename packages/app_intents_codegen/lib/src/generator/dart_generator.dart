@@ -7,6 +7,7 @@ import '../models/intent_info.dart';
 /// Generator for Dart code that registers intent and entity handlers.
 ///
 /// This generator produces code that:
+/// - Generates type-safe Params classes for intents with parameters
 /// - Registers intent handlers with AppIntents
 /// - Registers entity query handlers
 /// - Registers suggested entities handlers (when @EntityDefaultQuery exists)
@@ -47,19 +48,36 @@ class DartGenerator {
         ? '_register${suffix}EntityHandlers'
         : '_registerEntityHandlers';
 
+    final bodyElements = <Spec>[];
+
+    // Generate Params classes for intents with parameters
+    for (final intent in dartIntents) {
+      final paramsClass = _buildParamsClass(intent);
+      if (paramsClass != null) {
+        bodyElements.add(paramsClass);
+      }
+    }
+
+    // Generate functions
+    bodyElements.add(_buildInitializeFunction(
+      initFuncName,
+      dartIntents.isNotEmpty ? intentFuncName : null,
+      entities.isNotEmpty ? entityFuncName : null,
+    ));
+
+    if (dartIntents.isNotEmpty) {
+      bodyElements
+          .add(_buildRegisterIntentHandlersFunction(dartIntents, intentFuncName));
+    }
+
+    if (entities.isNotEmpty) {
+      bodyElements
+          .add(_buildRegisterEntityHandlersFunction(entities, entityFuncName));
+    }
+
     final library = Library((b) => b
       ..comments.add('GENERATED CODE - DO NOT MODIFY BY HAND')
-      ..body.addAll([
-        _buildInitializeFunction(
-          initFuncName,
-          dartIntents.isNotEmpty ? intentFuncName : null,
-          entities.isNotEmpty ? entityFuncName : null,
-        ),
-        if (dartIntents.isNotEmpty)
-          _buildRegisterIntentHandlersFunction(dartIntents, intentFuncName),
-        if (entities.isNotEmpty)
-          _buildRegisterEntityHandlersFunction(entities, entityFuncName),
-      ]));
+      ..body.addAll(bodyElements));
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
     final code = library.accept(emitter).toString();
@@ -71,6 +89,156 @@ class DartGenerator {
     } catch (_) {
       // If formatting fails, return unformatted code
       return code;
+    }
+  }
+
+  /// Builds a type-safe Params class for the given intent.
+  ///
+  /// Returns `null` if the intent has no parameters.
+  Code? _buildParamsClass(IntentInfo intent) {
+    if (intent.parameters.isEmpty) return null;
+
+    final cleanName = _cleanClassName(intent.className);
+    final paramsClassName = '${cleanName}Params';
+
+    final fields = StringBuffer();
+    final constructorParams = StringBuffer();
+    final fromMapParams = StringBuffer();
+    final fromQueryParams = StringBuffer();
+
+    var hasRequiredFileParam = false;
+
+    for (final param in intent.parameters) {
+      final isNullable = param.dartType.endsWith('?') || param.isOptional;
+
+      // Fields
+      fields.writeln('  final ${param.dartType} ${param.fieldName};');
+
+      // Constructor params
+      if (isNullable) {
+        constructorParams.writeln('    this.${param.fieldName},');
+      } else {
+        constructorParams.writeln('    required this.${param.fieldName},');
+      }
+
+      // fromMap extraction
+      fromMapParams.writeln(
+          '      ${param.fieldName}: ${_buildFromMapExtraction(param)},');
+
+      // Check for required IntentFile params
+      if (param.fileType != null && !isNullable) {
+        hasRequiredFileParam = true;
+      }
+
+      // fromQueryParameters extraction
+      fromQueryParams.writeln(
+          '      ${param.fieldName}: ${_buildFromQueryExtraction(param)},');
+    }
+
+    final fromQueryMethod = hasRequiredFileParam
+        ? ''
+        : '''
+
+  factory $paramsClassName.fromQueryParameters(Map<String, String> params) {
+    return $paramsClassName(
+$fromQueryParams    );
+  }''';
+
+    return Code('''
+class $paramsClassName {
+$fields
+  const $paramsClassName({
+$constructorParams  });
+
+  factory $paramsClassName.fromMap(Map<String, dynamic> map) {
+    return $paramsClassName(
+$fromMapParams    );
+  }$fromQueryMethod
+}
+''');
+  }
+
+  /// Builds extraction code for fromMap factory.
+  String _buildFromMapExtraction(IntentParamInfo param) {
+    final isNullable = param.dartType.endsWith('?') || param.isOptional;
+    final baseType = param.dartType.replaceAll('?', '');
+
+    if (baseType == 'DateTime') {
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? DateTime.parse(map['${param.fieldName}'] as String) : null";
+      } else {
+        return "DateTime.parse(map['${param.fieldName}'] as String)";
+      }
+    }
+
+    if (param.fileType != null) {
+      // MethodChannel returns Map<Object?, Object?>, not Map<String, dynamic>.
+      // Use Map.from() for safe conversion.
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? IntentFile.fromMap(Map<String, dynamic>.from(map['${param.fieldName}'] as Map)) : null";
+      } else {
+        return "IntentFile.fromMap(Map<String, dynamic>.from(map['${param.fieldName}'] as Map))";
+      }
+    }
+
+    if (baseType == 'double') {
+      if (isNullable) {
+        return "(map['${param.fieldName}'] as num?)?.toDouble()";
+      } else {
+        return "(map['${param.fieldName}'] as num).toDouble()";
+      }
+    }
+
+    return "map['${param.fieldName}'] as ${param.dartType}";
+  }
+
+  /// Builds extraction code for fromQueryParameters factory.
+  String _buildFromQueryExtraction(IntentParamInfo param) {
+    final isNullable = param.dartType.endsWith('?') || param.isOptional;
+    final baseType = param.dartType.replaceAll('?', '');
+
+    // IntentFile can't be sent through URL scheme
+    if (param.fileType != null) {
+      return 'null';
+    }
+
+    if (baseType == 'DateTime') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? DateTime.tryParse(params['${param.fieldName}']!) : null";
+      } else {
+        return "DateTime.parse(params['${param.fieldName}']!)";
+      }
+    }
+
+    if (baseType == 'int') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? int.tryParse(params['${param.fieldName}']!) : null";
+      } else {
+        return "int.parse(params['${param.fieldName}']!)";
+      }
+    }
+
+    if (baseType == 'double') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? double.tryParse(params['${param.fieldName}']!) : null";
+      } else {
+        return "double.parse(params['${param.fieldName}']!)";
+      }
+    }
+
+    if (baseType == 'bool') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? params['${param.fieldName}'] == 'true' : null";
+      } else {
+        return "params['${param.fieldName}'] == 'true'";
+      }
+    }
+
+    // String (default)
+    if (isNullable) {
+      return "params['${param.fieldName}']";
+    } else {
+      return "params['${param.fieldName}']!";
     }
   }
 
@@ -118,73 +286,34 @@ class DartGenerator {
   Code _buildIntentHandlerRegistration(IntentInfo intent) {
     final cleanName = _cleanClassName(intent.className);
     final handlerName = '${_toCamelCase(cleanName)}Handler';
-    final paramExtractions = StringBuffer();
-    final handlerArgs = StringBuffer();
 
-    for (final param in intent.parameters) {
-      final extraction = _buildParameterExtraction(param);
-      paramExtractions.writeln(extraction);
-
-      if (handlerArgs.isNotEmpty) {
-        handlerArgs.write(', ');
-      }
-      handlerArgs.write('${param.fieldName}: ${param.fieldName}');
+    if (intent.parameters.isEmpty) {
+      return Code('''
+AppIntents().registerIntentHandler(
+  '${intent.identifier}',
+  (params) async {
+    await $handlerName();
+    return <String, dynamic>{};
+  },
+);
+''');
     }
 
-    final hasOutput = intent.outputType != null && intent.outputType != 'void';
-    final isNullableOutput = intent.outputType?.endsWith('?') ?? false;
-
-    String returnStatement;
-    if (!hasOutput) {
-      returnStatement = 'return <String, dynamic>{};';
-    } else if (isNullableOutput) {
-      returnStatement = 'return result?.toJson() ?? <String, dynamic>{};';
-    } else {
-      returnStatement = 'return result.toJson();';
-    }
-
-    final handlerBody = '''
-${paramExtractions}final result = await $handlerName(${intent.parameters.isNotEmpty ? handlerArgs.toString() : ''});
-$returnStatement
-''';
+    final paramsClassName = '${cleanName}Params';
+    final handlerArgs = intent.parameters
+        .map((p) => '${p.fieldName}: p.${p.fieldName}')
+        .join(', ');
 
     return Code('''
 AppIntents().registerIntentHandler(
   '${intent.identifier}',
   (params) async {
-    $handlerBody
+    final p = $paramsClassName.fromMap(params);
+    await $handlerName($handlerArgs);
+    return <String, dynamic>{};
   },
 );
 ''');
-  }
-
-  /// Builds parameter extraction code for an intent parameter.
-  String _buildParameterExtraction(IntentParamInfo param) {
-    final isNullable =
-        param.dartType.endsWith('?') || param.isOptional;
-    final baseType = param.dartType.replaceAll('?', '');
-
-    if (baseType == 'DateTime') {
-      if (isNullable) {
-        return "final ${param.fieldName}Raw = params['${param.fieldName}'] as String?;\n"
-            'final ${param.fieldName} = ${param.fieldName}Raw != null ? DateTime.parse(${param.fieldName}Raw) : null;';
-      } else {
-        return "final ${param.fieldName} = DateTime.parse(params['${param.fieldName}'] as String);";
-      }
-    }
-
-    if (param.fileType != null) {
-      // MethodChannel returns Map<Object?, Object?>, not Map<String, dynamic>.
-      // Use Map.from() for safe conversion.
-      if (isNullable) {
-        return "final ${param.fieldName}Raw = params['${param.fieldName}'] as Map?;\n"
-            'final ${param.fieldName} = ${param.fieldName}Raw != null ? IntentFile.fromMap(Map<String, dynamic>.from(${param.fieldName}Raw)) : null;';
-      } else {
-        return "final ${param.fieldName} = IntentFile.fromMap(Map<String, dynamic>.from(params['${param.fieldName}'] as Map));";
-      }
-    }
-
-    return "final ${param.fieldName} = params['${param.fieldName}'] as ${param.dartType};";
   }
 
   /// Builds the _registerEntityHandlers() function.

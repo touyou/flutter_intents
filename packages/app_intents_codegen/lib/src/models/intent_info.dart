@@ -18,12 +18,6 @@ class IntentInfo {
   /// The parameters of the intent.
   final List<IntentParamInfo> parameters;
 
-  /// The input type of the intent.
-  final String? inputType;
-
-  /// The output type of the intent.
-  final String? outputType;
-
   /// The URL scheme for intent execution (e.g., 'taskapp').
   /// When non-null, Swift code uses URL scheme instead of FlutterBridge.
   final String? urlScheme;
@@ -50,8 +44,6 @@ class IntentInfo {
     this.description,
     required this.implementation,
     required this.parameters,
-    this.inputType,
-    this.outputType,
     this.urlScheme,
     this.urlAction,
     this.resultDialogTemplate,
@@ -69,8 +61,6 @@ class IntentInfo {
         description == other.description &&
         implementation == other.implementation &&
         _listEquals(parameters, other.parameters) &&
-        inputType == other.inputType &&
-        outputType == other.outputType &&
         urlScheme == other.urlScheme &&
         urlAction == other.urlAction &&
         resultDialogTemplate == other.resultDialogTemplate &&
@@ -86,8 +76,6 @@ class IntentInfo {
         description,
         implementation,
         Object.hashAll(parameters),
-        inputType,
-        outputType,
         urlScheme,
         urlAction,
         resultDialogTemplate,
@@ -99,7 +87,7 @@ class IntentInfo {
   String toString() =>
       'IntentInfo(className: $className, identifier: $identifier, title: $title, '
       'description: $description, implementation: $implementation, '
-      'parameters: $parameters, inputType: $inputType, outputType: $outputType, '
+      'parameters: $parameters, '
       'urlScheme: $urlScheme, urlAction: $urlAction, '
       'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes)';

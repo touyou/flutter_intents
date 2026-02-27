@@ -59,7 +59,7 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
   description: 'Create a new task',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title')
   final String title;
 

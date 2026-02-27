@@ -55,7 +55,7 @@ part 'create_task_intent.intent.dart';
   identifier: 'com.example.CreateTaskIntent',
   title: 'Create Task',
 )
-class CreateTaskIntentSpec extends IntentSpecBase<void, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title')
   final String title;
 

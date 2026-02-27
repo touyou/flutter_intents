@@ -101,7 +101,7 @@ Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提�
   title: 'My Intent',
   implementation: IntentImplementation.dart,
 )
-class MyIntentSpec extends IntentSpecBase<Input, Output> {}
+class MyIntentSpec extends IntentSpecBase {}
 
 // Entity定義
 @EntitySpec(identifier: 'MyEntity', title: 'My Entity')
@@ -157,7 +157,7 @@ Swift Output
   description: 'Creates a new task',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<String, Task> {}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 **利点:**
@@ -232,17 +232,12 @@ enum IntentImplementation {
 ### ジェネリクスによる型安全
 
 ```dart
-// IntentSpecBase<I, O>
-// I = Input型, O = Output型
-class IntentSpecBase<I, O> {
+abstract class IntentSpecBase {
   const IntentSpecBase();
 }
 
 // 具体的な使用例
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
-  // Input: CreateTaskInput
-  // Output: Task
-}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 ### Entityの型制約

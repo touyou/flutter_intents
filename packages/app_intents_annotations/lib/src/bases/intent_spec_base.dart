@@ -1,4 +1,4 @@
-/// Base class for defining intent specifications with input type [I] and output type [O].
-abstract class IntentSpecBase<I, O> {
+/// Base class for defining intent specifications.
+abstract class IntentSpecBase {
   const IntentSpecBase();
 }

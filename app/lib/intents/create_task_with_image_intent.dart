@@ -21,8 +21,7 @@ part 'create_task_with_image_intent.intent.dart';
   supportedModes: IntentMode.foreground,
   parameterSummary: 'Create task {title} {image}',
 )
-class CreateTaskWithImageIntentSpec
-    extends IntentSpecBase<CreateTaskWithImageInput, Task> {
+class CreateTaskWithImageIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title', description: 'The title of the task')
   final String title;
 

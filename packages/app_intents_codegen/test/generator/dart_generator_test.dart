@@ -112,7 +112,7 @@ void main() {
         expect(result, isNull);
       });
 
-      test('generates parameter extraction from params map', () {
+      test('generates Params class with fromMap for parameters', () {
         final intents = [
           const IntentInfo(
             className: 'CreateTaskIntent',
@@ -139,13 +139,24 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        expect(result, contains("params['title']"));
-        expect(result, contains("params['priority']"));
-        expect(result, contains('as String'));
-        expect(result, contains('as int'));
+        // Params class
+        expect(result, contains('class CreateTaskIntentParams'));
+        expect(result, contains('final String title'));
+        expect(result, contains('final int priority'));
+        expect(result, contains('required this.title'));
+        expect(result, contains('required this.priority'));
+        // fromMap
+        expect(result, contains('fromMap(Map<String, dynamic> map)'));
+        expect(result, contains("map['title'] as String"));
+        expect(result, contains("map['priority'] as int"));
+        // fromQueryParameters
+        expect(result, contains('fromQueryParameters'));
+        expect(result, contains('Map<String, String> params'));
+        expect(result, contains("params['title']!"));
+        expect(result, contains("int.parse(params['priority']!)"));
       });
 
-      test('generates nullable parameter extraction for optional params', () {
+      test('generates Params class with nullable parameters', () {
         final intents = [
           const IntentInfo(
             className: 'CreateTaskIntent',
@@ -166,13 +177,17 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        expect(result, contains("params['dueDate']"));
-        // DateTime is parsed from String since platform channels serialize it as ISO8601
-        expect(result, contains('as String?'));
-        expect(result, contains('DateTime.parse'));
+        expect(result, contains('class CreateTaskIntentParams'));
+        expect(result, contains('final DateTime? dueDate'));
+        // fromMap - nullable DateTime
+        expect(result, contains("map['dueDate'] != null"));
+        expect(result, contains("DateTime.parse(map['dueDate'] as String)"));
+        // fromQueryParameters - nullable DateTime
+        expect(result, contains("params['dueDate'] != null"));
+        expect(result, contains("DateTime.tryParse(params['dueDate']!)"));
       });
 
-      test('generates handler function call with named parameters', () {
+      test('generates handler using Params class with named parameters', () {
         final intents = [
           const IntentInfo(
             className: 'CreateTaskIntent',
@@ -193,11 +208,12 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
+        expect(result, contains('CreateTaskIntentParams.fromMap(params)'));
         expect(result, contains('createTaskIntentHandler'));
-        expect(result, contains('title: title'));
+        expect(result, contains('title: p.title'));
       });
 
-      test('generates result serialization', () {
+      test('always returns empty map from handler', () {
         final intents = [
           const IntentInfo(
             className: 'CreateTaskIntent',
@@ -205,15 +221,32 @@ void main() {
             title: 'Create Task',
             implementation: IntentImplementationType.dart,
             parameters: [],
-            outputType: 'TaskResult',
           ),
         ];
 
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        // Handler should call toMap() on result when output type exists
-        expect(result, contains('result'));
+        expect(result, contains('return <String, dynamic>{}'));
+        expect(result, isNot(contains('toJson')));
+      });
+
+      test('does not generate Params class for parameterless intents', () {
+        final intents = [
+          const IntentInfo(
+            className: 'OpenAppIntent',
+            identifier: 'com.example.openApp',
+            title: 'Open App',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, isNotNull);
+        expect(result, isNot(contains('class OpenAppIntentParams')));
+        expect(result, contains('openAppIntentHandler'));
       });
 
       test('generates multiple intent handlers', () {
@@ -441,10 +474,16 @@ void main() {
         // Check structure (no import since it's a part file)
         expect(result, contains('// GENERATED CODE - DO NOT MODIFY BY HAND'));
         expect(result, isNot(contains("import 'package:app_intents/app_intents.dart'")));
+        // Check Params class
+        expect(result, contains('class CreateTaskIntentParams'));
+        expect(result, contains('fromMap'));
+        expect(result, contains('fromQueryParameters'));
+        // Check functions
         expect(result, contains('void initializeAppIntents()'));
         expect(result, contains('void _registerIntentHandlers()'));
         expect(result, contains('void _registerEntityHandlers()'));
-        // Check intent handler
+        // Check intent handler uses Params class
+        expect(result, contains('CreateTaskIntentParams.fromMap(params)'));
         expect(result, contains('createTaskIntentHandler'));
         // Check entity handlers
         expect(result, contains('taskEntityQuery'));
@@ -452,8 +491,8 @@ void main() {
       });
     });
 
-    group('DateTime handling', () {
-      test('generates DateTime parsing for DateTime parameters', () {
+    group('DateTime handling in Params class', () {
+      test('generates DateTime parsing in fromMap and fromQueryParameters', () {
         final intents = [
           const IntentInfo(
             className: 'ScheduleTaskIntent',
@@ -474,10 +513,14 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        expect(result, contains('DateTime.parse'));
+        expect(result, contains('class ScheduleTaskIntentParams'));
+        // fromMap
+        expect(result, contains("DateTime.parse(map['scheduledDate'] as String)"));
+        // fromQueryParameters
+        expect(result, contains("DateTime.parse(params['scheduledDate']!)"));
       });
 
-      test('generates nullable DateTime parsing for optional DateTime parameters', () {
+      test('generates nullable DateTime parsing in Params class', () {
         final intents = [
           const IntentInfo(
             className: 'ScheduleTaskIntent',
@@ -498,13 +541,17 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        // Should handle nullable DateTime with null check
-        expect(result, contains("params['dueDate']"));
+        // fromMap - nullable
+        expect(result, contains("map['dueDate'] != null"));
+        expect(result, contains("DateTime.parse(map['dueDate'] as String)"));
+        // fromQueryParameters - nullable
+        expect(result, contains("params['dueDate'] != null"));
+        expect(result, contains("DateTime.tryParse(params['dueDate']!)"));
       });
     });
 
-    group('IntentFile handling', () {
-      test('generates IntentFile.fromMap for file parameters', () {
+    group('IntentFile handling in Params class', () {
+      test('generates IntentFile.fromMap in Params class', () {
         final intents = [
           const IntentInfo(
             className: 'CreatePostIntent',
@@ -526,11 +573,15 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
+        expect(result, contains('class CreatePostIntentParams'));
+        // fromMap should have IntentFile.fromMap
         expect(result, contains('IntentFile.fromMap'));
-        expect(result, contains("params['image']"));
+        expect(result, contains("map['image']"));
+        // Required IntentFile: no fromQueryParameters
+        expect(result, isNot(contains('fromQueryParameters')));
       });
 
-      test('generates nullable IntentFile.fromMap for optional file parameters',
+      test('generates nullable IntentFile in Params class with fromQueryParameters',
           () {
         final intents = [
           const IntentInfo(
@@ -539,6 +590,12 @@ void main() {
             title: 'Create Post',
             implementation: IntentImplementationType.dart,
             parameters: [
+              IntentParamInfo(
+                fieldName: 'text',
+                dartType: 'String',
+                title: 'Text',
+                isOptional: false,
+              ),
               IntentParamInfo(
                 fieldName: 'image',
                 dartType: 'IntentFile?',
@@ -553,10 +610,69 @@ void main() {
         final result = generator.generate(intents, []);
 
         expect(result, isNotNull);
-        expect(result, contains("params['image']"));
+        // fromMap should have IntentFile.fromMap with null check
         expect(result, contains('IntentFile.fromMap'));
-        // Should have null check
-        expect(result, contains('imageRaw'));
+        expect(result, contains("map['image'] != null"));
+        // fromQueryParameters should exist (no required IntentFile)
+        expect(result, contains('fromQueryParameters'));
+        // IntentFile in fromQueryParameters should be null
+        expect(result, contains('image: null'));
+      });
+    });
+
+    group('double and bool handling in Params class', () {
+      test('generates double conversion in Params class', () {
+        final intents = [
+          const IntentInfo(
+            className: 'SetRatingIntent',
+            identifier: 'com.example.setRating',
+            title: 'Set Rating',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'rating',
+                dartType: 'double',
+                title: 'Rating',
+                isOptional: false,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, isNotNull);
+        // fromMap - double via num
+        expect(result, contains("(map['rating'] as num).toDouble()"));
+        // fromQueryParameters - double.parse
+        expect(result, contains("double.parse(params['rating']!)"));
+      });
+
+      test('generates bool conversion in Params class', () {
+        final intents = [
+          const IntentInfo(
+            className: 'ToggleTaskIntent',
+            identifier: 'com.example.toggleTask',
+            title: 'Toggle Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'completed',
+                dartType: 'bool',
+                title: 'Completed',
+                isOptional: false,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, isNotNull);
+        // fromMap - bool
+        expect(result, contains("map['completed'] as bool"));
+        // fromQueryParameters - bool from string
+        expect(result, contains("params['completed'] == 'true'"));
       });
     });
   });

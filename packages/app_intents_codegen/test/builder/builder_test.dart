@@ -85,7 +85,7 @@ void main() {
             class EntityDefaultQuery { const EntityDefaultQuery(); }
           ''',
           'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''
-            abstract class IntentSpecBase<I, O> {
+            abstract class IntentSpecBase {
               const IntentSpecBase();
             }
           ''',
@@ -104,7 +104,7 @@ void main() {
               title: 'Greet User',
               description: 'Greets the user with a friendly message',
             )
-            class GreetIntent extends IntentSpecBase<String, void> {
+            class GreetIntent extends IntentSpecBase {
               @IntentParam(title: 'User Name')
               final String name;
 
@@ -191,7 +191,7 @@ void main() {
             class EntityDefaultQuery { const EntityDefaultQuery(); }
           ''',
           'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''
-            abstract class IntentSpecBase<I, O> { const IntentSpecBase(); }
+            abstract class IntentSpecBase { const IntentSpecBase(); }
           ''',
           'app_intents_annotations|lib/src/bases/entity_spec_base.dart': '''
             abstract class EntitySpecBase<M> { const EntitySpecBase(); }
@@ -298,7 +298,7 @@ void main() {
             class EntityDefaultQuery { const EntityDefaultQuery(); }
           ''',
           'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''
-            abstract class IntentSpecBase<I, O> { const IntentSpecBase(); }
+            abstract class IntentSpecBase { const IntentSpecBase(); }
           ''',
           'app_intents_annotations|lib/src/bases/entity_spec_base.dart': '''
             abstract class EntitySpecBase<M> { const EntitySpecBase(); }

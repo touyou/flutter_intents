@@ -532,7 +532,7 @@ part 'create_task_intent.intent.dart';  // ← Generated part file
   identifier: 'com.example.taskapp.createTask',
   title: 'Create Task',
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title')
   final String title;
 

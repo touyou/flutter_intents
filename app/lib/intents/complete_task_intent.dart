@@ -16,7 +16,7 @@ part 'complete_task_intent.intent.dart';
   resultDialogTemplate: 'Completed task',
   parameterSummary: 'Complete {task}',
 )
-class CompleteTaskIntentSpec extends IntentSpecBase<String, Task?> {
+class CompleteTaskIntentSpec extends IntentSpecBase {
   @IntentParam(
     title: 'Task',
     description: 'The task to complete',

@@ -1,7 +1,6 @@
 // ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/intent_info.dart';
@@ -13,10 +12,6 @@ const _intentSpecChecker = TypeChecker.fromUrl(
 /// Type checker for IntentParam annotation.
 const _intentParamChecker = TypeChecker.fromUrl(
     'package:app_intents_annotations/src/annotations/intent_param.dart#IntentParam');
-
-/// Type checker for IntentSpecBase base class.
-const _intentSpecBaseChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/bases/intent_spec_base.dart#IntentSpecBase');
 
 /// Analyzer for extracting intent information from annotated classes.
 class IntentAnalyzer {
@@ -55,7 +50,6 @@ class IntentAnalyzer {
       return null;
     }
 
-    final typeArgs = _extractTypeArguments(element);
     final parameters = _extractParameters(element);
 
     return IntentInfo(
@@ -65,8 +59,6 @@ class IntentAnalyzer {
       description: description,
       implementation: implementation,
       parameters: parameters,
-      inputType: typeArgs.$1,
-      outputType: typeArgs.$2,
       urlScheme: urlScheme,
       urlAction: urlAction,
       resultDialogTemplate: resultDialogTemplate,
@@ -113,25 +105,6 @@ class IntentAnalyzer {
       default:
         return IntentImplementationType.dart;
     }
-  }
-
-  (String?, String?) _extractTypeArguments(ClassElement element) {
-    for (final supertype in element.allSupertypes) {
-      if (_intentSpecBaseChecker.isExactlyType(supertype)) {
-        final typeArgs = supertype.typeArguments;
-        if (typeArgs.length == 2) {
-          return (
-            _formatType(typeArgs[0]),
-            _formatType(typeArgs[1]),
-          );
-        }
-      }
-    }
-    return (null, null);
-  }
-
-  String _formatType(DartType type) {
-    return type.getDisplayString();
   }
 
   List<IntentParamInfo> _extractParameters(ClassElement element) {

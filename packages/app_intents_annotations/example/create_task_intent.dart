@@ -8,7 +8,7 @@ import 'models/task.dart';
   description: 'An intent to create a new task in your task list.',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: "Title")
   final String title;
 

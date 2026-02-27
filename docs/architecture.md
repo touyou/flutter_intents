@@ -101,7 +101,7 @@ Responsible only for metadata definition. No runtime dependencies.
   title: 'My Intent',
   implementation: IntentImplementation.dart,
 )
-class MyIntentSpec extends IntentSpecBase<Input, Output> {}
+class MyIntentSpec extends IntentSpecBase {}
 
 // Entity definition
 @EntitySpec(identifier: 'MyEntity', title: 'My Entity')
@@ -157,7 +157,7 @@ Swift Output
   description: 'Creates a new task',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<String, Task> {}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 **Benefits:**
@@ -232,17 +232,12 @@ enum IntentImplementation {
 ### Type Safety via Generics
 
 ```dart
-// IntentSpecBase<I, O>
-// I = Input type, O = Output type
-class IntentSpecBase<I, O> {
+abstract class IntentSpecBase {
   const IntentSpecBase();
 }
 
 // Concrete usage
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
-  // Input: CreateTaskInput
-  // Output: Task
-}
+class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
 ### Entity Type Constraints

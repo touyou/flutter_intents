@@ -1,3 +1,10 @@
+## 0.6.0
+
+- **BREAKING**: Remove generic type parameters from `IntentSpecBase`
+  - Before: `class MyIntent extends IntentSpecBase<Input, Output>`
+  - After: `class MyIntent extends IntentSpecBase`
+  - Input/Output types were unused by the framework and can be removed safely
+
 ## 0.5.2
 
 - No API changes; version bump to align with other packages

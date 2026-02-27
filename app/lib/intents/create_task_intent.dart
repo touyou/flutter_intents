@@ -29,7 +29,7 @@ class CreateTaskInput {
   resultDialogTemplate: 'Created task "{title}"',
   parameterSummary: 'Create task {title}',
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title', description: 'The title of the task')
   final String title;
 

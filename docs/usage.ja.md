@@ -120,7 +120,7 @@ class Task {
   description: 'Create a new task in your task list',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Task Title', description: 'The title of the task')
   final String title;
 
@@ -147,7 +147,7 @@ Flutter機能（UI、データベース、状態管理）へのアクセスが�
   title: 'Show Task',
   implementation: IntentImplementation.dart, // Dartで実装
 )
-class ShowTaskDetailIntentSpec extends IntentSpecBase<String, void> {
+class ShowTaskDetailIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Task ID')
   final String taskId;
 
@@ -165,7 +165,7 @@ iOS固有APIやパフォーマンスが重要な場合:
   title: 'Quick Action',
   implementation: IntentImplementation.swift, // Swiftで実装
 )
-class QuickActionIntentSpec extends IntentSpecBase<void, String> {}
+class QuickActionIntentSpec extends IntentSpecBase {}
 ```
 
 ## Entityの定義

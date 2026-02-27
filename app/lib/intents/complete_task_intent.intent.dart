@@ -10,6 +10,21 @@ part of 'complete_task_intent.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
+class CompleteTaskIntentParams {
+  final String task;
+
+  const CompleteTaskIntentParams({required this.task});
+
+  factory CompleteTaskIntentParams.fromMap(Map<String, dynamic> map) {
+    return CompleteTaskIntentParams(task: map['task'] as String);
+  }
+  factory CompleteTaskIntentParams.fromQueryParameters(
+    Map<String, String> params,
+  ) {
+    return CompleteTaskIntentParams(task: params['task']!);
+  }
+}
+
 /// Initialize all App Intents handlers.
 void initializeCompleteTaskAppIntents() {
   _registerCompleteTaskIntentHandlers();
@@ -19,8 +34,8 @@ void _registerCompleteTaskIntentHandlers() {
   AppIntents().registerIntentHandler('com.example.taskapp.completeTask', (
     params,
   ) async {
-    final task = params['task'] as String;
-    final result = await completeTaskIntentHandler(task: task);
-    return result?.toJson() ?? <String, dynamic>{};
+    final p = CompleteTaskIntentParams.fromMap(params);
+    await completeTaskIntentHandler(task: p.task);
+    return <String, dynamic>{};
   });
 }

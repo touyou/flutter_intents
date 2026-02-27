@@ -120,7 +120,7 @@ class Task {
   description: 'Create a new task in your task list',
   implementation: IntentImplementation.dart,
 )
-class CreateTaskIntentSpec extends IntentSpecBase<CreateTaskInput, Task> {
+class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Task Title', description: 'The title of the task')
   final String title;
 
@@ -147,7 +147,7 @@ Use when you need access to Flutter features (UI, database, state management):
   title: 'Show Task',
   implementation: IntentImplementation.dart, // Implement in Dart
 )
-class ShowTaskDetailIntentSpec extends IntentSpecBase<String, void> {
+class ShowTaskDetailIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Task ID')
   final String taskId;
 
@@ -165,7 +165,7 @@ Use for iOS-specific APIs or performance-critical operations:
   title: 'Quick Action',
   implementation: IntentImplementation.swift, // Implement in Swift
 )
-class QuickActionIntentSpec extends IntentSpecBase<void, String> {}
+class QuickActionIntentSpec extends IntentSpecBase {}
 ```
 
 ## Defining Entities

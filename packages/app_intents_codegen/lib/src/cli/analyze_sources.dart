@@ -112,8 +112,9 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
 
       if (result is ResolvedLibraryResult) {
         final library = result.element;
+        final unit = library.definingCompilationUnit;
 
-          for (final element in library.classes) {
+          for (final element in unit.classes) {
             // Check for @IntentSpec
             if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
               final info = intentAnalyzer.analyze(element);
@@ -146,7 +147,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           }
 
           // Check for @EnumSpec on enums
-          for (final element in library.enums) {
+          for (final element in unit.enums) {
             if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
               final info = enumAnalyzer.analyze(element);
               if (info != null &&

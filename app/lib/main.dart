@@ -98,43 +98,37 @@ class _TaskListPageState extends State<TaskListPage> {
     }
   }
 
-  Future<void> _handleCreateTask(Map<String, String> params) async {
-    final title = params['title'];
-    if (title == null || title.isEmpty) {
+  Future<void> _handleCreateTask(Map<String, String> queryParams) async {
+    try {
+      final params = CreateTaskIntentParams.fromQueryParameters(queryParams);
+
+      await TaskRepository.instance.createTask(
+        title: params.title,
+        description: params.description,
+        dueDate: params.dueDate,
+      );
+
+      _showSnackBar('Task "${params.title}" created via Shortcut!');
+    } catch (e) {
       _showSnackBar('Task title is required');
-      return;
     }
-
-    final description = params['description'];
-    DateTime? dueDate;
-    if (params['dueDate'] != null) {
-      dueDate = DateTime.tryParse(params['dueDate']!);
-    }
-
-    await TaskRepository.instance.createTask(
-      title: title,
-      description: description,
-      dueDate: dueDate,
-    );
-
-    _showSnackBar('Task "$title" created via Shortcut!');
   }
 
-  Future<void> _handleCompleteTask(Map<String, String> params) async {
-    final taskId = params['task'];
-    if (taskId == null || taskId.isEmpty) {
+  Future<void> _handleCompleteTask(Map<String, String> queryParams) async {
+    try {
+      final params = CompleteTaskIntentParams.fromQueryParameters(queryParams);
+
+      final task = TaskRepository.instance.getTask(params.task);
+      if (task == null) {
+        _showSnackBar('Task not found');
+        return;
+      }
+
+      await TaskRepository.instance.toggleTaskCompletion(params.task);
+      _showSnackBar('Task "${task.title}" completed via Shortcut!');
+    } catch (e) {
       _showSnackBar('Task ID is required');
-      return;
     }
-
-    final task = TaskRepository.instance.getTask(taskId);
-    if (task == null) {
-      _showSnackBar('Task not found');
-      return;
-    }
-
-    await TaskRepository.instance.toggleTaskCompletion(taskId);
-    _showSnackBar('Task "${task.title}" completed via Shortcut!');
   }
 
   void _showSnackBar(String message) {

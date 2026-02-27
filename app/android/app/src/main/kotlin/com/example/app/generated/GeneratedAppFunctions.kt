@@ -120,4 +120,23 @@ class GeneratedAppFunctions {
         if (dueDate != null) params["dueDate"] = dueDate
         return bridge.executeIntent("com.example.taskapp.createTask", params)
     }
+
+    /**
+     * Create a new task with an optional image attachment
+     *
+     * @param appFunctionContext The context for this app function execution.
+     * @param title The title of the task
+     * @param image An image to attach to the task (optional)
+     */
+    @AppFunction(isDescribedByKdoc = true)
+    suspend fun createTaskWithImage(
+        appFunctionContext: AppFunctionContext,
+        title: String,
+        image: IntentFile? = null
+    ): String {
+        val params = mutableMapOf<String, Any?>()
+        params["title"] = title
+        if (image != null) params["image"] = image
+        return bridge.executeIntent("com.example.taskapp.createTaskWithImage", params)
+    }
 }
