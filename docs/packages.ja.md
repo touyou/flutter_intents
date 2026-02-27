@@ -39,13 +39,15 @@ class CreateTaskIntentSpec extends IntentSpecBase {}
 | urlAction | String | No | URLホスト/アクションパス |
 | resultDialogTemplate | String | No | ダイアログテンプレート（例: `'Created "{title}"'`） |
 | parameterSummary | String | No | Shortcuts UIサマリー（例: `'Create {title}'`） |
+| supportedModes | IntentMode? | No | 実行モード（`foreground`または`background`） |
 
 #### IntentImplementation
 
 ```dart
 enum IntentImplementation {
-  dart,   // Dart/Flutter側で実装
-  swift,  // Swift側で実装
+  dart,    // Dart/Flutter側で実装
+  swift,   // Swift側で実装
+  kotlin,  // Kotlin側で実装
 }
 ```
 
@@ -72,8 +74,9 @@ class MyIntentSpec extends IntentSpecBase {
 | title | String | Yes | パラメータ表示名 |
 | description | String | No | パラメータ説明 |
 | isOptional | bool | No | 任意パラメータか（デフォルト: false） |
-| entityType | Type | No | ピッカー用エンティティ型 |
-| enumType | Type | No | 選択式AppEnum型 |
+| entityType | String? | No | ピッカー用エンティティ型識別子 |
+| enumType | String? | No | 選択式AppEnum型識別子 |
+| fileType | String? | No | ファイルパラメータ用UTI（例: `'public.image'`） |
 
 #### IntentSpecBase
 
@@ -107,8 +110,11 @@ class TaskEntitySpec extends EntitySpecBase<Task> {}
 |-----------|-----|------|------|
 | identifier | String | Yes | Entity一意識別子 |
 | title | String | Yes | 単数形表示名 |
-| pluralTitle | String | No | 複数形表示名 |
+| pluralTitle | String | Yes | 複数形表示名 |
 | description | String | No | Entity説明文 |
+| displayImageName | String? | No | Entity型の静的画像名 |
+| indexed | bool | No | Spotlight索引を有効化（iOS 26+、デフォルト: false） |
+| enumerable | bool | No | EnumerableEntityQueryを生成（デフォルト: false） |
 
 #### Entity Property アノテーション
 
@@ -204,10 +210,14 @@ app_intents_annotations/
 │       │   ├── intent_param.dart     # IntentParam
 │       │   ├── entity_spec.dart      # EntitySpec
 │       │   ├── entity_params.dart    # Entity*アノテーション
-│       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
-│       └── bases/
-│           ├── intent_spec_base.dart # IntentSpecBase
-│           └── entity_spec_base.dart # EntitySpecBase<M>
+│       │   ├── enum_spec.dart        # EnumSpec, EnumCaseDisplay
+│       │   ├── app_shortcut.dart     # AppShortcut, AppShortcutsProvider
+│       │   └── intent_mode.dart      # IntentMode列挙型
+│       ├── bases/
+│       │   ├── intent_spec_base.dart # IntentSpecBase
+│       │   └── entity_spec_base.dart # EntitySpecBase<M>
+│       └── models/
+│           └── intent_file.dart      # IntentFileモデル
 ├── example/
 │   ├── create_task_intent.dart       # Intent使用例
 │   ├── task_entity_spec.dart         # Entity使用例
@@ -253,18 +263,28 @@ AppIntentsPlatform (Interface)
 
 #### AppIntents
 
-メインのファサードクラス。
+プラグインの全APIを提供するメインファサードクラス。
 
 ```dart
 class AppIntents {
-  Future<String?> getPlatformVersion() {
-    return AppIntentsPlatform.instance.getPlatformVersion();
-  }
-}
+  // プラットフォーム情報
+  Future<String?> getPlatformVersion();
 
-// 使用例
-final appIntents = AppIntents();
-final version = await appIntents.getPlatformVersion();
+  // Intentハンドラー登録
+  void registerIntentHandler(String identifier, IntentHandler handler);
+  void registerEntityQueryHandler(String entityIdentifier, EntityQueryHandler handler);
+  void registerSuggestedEntitiesHandler(String entityIdentifier, SuggestedEntitiesHandler handler);
+
+  // ストリーム
+  Stream<IntentExecutionRequest> get onIntentExecution;
+  Stream<String> get pendingActionsStream;
+
+  // キャッシングAPI（フォアグラウンド/キャッシュ実行モード用）
+  Future<dynamic> getCachedValue(String key);
+  Future<void> setCachedValue(String key, dynamic value);
+  Future<void> clearCachedValue(String key);
+  Future<bool> processPendingActions();
+}
 ```
 
 #### AppIntentsPlatform
@@ -274,28 +294,7 @@ final version = await appIntents.getPlatformVersion();
 ```dart
 abstract class AppIntentsPlatform extends PlatformInterface {
   static AppIntentsPlatform get instance => _instance;
-  static set instance(AppIntentsPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
-    _instance = instance;
-  }
-
-  Future<String?> getPlatformVersion();
-}
-```
-
-#### MethodChannelAppIntents
-
-Method Channel実装。
-
-```dart
-class MethodChannelAppIntents extends AppIntentsPlatform {
-  @visibleForTesting
-  final methodChannel = const MethodChannel('app_intents');
-
-  @override
-  Future<String?> getPlatformVersion() async {
-    return methodChannel.invokeMethod<String>('getPlatformVersion');
-  }
+  // 全AppIntentsメソッドが抽象メソッドとして定義
 }
 ```
 
@@ -303,28 +302,20 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
 #### AppIntentsPlugin.swift
 
+iOS向けMethodChannel通信を処理。主なメソッド:
+
 ```swift
 public class AppIntentsPlugin: NSObject, FlutterPlugin {
-  public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(
-      name: "app_intents",
-      binaryMessenger: registrar.messenger()
-    )
-    let instance = AppIntentsPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
-  }
+  public static var shared: AppIntentsPlugin?
 
-  public func handle(
-    _ call: FlutterMethodCall,
-    result: @escaping FlutterResult
-  ) {
-    switch call.method {
-    case "getPlatformVersion":
-      result("iOS " + UIDevice.current.systemVersion)
-    default:
-      result(FlutterMethodNotImplemented)
-    }
-  }
+  // MethodChannelハンドラー:
+  // - "executeIntent"         → DartのIntentハンドラーを呼び出し
+  // - "queryEntities"         → IDでエンティティを検索
+  // - "getSuggestedEntities"  → 推薦エンティティリストを取得
+  // - "getCachedValue"        → UserDefaultsキャッシュから読み込み
+  // - "setCachedValue"        → UserDefaultsキャッシュへ書き込み
+  // - "clearCachedValue"      → キャッシュ値をクリア
+  // - "processPendingActions" → キューイングされたアクションを処理
 }
 ```
 
@@ -338,8 +329,11 @@ app_intents/
 │   └── app_intents_method_channel.dart     # Method Channel実装
 ├── ios/
 │   ├── Classes/
-│   │   └── AppIntentsPlugin.swift          # Swift実装
+│   │   └── AppIntentsPlugin.swift          # iOS Swift実装
 │   └── app_intents.podspec                 # CocoaPods設定
+├── android/
+│   └── src/main/kotlin/.../
+│       └── AppIntentsPlugin.kt             # Android Kotlin実装
 └── test/
     └── app_intents_test.dart
 ```
@@ -449,7 +443,8 @@ app_intents_codegen/
 │       ├── analyzer/               # アノテーション解析
 │       │   ├── intent_analyzer.dart
 │       │   ├── entity_analyzer.dart
-│       │   └── enum_analyzer.dart
+│       │   ├── enum_analyzer.dart
+│       │   └── shortcut_analyzer.dart
 │       ├── generator/              # コード生成
 │       │   ├── swift_generator.dart
 │       │   ├── kotlin_generator.dart
@@ -519,10 +514,11 @@ public actor FlutterBridge {
 共通エラー型。
 
 ```swift
-public enum AppIntentError: Error {
-    case executorNotSet
-    case channelNotAvailable
+public enum AppIntentError: LocalizedError {
+    case intentNotFound(String)
+    case handlerFailed(String)
     case custom(code: String, message: String)
+    case entityQueryNotConfigured
 }
 ```
 
@@ -534,9 +530,10 @@ ios-spm/
     ├── Package.swift
     └── Sources/
         └── AppIntentsBridge/
+            ├── AppIntentsBridge.swift  # モジュールエントリーポイント
             ├── FlutterBridge.swift     # メイン通信ブリッジ
-            ├── AppIntentError.swift    # エラー型
-            └── EntityImageSource.swift # Entity画像ソース
+            ├── ErrorHandling.swift     # AppIntentErrorエラー型
+            └── EntityImage.swift       # EntityImageSource列挙型
 ```
 
 ### 統合方法

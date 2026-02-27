@@ -1,5 +1,7 @@
 # Flutter Intents
 
+[English README](README.md)
+
 FlutterアプリケーションからiOS App IntentsおよびAndroid AppFunctionsフレームワークを利用するためのパッケージ群です。
 
 ## 概要
@@ -9,7 +11,7 @@ FlutterアプリケーションからiOS App IntentsおよびAndroid AppFunction
 ### 主な目標
 
 1. **宣言的なIntent定義**: Dartアノテーションを使用してApp Intentsを定義
-2. **型安全**: ジェネリクスによる入出力の型チェック
+2. **型安全**: 生成される型安全なParamsクラスによる型チェック
 3. **コード生成**: Dart定義からSwift/Kotlinコードを自動生成
 4. **クロスプラットフォーム**: 1つのDart定義からiOS・Android両方のネイティブコードを生成
 
@@ -30,9 +32,9 @@ flutter_intents/
 
 | パッケージ | 説明 |
 |-----------|------|
-| [app_intents_annotations](docs/packages.md#app_intents_annotations) | Intent/Entityを定義するためのアノテーションとベースクラス |
-| [app_intents](docs/packages.md#app_intents) | iOS/Android連携用Flutterプラグイン |
-| [app_intents_codegen](docs/packages.md#app_intents_codegen) | Swift/Kotlinコードジェネレーター |
+| [app_intents](packages/app_intents/) | iOS/Android連携用Flutterプラグイン |
+| [app_intents_annotations](packages/app_intents_annotations/) | Intent/Entityを定義するためのアノテーションとベースクラス |
+| [app_intents_codegen](packages/app_intents_codegen/) | Swift/Kotlinコードジェネレーター |
 
 ## クイックスタート
 
@@ -57,7 +59,6 @@ import 'package:app_intents_annotations/app_intents_annotations.dart';
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
   description: 'Create a new task',
-  implementation: IntentImplementation.dart,
 )
 class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: 'Title')
@@ -65,6 +66,8 @@ class CreateTaskIntentSpec extends IntentSpecBase {
 
   @IntentParam(title: 'Due Date', isOptional: true)
   final DateTime? dueDate;
+
+  CreateTaskIntentSpec({required this.title, this.dueDate});
 }
 ```
 
@@ -75,7 +78,6 @@ class CreateTaskIntentSpec extends IntentSpecBase {
   identifier: 'TaskEntity',
   title: 'Task',
   pluralTitle: 'Tasks',
-  description: 'A task entity',
 )
 class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntityId()
@@ -87,6 +89,19 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntitySubtitle()
   String? subtitle(Task task) => task.description;
 }
+```
+
+### 4. コード生成
+
+```bash
+# Dartコード生成
+dart run build_runner build --delete-conflicting-outputs
+
+# Swiftコード生成 (iOS)
+dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+
+# Kotlinコード生成 (Android)
+dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotlin/com/example/app/generated -p com.example.app.generated
 ```
 
 ## ドキュメント
@@ -102,6 +117,10 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 - **iOS**: 17.0+（App Intents）、Swift 5.9+
 - **Android**: API 36+（Android 16、AppFunctions）
 
+## コントリビュート
+
+コントリビュートのガイドラインは [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
 ## ライセンス
 
-MIT License
+MIT License - 詳細は [LICENSE](LICENSE) ファイルを参照してください。

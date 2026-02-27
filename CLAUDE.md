@@ -51,7 +51,7 @@ docs/
   - Caching API: `getCachedValue`, `setCachedValue`, `clearCachedValue`, `processPendingActions`
   - iOS `AppIntentsPlugin.swift`: caching via UserDefaults, `setPendingAction` for cache mode
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
-  - `IntentAnalyzer`, `EntityAnalyzer`, `EnumAnalyzer` for annotation parsing
+  - `IntentAnalyzer`, `EntityAnalyzer`, `EnumAnalyzer`, `ShortcutAnalyzer` for annotation parsing
   - `SwiftGenerator`: Generates iOS 17+ AppIntent/AppEntity/AppEnum/AppShortcutsProvider Swift code
     - URL scheme execution (when `urlScheme` set) or FlutterBridge invocation
     - `IntentResult & ProvidesDialog` for Siri/Shortcuts dialog feedback
@@ -66,6 +66,7 @@ docs/
     - Proper error handling (`throw` instead of silent `return .result()`)
     - FlutterBridge-backed EntityQuery with `entities(for:)` and `suggestedEntities()`
   - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
+    - Generates type-safe `XxxParams` classes with `fromMap()` and `fromQueryParameters()` factories
     - Always registers both `registerEntityQueryHandler` and `registerSuggestedEntitiesHandler`
   - `AppIntentsBuilder` using `PartBuilder` for proper part file generation
   - CLI command: `dart run app_intents_codegen:generate_swift` for Swift file output
@@ -78,6 +79,7 @@ docs/
 - `app/` Example App: Task management demo
   - `CreateTaskIntentSpec` (URL scheme: `taskapp://create`, dialog + parameterSummary)
   - `CompleteTaskIntentSpec` (URL scheme: `taskapp://complete`, dialog + parameterSummary)
+  - `CreateTaskWithImageIntentSpec` (cache mode: `supportedModes: foreground`, `IntentFile` parameter)
   - `CompleteTask` uses entity parameter (`TaskEntitySpec`) for picker UI
   - `TaskEntitySpec` entity with query handler + suggested entities handler + SF Symbol image
   - `TaskAppShortcuts` with `@AppShortcutsProvider` for Siri shortcuts
@@ -138,14 +140,13 @@ docs/
 ## Code Conventions
 
 ### TypeChecker API (source_gen 2.0.0)
-Use `TypeChecker.fromRuntime(Type)` with import of the annotation type:
+Use `TypeChecker.fromUrl()` with the full package URL:
 ```dart
-import 'package:app_intents_annotations/app_intents_annotations.dart';
-
-const _intentSpecChecker = TypeChecker.fromRuntime(IntentSpec);
+const _intentSpecChecker = TypeChecker.fromUrl(
+    'package:app_intents_annotations/src/annotations/intent_spec.dart#IntentSpec');
 ```
 
-**Do NOT use** `TypeChecker.fromName()` - it doesn't exist in source_gen 2.0.0.
+**Do NOT use** `TypeChecker.fromName()` or `TypeChecker.fromRuntime()` — the codebase uses `fromUrl()` throughout.
 
 ### Deprecation Warnings
 Add `// ignore_for_file: deprecated_member_use` for `ClassElement` deprecation warnings in analyzer files.
@@ -367,7 +368,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 ```
 
 ### Key Integration Points
-- **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()` in AppDelegate
+- **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()`, `setEntityQueryExecutor()`, and `setSuggestedEntitiesExecutor()` in AppDelegate
 - **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel)` in MainActivity
 - **MethodChannel name**: `"app_intents"`
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
@@ -376,18 +377,31 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 1. Add AppIntentsBridge: either via SPM (`File → Add Package Dependencies` → `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product) or copy Swift files to `ios/Runner/AppIntentsBridge/`
 2. Run `dart run app_intents_codegen:generate_swift` to generate Swift code
 3. Add Swift files to Xcode project (update project.pbxproj)
-4. Wire FlutterBridge in AppDelegate:
+4. Wire FlutterBridge in AppDelegate (using `FlutterImplicitEngineDelegate`):
 ```swift
 import app_intents
 
-// In didFinishLaunchingWithOptions:
+// In didInitializeImplicitFlutterEngine(_:):
 if #available(iOS 17.0, *) {
-  Task {
+  Task { @MainActor in
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
       guard let plugin = AppIntentsPlugin.shared else {
-        throw AppIntentsError.channelNotAvailable
+        throw AppIntentError.intentNotFound(identifier)
       }
       return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+    await FlutterBridge.shared.setEntityQueryExecutor { entityIdentifier, identifiers in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.queryEntitiesAsync(
+        entityIdentifier: entityIdentifier, identifiers: identifiers)
+    }
+    await FlutterBridge.shared.setSuggestedEntitiesExecutor { entityIdentifier in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
   }
 }
@@ -462,6 +476,7 @@ make test
 dart test packages/app_intents_codegen
 dart test packages/app_intents_annotations
 cd packages/app_intents && flutter test
+cd app && flutter test
 cd ios-spm/AppIntentsBridge && swift test
 ```
 
@@ -488,6 +503,9 @@ struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
 
     static var openAppWhenRun: Bool { true }
 
@@ -551,15 +569,38 @@ part of 'create_task_intent.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
+class CreateTaskIntentParams {
+  final String title;
+  final String? description;
+  final DateTime? dueDate;
+
+  const CreateTaskIntentParams({required this.title, this.description, this.dueDate});
+
+  factory CreateTaskIntentParams.fromMap(Map<String, dynamic> map) {
+    return CreateTaskIntentParams(
+      title: map['title'] as String,
+      description: map['description'] as String?,
+      dueDate: map['dueDate'] != null ? DateTime.parse(map['dueDate'] as String) : null,
+    );
+  }
+  factory CreateTaskIntentParams.fromQueryParameters(Map<String, String> params) {
+    return CreateTaskIntentParams(
+      title: params['title']!,
+      description: params['description'],
+      dueDate: params['dueDate'] != null ? DateTime.tryParse(params['dueDate']!) : null,
+    );
+  }
+}
+
 void initializeCreateTaskAppIntents() {
   _registerCreateTaskIntentHandlers();
 }
 
 void _registerCreateTaskIntentHandlers() {
   AppIntents().registerIntentHandler('com.example.taskapp.createTask', (params) async {
-    final title = params['title'] as String;
-    final result = await createTaskIntentHandler(title: title);
-    return result.toJson();
+    final p = CreateTaskIntentParams.fromMap(params);
+    await createTaskIntentHandler(title: p.title, description: p.description, dueDate: p.dueDate);
+    return <String, dynamic>{};
   });
 }
 ```

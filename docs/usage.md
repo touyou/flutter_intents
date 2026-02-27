@@ -56,6 +56,10 @@ dependencies {
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
 }
+
+ksp {
+    arg("appfunctions:aggregateAppFunctions", "true")
+}
 ```
 
 > **Note**: AppFunctions requires Android 16 (API 36) or later.
@@ -76,14 +80,32 @@ Then in your `AppDelegate.swift`:
 import app_intents
 import AppIntentsBridge
 
-// In didFinishLaunchingWithOptions:
-if #available(iOS 16.0, *) {
-  Task {
+// In your AppDelegate (using FlutterImplicitEngineDelegate):
+if #available(iOS 17.0, *) {
+  Task { @MainActor in
+    // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
       guard let plugin = AppIntentsPlugin.shared else {
-        throw AppIntentError.channelNotAvailable
+        throw AppIntentError.intentNotFound(identifier)
       }
       return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+
+    // Entity query executor
+    await FlutterBridge.shared.setEntityQueryExecutor { entityIdentifier, identifiers in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.queryEntitiesAsync(
+        entityIdentifier: entityIdentifier, identifiers: identifiers)
+    }
+
+    // Suggested entities executor
+    await FlutterBridge.shared.setSuggestedEntitiesExecutor { entityIdentifier in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
   }
 }
@@ -259,11 +281,6 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
     return TaskRepository.instance.getAllTasks();
   }
 
-  // Future support planned: Custom queries
-  // @EntityQuery(title: 'Incomplete Tasks')
-  // Future<List<Task>> incompleteTasks() async {
-  //   return TaskRepository.instance.getIncompleteTasks();
-  // }
 }
 ```
 
@@ -352,10 +369,10 @@ dart run build_runner watch
 #### Swift Code
 
 ```swift
-// Generated: TaskEntity.swift
+// From GeneratedAppIntents.swift (all generated types are in one file)
 import AppIntents
 
-struct TaskEntity: AppEntity {
+struct TaskEntitySpec: AppEntity {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(
         name: "Task",
         numericFormat: "\(placeholder: .int) Tasks"
@@ -390,12 +407,12 @@ struct TaskQuery: EntityQuery {
 ```
 
 ```swift
-// Generated: CreateTaskIntent.swift
+// Also in GeneratedAppIntents.swift
 import AppIntents
 import UIKit
 
 @available(iOS 17.0, *)
-struct CreateTaskIntent: AppIntent {
+struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
@@ -435,7 +452,7 @@ struct CreateTaskIntent: AppIntent {
 
 > **Note**: URL scheme is used because App Intents may run in an isolated iOS process, making direct MethodChannel calls impossible. URL scheme ensures the app is fully launched before Flutter-side processing.
 
-### New in v0.2.0
+### Advanced Features
 
 #### Result Dialog Template
 
@@ -571,51 +588,26 @@ class _MyAppState extends State<MyApp> {
 
 ## Plugin Usage
 
-### Basic Usage
+### Initializing Handlers
+
+Call the generated initialization functions in your `main.dart`:
 
 ```dart
 import 'package:app_intents/app_intents.dart';
+import 'intents/create_task_intent.dart';
+import 'entities/task_entity.dart';
 
-class MyApp extends StatefulWidget {
-  @override
-  _MyAppState createState() => _MyAppState();
-}
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class _MyAppState extends State<MyApp> {
-  final _appIntents = AppIntents();
-  String _platformVersion = 'Unknown';
+  // Initialize generated handlers
+  initializeCreateTaskAppIntents();
+  initializeTaskEntityAppIntents();
 
-  @override
-  void initState() {
-    super.initState();
-    _initPlatformState();
-  }
+  // Process any pending actions (for cache execution mode)
+  AppIntents().processPendingActions();
 
-  Future<void> _initPlatformState() async {
-    String? platformVersion;
-    try {
-      platformVersion = await _appIntents.getPlatformVersion();
-    } catch (e) {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion ?? 'Unknown';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Running on: $_platformVersion'),
-        ),
-      ),
-    );
-  }
+  runApp(MyApp());
 }
 ```
 

@@ -10,8 +10,9 @@ Annotations for defining iOS App Intents and Android AppFunctions in Flutter. Us
 - `@IntentSpec` - Define App Intents with parameters
 - `@IntentParam` - Define intent parameters with titles and options
 - `@EntitySpec` - Define App Entities for parameter pickers
-- `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage` - Entity property annotations
-- `@AppShortcut`, `@AppShortcutsProvider` - Define App Shortcuts for Spotlight
+- `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery` - Entity property annotations
+- `@EnumSpec`, `@EnumCaseDisplay` - Define AppEnum types for selection parameters
+- `@AppShortcut`, `@AppShortcutsProvider` - Define App Shortcuts for Siri, Shortcuts, and Spotlight
 
 ## Installation
 
@@ -66,7 +67,7 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntitySubtitle()
   String? subtitle(Task task) => task.description;
 
-  @EntityImage(type: EntityImageType.systemName)
+  @EntityImage()
   String? image(Task task) => 'checkmark.circle';
 }
 ```
@@ -77,13 +78,15 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 @AppShortcutsProvider()
 class TaskShortcutsProvider {
   @AppShortcut(
-    intent: CreateTaskIntentSpec,
+    intentIdentifier: 'com.example.CreateTaskIntent',
     phrases: [
-      'Create a task in \${applicationName}',
-      'Add task to \${applicationName}',
+      'Create a task in {applicationName}',
+      'Add task to {applicationName}',
     ],
+    shortTitle: 'Create Task',
+    systemImageName: 'plus.circle',
   )
-  static final createTask = AppShortcutDefinition();
+  static const createTask = null;
 }
 ```
 

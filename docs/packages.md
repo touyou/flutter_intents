@@ -39,13 +39,15 @@ class CreateTaskIntentSpec extends IntentSpecBase {}
 | urlAction | String | No | URL host/action path |
 | resultDialogTemplate | String | No | Dialog feedback template (e.g., `'Created "{title}"'`) |
 | parameterSummary | String | No | Shortcuts UI summary (e.g., `'Create {title}'`) |
+| supportedModes | IntentMode? | No | Execution mode (`foreground` or `background`) |
 
 #### IntentImplementation
 
 ```dart
 enum IntentImplementation {
-  dart,   // Implement on Dart/Flutter side
-  swift,  // Implement on Swift side
+  dart,    // Implement on Dart/Flutter side
+  swift,   // Implement on Swift side
+  kotlin,  // Implement on Kotlin side
 }
 ```
 
@@ -72,8 +74,9 @@ class MyIntentSpec extends IntentSpecBase {
 | title | String | Yes | Parameter display name |
 | description | String | No | Parameter description |
 | isOptional | bool | No | Whether optional (default: false) |
-| entityType | Type | No | Entity type for picker parameters |
-| enumType | Type | No | AppEnum type for selection parameters |
+| entityType | String? | No | Entity type identifier for picker parameters |
+| enumType | String? | No | AppEnum type identifier for selection parameters |
+| fileType | String? | No | UTI for file parameters (e.g., `'public.image'`) |
 
 #### IntentSpecBase
 
@@ -107,8 +110,11 @@ class TaskEntitySpec extends EntitySpecBase<Task> {}
 |----------|------|----------|-------------|
 | identifier | String | Yes | Entity unique identifier |
 | title | String | Yes | Singular display name |
-| pluralTitle | String | No | Plural display name |
+| pluralTitle | String | Yes | Plural display name |
 | description | String | No | Entity description |
+| displayImageName | String? | No | Static image name for entity type |
+| indexed | bool | No | Enable Spotlight indexing (iOS 26+, default: false) |
+| enumerable | bool | No | Generate EnumerableEntityQuery (default: false) |
 
 #### Entity Property Annotations
 
@@ -204,10 +210,14 @@ app_intents_annotations/
 │       │   ├── intent_param.dart     # IntentParam
 │       │   ├── entity_spec.dart      # EntitySpec
 │       │   ├── entity_params.dart    # Entity* annotations
-│       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
-│       └── bases/
-│           ├── intent_spec_base.dart # IntentSpecBase
-│           └── entity_spec_base.dart # EntitySpecBase<M>
+│       │   ├── enum_spec.dart        # EnumSpec, EnumCaseDisplay
+│       │   ├── app_shortcut.dart     # AppShortcut, AppShortcutsProvider
+│       │   └── intent_mode.dart      # IntentMode enum
+│       ├── bases/
+│       │   ├── intent_spec_base.dart # IntentSpecBase
+│       │   └── entity_spec_base.dart # EntitySpecBase<M>
+│       └── models/
+│           └── intent_file.dart      # IntentFile model
 ├── example/
 │   ├── create_task_intent.dart       # Intent example
 │   ├── task_entity_spec.dart         # Entity example
@@ -253,18 +263,28 @@ AppIntentsPlatform (Interface)
 
 #### AppIntents
 
-Main facade class.
+Main facade class providing the full plugin API.
 
 ```dart
 class AppIntents {
-  Future<String?> getPlatformVersion() {
-    return AppIntentsPlatform.instance.getPlatformVersion();
-  }
-}
+  // Platform info
+  Future<String?> getPlatformVersion();
 
-// Usage
-final appIntents = AppIntents();
-final version = await appIntents.getPlatformVersion();
+  // Intent handler registration
+  void registerIntentHandler(String identifier, IntentHandler handler);
+  void registerEntityQueryHandler(String entityIdentifier, EntityQueryHandler handler);
+  void registerSuggestedEntitiesHandler(String entityIdentifier, SuggestedEntitiesHandler handler);
+
+  // Streams
+  Stream<IntentExecutionRequest> get onIntentExecution;
+  Stream<String> get pendingActionsStream;
+
+  // Caching API (for foreground/cache execution mode)
+  Future<dynamic> getCachedValue(String key);
+  Future<void> setCachedValue(String key, dynamic value);
+  Future<void> clearCachedValue(String key);
+  Future<bool> processPendingActions();
+}
 ```
 
 #### AppIntentsPlatform
@@ -274,28 +294,7 @@ Platform interface. Can be mocked for testing.
 ```dart
 abstract class AppIntentsPlatform extends PlatformInterface {
   static AppIntentsPlatform get instance => _instance;
-  static set instance(AppIntentsPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
-    _instance = instance;
-  }
-
-  Future<String?> getPlatformVersion();
-}
-```
-
-#### MethodChannelAppIntents
-
-Method Channel implementation.
-
-```dart
-class MethodChannelAppIntents extends AppIntentsPlatform {
-  @visibleForTesting
-  final methodChannel = const MethodChannel('app_intents');
-
-  @override
-  Future<String?> getPlatformVersion() async {
-    return methodChannel.invokeMethod<String>('getPlatformVersion');
-  }
+  // All AppIntents methods are defined here as abstract
 }
 ```
 
@@ -303,28 +302,20 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
 #### AppIntentsPlugin.swift
 
+Handles MethodChannel communication for iOS. Key methods:
+
 ```swift
 public class AppIntentsPlugin: NSObject, FlutterPlugin {
-  public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(
-      name: "app_intents",
-      binaryMessenger: registrar.messenger()
-    )
-    let instance = AppIntentsPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
-  }
+  public static var shared: AppIntentsPlugin?
 
-  public func handle(
-    _ call: FlutterMethodCall,
-    result: @escaping FlutterResult
-  ) {
-    switch call.method {
-    case "getPlatformVersion":
-      result("iOS " + UIDevice.current.systemVersion)
-    default:
-      result(FlutterMethodNotImplemented)
-    }
-  }
+  // MethodChannel handler for:
+  // - "executeIntent"         → Invoke Dart intent handlers
+  // - "queryEntities"         → Query entities by identifiers
+  // - "getSuggestedEntities"  → Get suggested entity list
+  // - "getCachedValue"        → Read from UserDefaults cache
+  // - "setCachedValue"        → Write to UserDefaults cache
+  // - "clearCachedValue"      → Clear cached value
+  // - "processPendingActions" → Process queued intent actions
 }
 ```
 
@@ -335,11 +326,17 @@ app_intents/
 ├── lib/
 │   ├── app_intents.dart                    # Public API
 │   ├── app_intents_platform_interface.dart # Platform Interface
-│   └── app_intents_method_channel.dart     # Method Channel implementation
+│   ├── app_intents_method_channel.dart     # Method Channel implementation
+│   └── src/models/
+│       ├── app_intent_error.dart           # Error model
+│       └── intent_execution_request.dart   # Intent request model
 ├── ios/
 │   ├── Classes/
-│   │   └── AppIntentsPlugin.swift          # Swift implementation
+│   │   └── AppIntentsPlugin.swift          # iOS Swift implementation
 │   └── app_intents.podspec                 # CocoaPods config
+├── android/
+│   └── src/main/kotlin/.../
+│       └── AppIntentsPlugin.kt             # Android Kotlin implementation
 └── test/
     └── app_intents_test.dart
 ```
@@ -449,7 +446,8 @@ app_intents_codegen/
 │       ├── analyzer/               # Annotation analysis
 │       │   ├── intent_analyzer.dart
 │       │   ├── entity_analyzer.dart
-│       │   └── enum_analyzer.dart
+│       │   ├── enum_analyzer.dart
+│       │   └── shortcut_analyzer.dart
 │       ├── generator/              # Code generation
 │       │   ├── swift_generator.dart
 │       │   ├── kotlin_generator.dart
@@ -516,13 +514,14 @@ public actor FlutterBridge {
 
 #### AppIntentError
 
-Common error type.
+Common error type (defined in `ErrorHandling.swift`).
 
 ```swift
-public enum AppIntentError: Error {
-    case executorNotSet
-    case channelNotAvailable
+public enum AppIntentError: LocalizedError {
+    case intentNotFound(String)
+    case handlerFailed(String)
     case custom(code: String, message: String)
+    case entityQueryNotConfigured
 }
 ```
 
@@ -534,9 +533,10 @@ ios-spm/
     ├── Package.swift
     └── Sources/
         └── AppIntentsBridge/
+            ├── AppIntentsBridge.swift  # Module entry point
             ├── FlutterBridge.swift     # Main communication bridge
-            ├── AppIntentError.swift    # Error type
-            └── EntityImageSource.swift # Entity image source
+            ├── ErrorHandling.swift     # AppIntentError type
+            └── EntityImage.swift       # EntityImageSource enum
 ```
 
 ### Integration Steps

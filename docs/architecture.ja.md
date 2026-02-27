@@ -2,13 +2,13 @@
 
 ## 設計思想
 
-Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提供し、FlutterアプリがSiri、Shortcuts、Spotlightと連携できるようにします。
+Flutter IntentsはiOS App IntentsおよびAndroid AppFunctionsフレームワークへのブリッジを提供し、FlutterアプリがSiri、Shortcuts、Spotlight、AIエージェント（Gemini等）と連携できるようにします。
 
 ### 設計原則
 
 1. **宣言的定義**: アノテーションベースでIntent/Entityを宣言
 2. **関心の分離**: アノテーション、プラグイン、コード生成を独立パッケージに分離
-3. **型安全性**: ジェネリクスによるコンパイル時型チェック
+3. **型安全性**: 生成されるParamsクラスによるコンパイル時型チェック
 4. **プラットフォーム抽象化**: Platform Interfaceパターンによる疎結合
 
 ## 全体アーキテクチャ
@@ -35,12 +35,17 @@ Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提�
    ┌─────────┐    ┌──────────────┐    ┌───────────────┐
    │ Dart    │    │ Generated    │    │ iOS Native    │
    │ Handler │◄───│ Swift Code   │───►│ App Intents   │
-   └─────────┘    └──────────────┘    │ Framework     │
+   └─────────┘    └──────┬───────┘    │ Framework     │
+        ▲                │            └───────────────┘
+        │         ┌──────┴───────┐
+        │         │ Generated    │    ┌───────────────┐
+        └─────────│ Kotlin Code  │───►│ Android       │
+                  └──────────────┘    │ AppFunctions  │
                          ▲            └───────────────┘
                          │
               ┌──────────┴──────────┐
               │ app_intents_codegen │
-              │ (build_runner)      │
+              │ (build_runner + CLI)│
               └─────────────────────┘
 ```
 
@@ -83,8 +88,8 @@ Flutter IntentsはiOS App Intentsフレームワークへのブリッジを提�
          │
          ▼
 [Generated Files]
-    - Swift App Intents
-    - Swift Entity Queries
+    - Swift App Intents (iOS)
+    - Kotlin AppFunctions (Android)
     - Dart Bindings
 ```
 
@@ -130,7 +135,7 @@ FlutterMethodChannel ◄──► AppIntentsPlugin.swift
 
 ### Layer 3: コード生成層 (app_intents_codegen)
 
-Dartアノテーションを解析し、Swiftコードを生成。
+Dartアノテーションを解析し、Swift (iOS) および Kotlin (Android) コードを生成。
 
 ```
 Source Analysis
@@ -138,11 +143,9 @@ Source Analysis
        ▼
 AST Processing
        │
-       ▼
-Template Generation
-       │
-       ▼
-Swift Output
+       ├──► Swift Output (iOS)
+       ├──► Kotlin Output (Android)
+       └──► Dart Output (Bindings)
 ```
 
 ## 設計パターン
@@ -218,25 +221,28 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
 ```dart
 enum IntentImplementation {
-  dart,   // FlutterでIntent処理を実装
-  swift,  // ネイティブSwiftで実装
+  dart,    // FlutterでIntent処理を実装
+  swift,   // ネイティブSwiftで実装
+  kotlin,  // ネイティブKotlinで実装
 }
 ```
 
 **ユースケース:**
 - `dart`: UI表示、データベースアクセス等Flutter機能が必要な場合
 - `swift`: パフォーマンス重視、iOS固有API使用時
+- `kotlin`: Android固有API使用時
 
 ## 型システム
 
-### ジェネリクスによる型安全
+### 生成されるParamsクラスによる型安全
 
 ```dart
 abstract class IntentSpecBase {
   const IntentSpecBase();
 }
 
-// 具体的な使用例
+// 具体的な使用例 — v0.6.0でジェネリクスを削除
+// 代わりにcodegenが型安全なParamsクラスを生成
 class CreateTaskIntentSpec extends IntentSpecBase {}
 ```
 
@@ -293,10 +299,14 @@ import AppIntents
 import UIKit
 
 @available(iOS 17.0, *)
-struct CreateTaskIntent: AppIntent {
+struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Creates a new task")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
+
     static var openAppWhenRun: Bool { true }
 
     static var parameterSummary: some ParameterSummary {
@@ -327,7 +337,7 @@ struct CreateTaskIntent: AppIntent {
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: CreateTaskIntent(),
+            intent: CreateTaskIntentSpec(),
             phrases: [
                 "Create a task in \(.applicationName)",
                 "Add task to \(.applicationName)"
@@ -339,10 +349,27 @@ struct AppShortcuts: AppShortcutsProvider {
 }
 ```
 
+## Android AppFunctions 対応
+
+### プラットフォーム要件
+
+| 項目 | 要件 |
+|------|------|
+| **Android最小バージョン** | API 36 (Android 16) |
+| **Kotlin** | 2.2+ |
+| **Jetpack AppFunctions** | 1.0.0-alpha07 |
+
+### 設計決定事項
+
+| 項目 | 決定 |
+|------|------|
+| 実行方式 | インプロセスMethodChannel（URL scheme不要） |
+| コード生成 | KSPベースの`@AppFunction`アノテーション処理 |
+| Entity直列化 | `@AppFunctionSerializable`データクラス |
+
 ## 今後の拡張ポイント
 
-1. **Android対応**: Android App Actions/Shortcuts連携 → これは一旦考えない
-2. **macOS対応**: macOS Shortcuts連携
-3. **ウィジェット連携**: iOS WidgetKit, Interactive Widgets
-4. **Focus Filter**: iOS Focus連携
-5. **Live Activities**: Dynamic Island / Lock Screen連携
+1. **macOS対応**: macOS Shortcuts連携
+2. **ウィジェット連携**: iOS WidgetKit, Interactive Widgets
+3. **Focus Filter**: iOS Focus連携
+4. **Live Activities**: Dynamic Island / Lock Screen連携

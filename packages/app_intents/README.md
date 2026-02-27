@@ -94,6 +94,25 @@ appIntents.onIntentExecution.listen((request) {
 });
 ```
 
+### Caching API
+
+For foreground intent execution (cache mode), the plugin provides caching support:
+
+```dart
+// Process pending actions when app resumes
+final hasPending = await appIntents.processPendingActions();
+
+// Listen for pending actions
+appIntents.pendingActionsStream.listen((identifier) {
+  print('Pending action: $identifier');
+});
+
+// Cache values for intent parameters
+await appIntents.setCachedValue('key', 'value');
+final value = await appIntents.getCachedValue('key');
+await appIntents.clearCachedValue('key');
+```
+
 ## iOS Configuration
 
 1. Set iOS deployment target to 17.0+ in `ios/Podfile`:
@@ -103,6 +122,12 @@ platform :ios, '17.0'
 ```
 
 2. See the [full documentation](https://github.com/touyou/flutter_intents/blob/main/docs/usage.md) for complete iOS setup instructions including Swift code generation.
+
+## Android Configuration
+
+1. Set `compileSdk` and `minSdk` to 36 in `android/app/build.gradle.kts`
+2. Add KSP and AppFunctions dependencies
+3. See the [full documentation](https://github.com/touyou/flutter_intents/blob/main/docs/usage.md) for complete Android setup instructions including Kotlin code generation.
 
 ## Related Packages
 

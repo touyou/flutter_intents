@@ -56,6 +56,10 @@ dependencies {
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
 }
+
+ksp {
+    arg("appfunctions:aggregateAppFunctions", "true")
+}
 ```
 
 > **Note**: AppFunctionsは Android 16（API 36）以上が必須です。
@@ -76,14 +80,32 @@ dependencies {
 import app_intents
 import AppIntentsBridge
 
-// didFinishLaunchingWithOptions内:
-if #available(iOS 16.0, *) {
-  Task {
+// AppDelegate内 (FlutterImplicitEngineDelegateを使用):
+if #available(iOS 17.0, *) {
+  Task { @MainActor in
+    // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
       guard let plugin = AppIntentsPlugin.shared else {
-        throw AppIntentError.channelNotAvailable
+        throw AppIntentError.intentNotFound(identifier)
       }
       return try await plugin.executeIntentAsync(identifier: identifier, params: params)
+    }
+
+    // Entity query executor
+    await FlutterBridge.shared.setEntityQueryExecutor { entityIdentifier, identifiers in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.queryEntitiesAsync(
+        entityIdentifier: entityIdentifier, identifiers: identifiers)
+    }
+
+    // Suggested entities executor
+    await FlutterBridge.shared.setSuggestedEntitiesExecutor { entityIdentifier in
+      guard let plugin = AppIntentsPlugin.shared else {
+        throw AppIntentError.entityQueryNotConfigured
+      }
+      return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
   }
 }
@@ -259,11 +281,6 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
     return TaskRepository.instance.getAllTasks();
   }
 
-  // 今後対応予定: カスタムクエリ
-  // @EntityQuery(title: 'Incomplete Tasks')
-  // Future<List<Task>> incompleteTasks() async {
-  //   return TaskRepository.instance.getIncompleteTasks();
-  // }
 }
 ```
 
@@ -352,10 +369,10 @@ dart run build_runner watch
 #### Swiftコード
 
 ```swift
-// Generated: TaskEntity.swift
+// GeneratedAppIntents.swift内（すべての生成型は1ファイルに出力）
 import AppIntents
 
-struct TaskEntity: AppEntity {
+struct TaskEntitySpec: AppEntity {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(
         name: "Task",
         numericFormat: "\(placeholder: .int) Tasks"
@@ -390,12 +407,12 @@ struct TaskQuery: EntityQuery {
 ```
 
 ```swift
-// Generated: CreateTaskIntent.swift
+// 同じくGeneratedAppIntents.swift内
 import AppIntents
 import UIKit
 
 @available(iOS 17.0, *)
-struct CreateTaskIntent: AppIntent {
+struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
@@ -435,7 +452,7 @@ struct CreateTaskIntent: AppIntent {
 
 > **Note**: URL schemeを使用する理由は、App IntentsがiOSの分離プロセスで実行される場合があり、直接MethodChannelを呼び出せないためです。URL schemeならアプリが完全に起動してからFlutter側で処理が実行されます。
 
-### v0.2.0 新機能
+### 高度な機能
 
 #### Result Dialog Template
 
@@ -571,51 +588,26 @@ class _MyAppState extends State<MyApp> {
 
 ## プラグインの使用
 
-### 基本的な使用方法
+### ハンドラーの初期化
+
+`main.dart`で生成された初期化関数を呼び出します:
 
 ```dart
 import 'package:app_intents/app_intents.dart';
+import 'intents/create_task_intent.dart';
+import 'entities/task_entity.dart';
 
-class MyApp extends StatefulWidget {
-  @override
-  _MyAppState createState() => _MyAppState();
-}
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class _MyAppState extends State<MyApp> {
-  final _appIntents = AppIntents();
-  String _platformVersion = 'Unknown';
+  // 生成されたハンドラーを初期化
+  initializeCreateTaskAppIntents();
+  initializeTaskEntityAppIntents();
 
-  @override
-  void initState() {
-    super.initState();
-    _initPlatformState();
-  }
+  // ペンディングアクションを処理（キャッシュ実行モード用）
+  AppIntents().processPendingActions();
 
-  Future<void> _initPlatformState() async {
-    String? platformVersion;
-    try {
-      platformVersion = await _appIntents.getPlatformVersion();
-    } catch (e) {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion ?? 'Unknown';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Running on: $_platformVersion'),
-        ),
-      ),
-    );
-  }
+  runApp(MyApp());
 }
 ```
 

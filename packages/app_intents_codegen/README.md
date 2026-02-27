@@ -128,35 +128,54 @@ The generator produces iOS 17+ compatible Swift code:
 
 ```swift
 import AppIntents
+import UIKit
 
 @available(iOS 17.0, *)
-struct CreateTaskIntent: AppIntent {
+struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
+    static var description: IntentDescription =
+        IntentDescription("Create a new task")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
+
+    static var openAppWhenRun: Bool { true }
 
     @Parameter(title: "Title")
     var title: String
 
-    static var openAppWhenRun: Bool = true
-
     @MainActor
-    func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         // URL scheme handling for Flutter integration
+        // ...
+        return .result(dialog: .init("Created task \"\(title)\""))
     }
 }
 ```
 
 ### Dart Output
 
-Generated part files contain handler registration:
+Generated part files contain type-safe Params classes and handler registration:
 
 ```dart
 part of 'create_task_intent.dart';
+
+class CreateTaskIntentParams {
+  final String title;
+  const CreateTaskIntentParams({required this.title});
+
+  factory CreateTaskIntentParams.fromMap(Map<String, dynamic> map) {
+    return CreateTaskIntentParams(title: map['title'] as String);
+  }
+}
 
 void initializeCreateTaskAppIntents() {
   AppIntents().registerIntentHandler(
     'com.example.CreateTaskIntent',
     (params) async {
-      // Handler invocation
+      final p = CreateTaskIntentParams.fromMap(params);
+      await createTaskIntentHandler(title: p.title);
+      return <String, dynamic>{};
     },
   );
 }

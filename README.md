@@ -13,7 +13,7 @@ Flutter Intents enables Flutter apps to integrate with iOS App Intents (Siri, Sh
 ### Key Features
 
 1. **Declarative Intent Definition**: Define App Intents using Dart annotations
-2. **Type Safety**: Compile-time type checking via generics
+2. **Type Safety**: Compile-time type checking via generated Params classes
 3. **Code Generation**: Automatic Swift and Kotlin code generation from Dart definitions
 4. **Cross-Platform**: iOS App Intents + Android AppFunctions from one codebase
 

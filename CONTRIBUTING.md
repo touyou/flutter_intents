@@ -10,6 +10,8 @@ Thank you for your interest in contributing to Flutter Intents! This document pr
 - Dart SDK 3.10+
 - Xcode 15+ (for iOS development)
 - iOS 17+ device or simulator
+- Android Studio (for Android development)
+- Android API 36+ emulator or device (for AppFunctions)
 
 ### Getting Started
 
@@ -81,12 +83,12 @@ feat: Add support for custom entity images
 3. Ensure all tests pass:
    ```bash
    make test
-   dart analyze
+   dart analyze packages/app_intents_codegen/lib
+   dart analyze packages/app_intents_annotations/lib
+   cd packages/app_intents && flutter analyze
    ```
 
-4. Push to your fork and open a Pull Request
-
-5. Fill out the PR template with:
+4. Push to your fork and open a Pull Request with:
    - Summary of changes
    - Related issues
    - Test plan
@@ -105,7 +107,12 @@ make test
 
 # Run specific package tests
 dart test packages/app_intents_codegen
+dart test packages/app_intents_annotations
 cd packages/app_intents && flutter test
+cd app && flutter test
+
+# Run Swift package tests
+cd ios-spm/AppIntentsBridge && swift test
 
 # Run iOS example app
 make ios
@@ -121,6 +128,9 @@ cd app && dart run build_runner build --delete-conflicting-outputs
 
 # Regenerate Swift code
 cd app && dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntents
+
+# Regenerate Kotlin code
+make kotlin-gen
 ```
 
 ## Documentation
