@@ -1,3 +1,9 @@
+## 0.5.2
+
+- Fix Swift 6 strict concurrency errors in `FlutterBridge.swift` when used as SPM package
+  - Add `sending` keyword to all non-Sendable parameters and return types crossing actor boundaries
+  - Affects `invoke()`, `queryEntities()`, `suggestedEntities()`, and all executor/handler closures
+
 ## 0.5.1
 
 - Add root `Package.swift` so AppIntentsBridge can be fetched via standard SPM from repository URL

@@ -22,16 +22,16 @@ public actor FlutterBridge {
     public static let shared = FlutterBridge()
 
     /// Registered intent handlers keyed by intent identifier
-    private var intentHandlers: [String: @Sendable (Any) async throws -> Any] = [:]
+    private var intentHandlers: [String: @Sendable (sending Any) async throws -> sending Any] = [:]
 
     /// Executor for delegating intent execution to Flutter via plugin
-    private var intentExecutor: (@Sendable (String, [String: Any]) async throws -> Any)?
+    private var intentExecutor: (@Sendable (sending String, sending [String: Any]) async throws -> sending Any)?
 
     /// Executor for querying entities from Flutter
-    private var entityQueryExecutor: (@Sendable (String, [String]) async throws -> [[String: Any]])?
+    private var entityQueryExecutor: (@Sendable (sending String, sending [String]) async throws -> sending [[String: Any]])?
 
     /// Executor for getting suggested entities from Flutter
-    private var suggestedEntitiesExecutor: (@Sendable (String) async throws -> [[String: Any]])?
+    private var suggestedEntitiesExecutor: (@Sendable (sending String) async throws -> sending [[String: Any]])?
 
     /// Private initializer to enforce singleton pattern
     private init() {}
@@ -43,7 +43,7 @@ public actor FlutterBridge {
     ///
     /// - Parameter executor: An async closure that executes intents via Flutter.
     public func setIntentExecutor(
-        _ executor: @escaping @Sendable (String, [String: Any]) async throws -> Any
+        _ executor: @escaping @Sendable (sending String, sending [String: Any]) async throws -> sending Any
     ) {
         intentExecutor = executor
     }
@@ -52,7 +52,7 @@ public actor FlutterBridge {
     ///
     /// - Parameter executor: An async closure that queries entities by identifiers.
     public func setEntityQueryExecutor(
-        _ executor: @escaping @Sendable (String, [String]) async throws -> [[String: Any]]
+        _ executor: @escaping @Sendable (sending String, sending [String]) async throws -> sending [[String: Any]]
     ) {
         entityQueryExecutor = executor
     }
@@ -61,7 +61,7 @@ public actor FlutterBridge {
     ///
     /// - Parameter executor: An async closure that fetches suggested entities.
     public func setSuggestedEntitiesExecutor(
-        _ executor: @escaping @Sendable (String) async throws -> [[String: Any]]
+        _ executor: @escaping @Sendable (sending String) async throws -> sending [[String: Any]]
     ) {
         suggestedEntitiesExecutor = executor
     }
@@ -81,7 +81,7 @@ public actor FlutterBridge {
     /// - Returns: The result returned by the intent handler
     /// - Throws: `AppIntentError.intentNotFound` if no handler is registered for the intent,
     ///           or any error thrown by the handler
-    public func invoke(intent: String, params: [String: Any]) async throws -> Any {
+    public func invoke(intent: String, params: sending [String: Any]) async throws -> sending Any {
         // Try local handler first
         if let handler = intentHandlers[intent] {
             return try await handler(params)
@@ -93,7 +93,7 @@ public actor FlutterBridge {
     }
 
     /// Waits for the intent executor to be set with timeout
-    private func waitForIntentExecutor() async throws -> @Sendable (String, [String: Any]) async throws -> Any {
+    private func waitForIntentExecutor() async throws -> @Sendable (sending String, sending [String: Any]) async throws -> sending Any {
         // Try immediately first
         if let executor = intentExecutor {
             return executor
@@ -120,7 +120,7 @@ public actor FlutterBridge {
     ///   - handler: An async closure that processes intent parameters and returns a result
     public func registerHandler(
         _ identifier: String,
-        handler: @escaping @Sendable (Any) async throws -> Any
+        handler: @escaping @Sendable (sending Any) async throws -> sending Any
     ) {
         intentHandlers[identifier] = handler
     }
@@ -151,8 +151,8 @@ public actor FlutterBridge {
     /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set within timeout
     public func queryEntities(
         entityIdentifier: String,
-        identifiers: [String]
-    ) async throws -> [[String: Any]] {
+        identifiers: sending [String]
+    ) async throws -> sending [[String: Any]] {
         let executor = try await waitForEntityQueryExecutor()
         return try await executor(entityIdentifier, identifiers)
     }
@@ -166,13 +166,13 @@ public actor FlutterBridge {
     /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set within timeout
     public func suggestedEntities(
         entityIdentifier: String
-    ) async throws -> [[String: Any]] {
+    ) async throws -> sending [[String: Any]] {
         let executor = try await waitForSuggestedEntitiesExecutor()
         return try await executor(entityIdentifier)
     }
 
     /// Waits for the entity query executor to be set with timeout
-    private func waitForEntityQueryExecutor() async throws -> @Sendable (String, [String]) async throws -> [[String: Any]] {
+    private func waitForEntityQueryExecutor() async throws -> @Sendable (sending String, sending [String]) async throws -> sending [[String: Any]] {
         if let executor = entityQueryExecutor {
             return executor
         }
@@ -189,7 +189,7 @@ public actor FlutterBridge {
     }
 
     /// Waits for the suggested entities executor to be set with timeout
-    private func waitForSuggestedEntitiesExecutor() async throws -> @Sendable (String) async throws -> [[String: Any]] {
+    private func waitForSuggestedEntitiesExecutor() async throws -> @Sendable (sending String) async throws -> sending [[String: Any]] {
         if let executor = suggestedEntitiesExecutor {
             return executor
         }
