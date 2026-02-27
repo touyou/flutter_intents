@@ -1,3 +1,5 @@
+import 'intent_mode.dart';
+
 /// Annotation to specify an app intent.
 class IntentSpec {
   /// A unique identifier for the intent.
@@ -39,6 +41,16 @@ class IntentSpec {
   /// Example: `'Create "{title}"'` generates `Summary("Create \(\.$title)")`
   final String? parameterSummary;
 
+  /// The execution mode for the intent.
+  ///
+  /// Controls whether the app opens in the foreground when the intent runs.
+  /// - [IntentMode.foreground]: Generates `supportedModes: .foreground` (iOS 26+)
+  ///   and `openAppWhenRun = true` (iOS < 26) for backward compatibility.
+  /// - [IntentMode.background]: Default behavior, no explicit properties generated.
+  ///
+  /// When [urlScheme] is set, foreground mode is implied automatically.
+  final IntentMode? supportedModes;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -48,6 +60,7 @@ class IntentSpec {
     this.urlAction,
     this.resultDialogTemplate,
     this.parameterSummary,
+    this.supportedModes,
   });
 }
 

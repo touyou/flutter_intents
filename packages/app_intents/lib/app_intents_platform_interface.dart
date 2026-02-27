@@ -128,6 +128,31 @@ abstract class AppIntentsPlatform extends PlatformInterface {
         'registerSuggestedEntitiesHandler() has not been implemented.');
   }
 
+  /// Retrieves a cached value from native storage.
+  Future<dynamic> getCachedValue(String key) {
+    throw UnimplementedError('getCachedValue() has not been implemented.');
+  }
+
+  /// Sets a cached value in native storage.
+  Future<void> setCachedValue(String key, dynamic value) {
+    throw UnimplementedError('setCachedValue() has not been implemented.');
+  }
+
+  /// Clears a cached value from native storage.
+  Future<void> clearCachedValue(String key) {
+    throw UnimplementedError('clearCachedValue() has not been implemented.');
+  }
+
+  /// Checks for pending intent actions cached by native App Intents.
+  ///
+  /// Call this after all intent handlers are registered.
+  /// Pending actions are delivered via the existing executeIntent mechanism.
+  /// Returns `true` if a pending action was found and delivered.
+  Future<bool> processPendingActions() {
+    throw UnimplementedError(
+        'processPendingActions() has not been implemented.');
+  }
+
   /// A stream of intent execution requests from the native platform.
   ///
   /// This stream emits [IntentExecutionRequest] objects whenever iOS

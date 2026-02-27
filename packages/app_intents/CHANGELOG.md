@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Add caching API: `getCachedValue()`, `setCachedValue()`, `clearCachedValue()`
+- Add `processPendingActions()` for delivering cached intent actions after Flutter startup
+- iOS Plugin: `setPendingAction()` for caching intent params in UserDefaults
+
 ## 0.3.0
 
 - Add Android AppFunctions support via `AppIntentsPlugin.kt`

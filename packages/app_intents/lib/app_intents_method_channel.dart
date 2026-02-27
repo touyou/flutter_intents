@@ -149,6 +149,31 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   Stream<IntentExecutionRequest> get onIntentExecution =>
       _intentExecutionController.stream;
 
+  @override
+  Future<dynamic> getCachedValue(String key) async {
+    return await methodChannel.invokeMethod('getCachedValue', {'key': key});
+  }
+
+  @override
+  Future<void> setCachedValue(String key, dynamic value) async {
+    await methodChannel.invokeMethod('setCachedValue', {
+      'key': key,
+      'value': value,
+    });
+  }
+
+  @override
+  Future<void> clearCachedValue(String key) async {
+    await methodChannel.invokeMethod('clearCachedValue', {'key': key});
+  }
+
+  @override
+  Future<bool> processPendingActions() async {
+    final result =
+        await methodChannel.invokeMethod<bool>('processPendingActions');
+    return result ?? false;
+  }
+
   /// Executes the registered handler for the given intent.
   ///
   /// This method is called internally when an intent execution request

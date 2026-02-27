@@ -34,6 +34,18 @@ class MockAppIntentsPlatform
   Stream<IntentExecutionRequest> get onIntentExecution =>
       Stream<IntentExecutionRequest>.empty();
 
+  @override
+  Future<dynamic> getCachedValue(String key) => Future.value(null);
+
+  @override
+  Future<void> setCachedValue(String key, dynamic value) => Future.value();
+
+  @override
+  Future<void> clearCachedValue(String key) => Future.value();
+
+  @override
+  Future<bool> processPendingActions() => Future.value(false);
+
   // Test helpers
   bool hasIntentHandler(String identifier) =>
       _intentHandlers.containsKey(identifier);

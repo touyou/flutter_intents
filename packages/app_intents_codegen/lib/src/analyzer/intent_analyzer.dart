@@ -46,6 +46,8 @@ class IntentAnalyzer {
         annotation.getField('resultDialogTemplate')?.toStringValue();
     final parameterSummary =
         annotation.getField('parameterSummary')?.toStringValue();
+    final supportedModes = _parseSupportedModes(
+        annotation.getField('supportedModes'));
 
     if (identifier == null || title == null) {
       return null;
@@ -67,7 +69,28 @@ class IntentAnalyzer {
       urlAction: urlAction,
       resultDialogTemplate: resultDialogTemplate,
       parameterSummary: parameterSummary,
+      supportedModes: supportedModes,
     );
+  }
+
+  IntentModeType? _parseSupportedModes(DartObject? field) {
+    if (field == null || field.isNull) {
+      return null;
+    }
+
+    final enumValue = field.getField('index')?.toIntValue();
+    if (enumValue == null) {
+      return null;
+    }
+
+    switch (enumValue) {
+      case 0:
+        return IntentModeType.background;
+      case 1:
+        return IntentModeType.foreground;
+      default:
+        return null;
+    }
   }
 
   IntentImplementationType _parseImplementation(DartObject? field) {
@@ -126,6 +149,8 @@ class IntentAnalyzer {
           annotation.getField('entityType')?.toStringValue();
       final enumType =
           annotation.getField('enumType')?.toStringValue();
+      final fileType =
+          annotation.getField('fileType')?.toStringValue();
 
       parameters.add(IntentParamInfo(
         fieldName: field.name,
@@ -135,6 +160,7 @@ class IntentAnalyzer {
         isOptional: isOptional,
         entityType: entityType,
         enumType: enumType,
+        fileType: fileType,
       ));
     }
 

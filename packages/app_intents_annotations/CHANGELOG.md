@@ -1,3 +1,10 @@
+## 0.4.0
+
+- Add `IntentMode` enum for intent execution mode control (`foreground`/`background`)
+- Add `supportedModes` field to `@IntentSpec` for iOS 26+ `IntentModes` support
+- Add `IntentFile` model class for file/image parameter handling
+- Add `fileType` field to `@IntentParam` for UTType-based file parameters
+
 ## 0.3.0
 
 - Add Android AppFunctions support (annotations shared across iOS and Android)

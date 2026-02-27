@@ -506,6 +506,115 @@ void main() {
       });
     });
 
+    group('generateIntent with supportedModes', () {
+      test('generates supportedModes and openAppWhenRun when foreground', () {
+        final intentInfo = IntentInfo(
+          className: 'OpenAppIntent',
+          identifier: 'com.example.openApp',
+          title: 'Open App',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('@available(iOS 26.0, *)'));
+        expect(
+            result,
+            contains(
+                'static var supportedModes: IntentModes { .foreground }'));
+        expect(
+            result, contains('static var openAppWhenRun: Bool { true }'));
+      });
+
+      test('does not generate supportedModes when not set and no urlScheme',
+          () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, isNot(contains('supportedModes')));
+        expect(result, isNot(contains('openAppWhenRun')));
+      });
+
+      test('does not generate supportedModes when background', () {
+        final intentInfo = IntentInfo(
+          className: 'BackgroundIntent',
+          identifier: 'com.example.background',
+          title: 'Background Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          supportedModes: IntentModeType.background,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, isNot(contains('supportedModes')));
+        expect(result, isNot(contains('openAppWhenRun')));
+      });
+
+      test('urlScheme implies foreground even without explicit supportedModes',
+          () {
+        final intentInfo = IntentInfo(
+          className: 'OpenIntent',
+          identifier: 'com.example.open',
+          title: 'Open',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          urlScheme: 'myapp',
+          urlAction: 'open',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('@available(iOS 26.0, *)'));
+        expect(
+            result,
+            contains(
+                'static var supportedModes: IntentModes { .foreground }'));
+        expect(
+            result, contains('static var openAppWhenRun: Bool { true }'));
+      });
+
+      test(
+          'foreground with parameters generates both supportedModes and openAppWhenRun',
+          () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Post Title',
+              isOptional: false,
+            ),
+          ],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('@available(iOS 26.0, *)'));
+        expect(
+            result,
+            contains(
+                'static var supportedModes: IntentModes { .foreground }'));
+        expect(
+            result, contains('static var openAppWhenRun: Bool { true }'));
+        expect(result, contains('@Parameter(title: "Post Title")'));
+      });
+    });
+
     group('generateIntent with enum parameter', () {
       test('generates enum type for parameter with enumType', () {
         final intentInfo = IntentInfo(
@@ -553,6 +662,356 @@ void main() {
 
         expect(result, contains('var priority: TaskPriority'));
         expect(result, contains('priority.rawValue'));
+      });
+    });
+
+    group('generateIntent with file parameter', () {
+      test('generates IntentFile type with supportedTypeIdentifiers', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result,
+            contains('@Parameter(title: "Image", supportedTypeIdentifiers: ["public.image"])'));
+        expect(result, contains('var image: IntentFile?'));
+      });
+
+      test('generates required IntentFile parameter', () {
+        final intentInfo = IntentInfo(
+          className: 'UploadIntent',
+          identifier: 'com.example.upload',
+          title: 'Upload File',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'document',
+              dartType: 'IntentFile',
+              title: 'Document',
+              isOptional: false,
+              fileType: 'public.data',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result,
+            contains('@Parameter(title: "Document", supportedTypeIdentifiers: ["public.data"])'));
+        expect(result, contains('var document: IntentFile'));
+        expect(result, isNot(contains('var document: IntentFile?')));
+      });
+
+      test('generates import UniformTypeIdentifiers for file params', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('import UniformTypeIdentifiers'));
+      });
+
+      test('generates file serialization code for optional file param', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var imageFileInfo: [String: Any?]? = nil'));
+        expect(result, contains('if let image'));
+        expect(result, contains('image.data.write(to: tempUrl'));
+        expect(result, contains('"path": tempUrl.path()'));
+        expect(result, contains('"mimeType": image.type?.preferredMIMEType'));
+        expect(result, contains('"filename": image.filename'));
+        // Verify the serialized variable is used in params dict
+        expect(result, contains('"image": imageFileInfo'));
+      });
+
+      test('generates file serialization code for required file param', () {
+        final intentInfo = IntentInfo(
+          className: 'UploadIntent',
+          identifier: 'com.example.upload',
+          title: 'Upload File',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'document',
+              dartType: 'IntentFile',
+              title: 'Document',
+              isOptional: false,
+              fileType: 'public.data',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('let documentFileInfo: [String: Any?]'));
+        expect(result, contains('document.data.write(to: documentTempUrl'));
+        expect(result, contains('"document": documentFileInfo'));
+      });
+
+      test('generates mixed file and non-file params', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var title: String'));
+        expect(result, contains('var image: IntentFile?'));
+        expect(result, contains('"title": title'));
+        expect(result, contains('"image": imageFileInfo'));
+      });
+    });
+
+    group('generateIntent with cache mode', () {
+      test('generates cache perform method for foreground without urlScheme',
+          () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+          ],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('AppIntentsPlugin.setPendingAction'));
+        expect(result, contains('identifier: "com.example.createPost"'));
+        expect(result, contains('params["title"] = title'));
+        expect(result, contains('return .result()'));
+        expect(result, isNot(contains('FlutterBridge')));
+        expect(result, isNot(contains('UIApplication')));
+      });
+
+      test('generates import app_intents for cache mode', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('import app_intents'));
+      });
+
+      test('handles optional params in cache mode with if let', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'note',
+              dartType: 'String?',
+              title: 'Note',
+              isOptional: true,
+            ),
+          ],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('params["title"] = title'));
+        expect(result, contains('if let noteValue = note'));
+        expect(result, contains('params["note"] = noteValue'));
+      });
+
+      test('generates cache mode with file params and serialization', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var imageFileInfo: [String: Any?]? = nil'));
+        expect(result, contains('if let imageValue = imageFileInfo'));
+        expect(result, contains('params["image"] = imageValue'));
+        expect(result, contains('AppIntentsPlugin.setPendingAction'));
+      });
+
+      test('does not use cache mode when urlScheme is set', () {
+        final intentInfo = IntentInfo(
+          className: 'OpenAppIntent',
+          identifier: 'com.example.openApp',
+          title: 'Open App',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          urlScheme: 'myapp',
+          urlAction: 'open',
+          supportedModes: IntentModeType.foreground,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        // URL scheme takes priority over cache mode
+        expect(result, contains('UIApplication.shared.open'));
+        expect(result, isNot(contains('AppIntentsPlugin.setPendingAction')));
+      });
+
+      test('generates cache mode with dialog', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+          ],
+          supportedModes: IntentModeType.foreground,
+          resultDialogTemplate: 'Created "{title}"',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('AppIntentsPlugin.setPendingAction'));
+        expect(result, contains('return .result(dialog:'));
+      });
+    });
+
+    group('generateAll with file parameters', () {
+      test('includes UniformTypeIdentifiers import when file params exist',
+          () {
+        final intents = [
+          IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'image',
+                dartType: 'IntentFile?',
+                title: 'Image',
+                isOptional: true,
+                fileType: 'public.image',
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generateAll(intents: intents);
+
+        expect(result, contains('import UniformTypeIdentifiers'));
+      });
+
+      test('omits UniformTypeIdentifiers import when no file params', () {
+        final intents = [
+          IntentInfo(
+            className: 'GreetIntent',
+            identifier: 'com.example.greet',
+            title: 'Greet',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+          ),
+        ];
+
+        final result = generator.generateAll(intents: intents);
+
+        expect(result, isNot(contains('import UniformTypeIdentifiers')));
       });
     });
 

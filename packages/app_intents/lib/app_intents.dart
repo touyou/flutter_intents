@@ -161,4 +161,28 @@ class AppIntents {
   Stream<IntentExecutionRequest> get onIntentExecution {
     return AppIntentsPlatform.instance.onIntentExecution;
   }
+
+  /// Retrieves a cached value from native storage.
+  Future<dynamic> getCachedValue(String key) {
+    return AppIntentsPlatform.instance.getCachedValue(key);
+  }
+
+  /// Sets a cached value in native storage.
+  Future<void> setCachedValue(String key, dynamic value) {
+    return AppIntentsPlatform.instance.setCachedValue(key, value);
+  }
+
+  /// Clears a cached value from native storage.
+  Future<void> clearCachedValue(String key) {
+    return AppIntentsPlatform.instance.clearCachedValue(key);
+  }
+
+  /// Checks for pending intent actions cached by native App Intents.
+  ///
+  /// Call this after all intent handlers are registered.
+  /// Pending actions are delivered via the existing executeIntent mechanism.
+  /// Returns `true` if a pending action was found and delivered.
+  Future<bool> processPendingActions() {
+    return AppIntentsPlatform.instance.processPendingActions();
+  }
 }

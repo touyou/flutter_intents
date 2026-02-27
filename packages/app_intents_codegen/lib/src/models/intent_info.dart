@@ -39,6 +39,10 @@ class IntentInfo {
   /// Supports {paramName} references.
   final String? parameterSummary;
 
+  /// The execution mode for the intent.
+  /// When foreground, both `supportedModes` (iOS 26+) and `openAppWhenRun` are generated.
+  final IntentModeType? supportedModes;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -52,6 +56,7 @@ class IntentInfo {
     this.urlAction,
     this.resultDialogTemplate,
     this.parameterSummary,
+    this.supportedModes,
   });
 
   @override
@@ -69,7 +74,8 @@ class IntentInfo {
         urlScheme == other.urlScheme &&
         urlAction == other.urlAction &&
         resultDialogTemplate == other.resultDialogTemplate &&
-        parameterSummary == other.parameterSummary;
+        parameterSummary == other.parameterSummary &&
+        supportedModes == other.supportedModes;
   }
 
   @override
@@ -86,6 +92,7 @@ class IntentInfo {
         urlAction,
         resultDialogTemplate,
         parameterSummary,
+        supportedModes,
       );
 
   @override
@@ -94,7 +101,8 @@ class IntentInfo {
       'description: $description, implementation: $implementation, '
       'parameters: $parameters, inputType: $inputType, outputType: $outputType, '
       'urlScheme: $urlScheme, urlAction: $urlAction, '
-      'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary)';
+      'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
+      'supportedModes: $supportedModes)';
 }
 
 /// The implementation language for the intent.
@@ -102,6 +110,12 @@ enum IntentImplementationType {
   dart,
   swift,
   kotlin,
+}
+
+/// The execution mode for the intent.
+enum IntentModeType {
+  background,
+  foreground,
 }
 
 /// Represents analyzed information about an intent parameter.
@@ -129,6 +143,10 @@ class IntentParamInfo {
   /// When set, the Swift parameter uses an AppEnum type.
   final String? enumType;
 
+  /// The UTType identifier for file parameters (e.g., 'public.image').
+  /// When set, the Swift parameter uses IntentFile with supportedTypeIdentifiers.
+  final String? fileType;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -137,6 +155,7 @@ class IntentParamInfo {
     required this.isOptional,
     this.entityType,
     this.enumType,
+    this.fileType,
   });
 
   @override
@@ -149,7 +168,8 @@ class IntentParamInfo {
         description == other.description &&
         isOptional == other.isOptional &&
         entityType == other.entityType &&
-        enumType == other.enumType;
+        enumType == other.enumType &&
+        fileType == other.fileType;
   }
 
   @override
@@ -161,13 +181,14 @@ class IntentParamInfo {
         isOptional,
         entityType,
         enumType,
+        fileType,
       );
 
   @override
   String toString() =>
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
       'description: $description, isOptional: $isOptional, entityType: $entityType, '
-      'enumType: $enumType)';
+      'enumType: $enumType, fileType: $fileType)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

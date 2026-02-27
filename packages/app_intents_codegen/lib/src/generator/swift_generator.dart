@@ -67,6 +67,12 @@ class SwiftGenerator {
     if (info.urlScheme != null) {
       buffer.writeln('import UIKit');
     }
+    if (_hasFileParams(info)) {
+      buffer.writeln('import UniformTypeIdentifiers');
+    }
+    if (_needsCacheImport(info)) {
+      buffer.writeln('import app_intents');
+    }
     buffer.writeln();
 
     _generateIntentBody(buffer, info);
@@ -76,6 +82,20 @@ class SwiftGenerator {
 
   /// Writes a parameter declaration to the buffer.
   void _writeParameter(StringBuffer buffer, IntentParamInfo param) {
+    // File type parameters use IntentFile
+    if (param.fileType != null) {
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+      final swiftType = isNullable ? 'IntentFile?' : 'IntentFile';
+      final paramParts = <String>['title: "${param.title}"'];
+      if (param.description != null) {
+        paramParts.add('description: "${param.description}"');
+      }
+      paramParts.add('supportedTypeIdentifiers: ["${param.fileType}"]');
+      buffer.writeln('$_indent@Parameter(${paramParts.join(', ')})');
+      buffer.writeln('${_indent}var ${param.fieldName}: $swiftType');
+      return;
+    }
+
     // Use entity type, enum type, or map Dart type to Swift type
     final swiftType = param.entityType ?? param.enumType ?? dartTypeToSwiftType(param.dartType);
 
@@ -93,7 +113,13 @@ class SwiftGenerator {
   /// Date types need to be converted to ISO8601 strings since MethodChannel
   /// doesn't support NSDate directly.
   /// Entity types use `.id` to extract the entity identifier.
+  /// File types use a pre-serialized variable name (see [_writeFileParamSerialization]).
   String _paramValueExpression(IntentParamInfo param) {
+    // File types: use pre-serialized variable
+    if (param.fileType != null) {
+      return '${param.fieldName}FileInfo';
+    }
+
     // Entity types: use .id
     if (param.entityType != null) {
       return '${param.fieldName}.id';
@@ -117,10 +143,78 @@ class SwiftGenerator {
     return param.fieldName;
   }
 
-  /// Writes the perform method to the buffer, dispatching based on URL scheme.
+  /// Writes IntentFile serialization code before the params dictionary.
+  ///
+  /// Generates Swift code that writes the IntentFile data to a temporary file
+  /// and creates a dictionary with path, mimeType, and filename.
+  void _writeFileParamSerialization(
+      StringBuffer buffer, IntentParamInfo param) {
+    final name = param.fieldName;
+    final isNullable = param.isOptional || param.dartType.endsWith('?');
+    final indent2 = '$_indent$_indent';
+
+    if (isNullable) {
+      buffer.writeln('${indent2}var ${name}FileInfo: [String: Any?]? = nil');
+      buffer.writeln('${indent2}if let $name {');
+      buffer.writeln(
+          '$indent2${_indent}let fileName = "app_intent_\\(UUID().uuidString)"');
+      buffer.writeln(
+          '$indent2${_indent}let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory())');
+      buffer.writeln(
+          '$indent2$_indent$_indent.appendingPathComponent(fileName, conformingTo: $name.type ?? .data)');
+      buffer.writeln(
+          '$indent2${_indent}try $name.data.write(to: tempUrl, options: [.atomic])');
+      buffer.writeln('$indent2$_indent${name}FileInfo = [');
+      buffer.writeln(
+          '$indent2$_indent$_indent"path": tempUrl.path(),');
+      buffer.writeln(
+          '$indent2$_indent$_indent"mimeType": $name.type?.preferredMIMEType as Any,');
+      buffer.writeln(
+          '$indent2$_indent$_indent"filename": $name.filename as Any');
+      buffer.writeln('$indent2$_indent]');
+      buffer.writeln('$indent2}');
+    } else {
+      buffer.writeln(
+          '${indent2}let ${name}FileName = "app_intent_\\(UUID().uuidString)"');
+      buffer.writeln(
+          '${indent2}let ${name}TempUrl = URL(fileURLWithPath: NSTemporaryDirectory())');
+      buffer.writeln(
+          '$indent2$_indent.appendingPathComponent(${name}FileName, conformingTo: $name.type ?? .data)');
+      buffer.writeln(
+          '${indent2}try $name.data.write(to: ${name}TempUrl, options: [.atomic])');
+      buffer.writeln('${indent2}let ${name}FileInfo: [String: Any?] = [');
+      buffer.writeln(
+          '$indent2$_indent"path": ${name}TempUrl.path(),');
+      buffer.writeln(
+          '$indent2$_indent"mimeType": $name.type?.preferredMIMEType as Any,');
+      buffer.writeln(
+          '$indent2$_indent"filename": $name.filename as Any');
+      buffer.writeln('$indent2]');
+    }
+  }
+
+  /// Whether the given intent has any file type parameters.
+  bool _hasFileParams(IntentInfo info) {
+    return info.parameters.any((p) => p.fileType != null);
+  }
+
+  /// Whether the intent uses cache mode (needs `import app_intents`).
+  bool _needsCacheImport(IntentInfo info) {
+    return info.urlScheme == null &&
+        info.supportedModes == IntentModeType.foreground;
+  }
+
+  /// Writes the perform method to the buffer, dispatching based on execution mode.
+  ///
+  /// Three modes:
+  /// 1. URL scheme: urlScheme is set → opens URL
+  /// 2. Cache: supportedModes is foreground without urlScheme → caches to UserDefaults
+  /// 3. FlutterBridge: default → direct MethodChannel via FlutterBridge actor
   void _writePerformMethod(StringBuffer buffer, IntentInfo info) {
     if (info.urlScheme != null) {
       _writeUrlSchemePerformMethod(buffer, info);
+    } else if (info.supportedModes == IntentModeType.foreground) {
+      _writeCachePerformMethod(buffer, info);
     } else {
       _writeFlutterBridgePerformMethod(buffer, info);
     }
@@ -135,6 +229,14 @@ class SwiftGenerator {
 
     buffer.writeln('$_indent@MainActor');
     buffer.writeln('${_indent}func perform() async throws -> $returnType {');
+
+    // File parameter serialization (before params dictionary)
+    for (final param in info.parameters) {
+      if (param.fileType != null) {
+        _writeFileParamSerialization(buffer, param);
+        buffer.writeln();
+      }
+    }
 
     // Build params dictionary
     if (info.parameters.isEmpty) {
@@ -161,6 +263,61 @@ class SwiftGenerator {
       buffer.writeln('$_indent${_indent}return .result(dialog: .init("$dialogStr"))');
     } else {
       buffer.writeln('$_indent${_indent}return .result()');
+    }
+    buffer.writeln('$_indent}');
+  }
+
+  /// Writes the perform method using cache mode (UserDefaults).
+  ///
+  /// Used when `supportedModes: foreground` is set without `urlScheme`.
+  /// Caches intent parameters to UserDefaults via `setPendingAction()`,
+  /// then returns `.result()`. The app opens in foreground, Flutter starts,
+  /// and `processPendingActions()` delivers the cached action.
+  void _writeCachePerformMethod(StringBuffer buffer, IntentInfo info) {
+    final hasDialog = info.resultDialogTemplate != null;
+    final returnType = hasDialog
+        ? 'some IntentResult & ProvidesDialog'
+        : 'some IntentResult';
+
+    buffer.writeln('$_indent@MainActor');
+    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
+
+    final indent2 = '$_indent$_indent';
+
+    // File parameter serialization (before params dictionary)
+    for (final param in info.parameters) {
+      if (param.fileType != null) {
+        _writeFileParamSerialization(buffer, param);
+        buffer.writeln();
+      }
+    }
+
+    // Build params dictionary
+    buffer.writeln('${indent2}var params: [String: Any] = [:]');
+    for (final param in info.parameters) {
+      final valueExpr = _paramValueExpression(param);
+      if (param.isOptional || param.dartType.endsWith('?')) {
+        buffer.writeln('${indent2}if let ${param.fieldName}Value = $valueExpr {');
+        buffer.writeln('$indent2${_indent}params["${param.fieldName}"] = ${param.fieldName}Value');
+        buffer.writeln('$indent2}');
+      } else {
+        buffer.writeln('${indent2}params["${param.fieldName}"] = $valueExpr');
+      }
+    }
+
+    buffer.writeln();
+    buffer.writeln('${indent2}AppIntentsPlugin.setPendingAction(');
+    buffer.writeln('$indent2${_indent}identifier: "${info.identifier}",');
+    buffer.writeln('$indent2${_indent}params: params');
+    buffer.writeln('$indent2)');
+
+    if (hasDialog) {
+      final dialogStr = _interpolateDialogTemplate(
+          info.resultDialogTemplate!, info.parameters);
+      buffer.writeln(
+          '${indent2}return .result(dialog: .init("$dialogStr"))');
+    } else {
+      buffer.writeln('${indent2}return .result()');
     }
     buffer.writeln('$_indent}');
   }
@@ -484,6 +641,12 @@ class SwiftGenerator {
     if (intents.any((i) => i.urlScheme != null)) {
       buffer.writeln('import UIKit');
     }
+    if (intents.any((i) => _hasFileParams(i))) {
+      buffer.writeln('import UniformTypeIdentifiers');
+    }
+    if (intents.any((i) => _needsCacheImport(i))) {
+      buffer.writeln('import app_intents');
+    }
     buffer.writeln();
 
     // Generate enums (before intents, since intents may reference them)
@@ -530,8 +693,14 @@ class SwiftGenerator {
       buffer.writeln('$_indent$_indent' 'IntentDescription("${info.description}")');
     }
 
-    // openAppWhenRun (for URL scheme)
-    if (info.urlScheme != null) {
+    // supportedModes / openAppWhenRun
+    final needsForeground = info.urlScheme != null ||
+        info.supportedModes == IntentModeType.foreground;
+    if (needsForeground) {
+      buffer.writeln();
+      buffer.writeln('${_indent}@available(iOS 26.0, *)');
+      buffer.writeln(
+          '${_indent}static var supportedModes: IntentModes { .foreground }');
       buffer.writeln();
       buffer.writeln('${_indent}static var openAppWhenRun: Bool { true }');
     }

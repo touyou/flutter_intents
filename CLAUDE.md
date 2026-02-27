@@ -48,7 +48,8 @@ docs/
 - `app_intents`: Platform Interface extended
   - `registerIntentHandler`, `registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`
   - `onIntentExecution` stream
-  - iOS `AppIntentsPlugin.swift` updated
+  - Caching API: `getCachedValue`, `setCachedValue`, `clearCachedValue`, `processPendingActions`
+  - iOS `AppIntentsPlugin.swift`: caching via UserDefaults, `setPendingAction` for cache mode
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
   - `IntentAnalyzer`, `EntityAnalyzer`, `EnumAnalyzer` for annotation parsing
   - `SwiftGenerator`: Generates iOS 17+ AppIntent/AppEntity/AppEnum/AppShortcutsProvider Swift code
@@ -64,7 +65,9 @@ docs/
     - Always registers both `registerEntityQueryHandler` and `registerSuggestedEntitiesHandler`
   - `AppIntentsBuilder` using `PartBuilder` for proper part file generation
   - CLI command: `dart run app_intents_codegen:generate_swift` for Swift file output
-  - 114 tests covering analyzers, generators, and builder
+  - Three execution modes: URL scheme, cache (foreground), FlutterBridge (background)
+  - `IntentFile` parameter support with file serialization code generation
+  - `supportedModes` (iOS 26+) + `openAppWhenRun` dual generation for backward compatibility
 - `ios-spm/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
@@ -117,12 +120,13 @@ docs/
   - Keeping unused handlers is harmless (minimal overhead) and useful for testing
 
 ### Future Migration
-- **`openAppWhenRun` → `supportedModes`** (iOS 26+): `static let supportedModes: IntentModes = .foreground` replaces deprecated `openAppWhenRun`
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
 - **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
 - **`IndexedEntity`** (iOS 26+): Spotlight semantic search on entities
 - **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
 - **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
+- **Advanced `IntentMode` submodes**: `.foreground(.immediate)`, `.foreground(.deferred)`, `.foreground(.dynamic)`
+- **Multiple modes**: `[.background, .foreground]` with runtime mode determination
 
 ### Pending
 - macOS platform support (future)
@@ -195,8 +199,19 @@ MethodChannel only supports specific types. Non-supported types need conversion:
 |-----------|------------|---------------|
 | `DateTime` | `Date` | ISO8601 string via `ISO8601DateFormatter()` |
 | `DateTime?` | `Date?` | `.map { ISO8601DateFormatter().string(from: $0) }` |
+| `IntentFile` | `IntentFile` | Write data to temp file, serialize path/mimeType/filename to Map |
+| `IntentFile?` | `IntentFile?` | Same, wrapped in `if let` null check |
 
 SwiftGenerator automatically handles this conversion in generated code.
+
+### Execution Mode Selection
+The SwiftGenerator auto-selects the execution mode based on `@IntentSpec` configuration:
+
+| `urlScheme` | `supportedModes` | Mode | `perform()` behavior |
+|-------------|-----------------|------|---------------------|
+| set | any | URL scheme | Opens URL via `UIApplication.shared.open()` |
+| null | `foreground` | Cache | Caches params to UserDefaults, app opens, Flutter reads pending |
+| null | null/`background` | FlutterBridge | Direct MethodChannel via `FlutterBridge.shared.invoke()` |
 
 ### TDD Approach
 Follow Red-Green-Refactor:
@@ -267,6 +282,23 @@ Use conventional commit prefixes:
 │  └── Parse action and parameters from URL                       │
 │  └── Execute business logic (e.g., create/complete task)        │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+### Intent Execution (Cache Approach)
+
+Used when `supportedModes: foreground` is set without `urlScheme`.
+Supports `IntentFile` parameters (file/image data).
+
+```
+Siri/Shortcuts → AppIntent.perform()
+  → Serialize params (including IntentFile → temp file)
+  → AppIntentsPlugin.setPendingAction(identifier, params)
+  → return .result()
+  → supportedModes: .foreground → iOS opens the app
+  → Flutter engine starts → plugin registers → handlers register
+  → processPendingActions() checks UserDefaults
+  → Pending action found → executeIntent via MethodChannel
+  → Existing handler receives params (transparent)
 ```
 
 ### Entity Queries (MethodChannel Approach)

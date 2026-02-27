@@ -22,11 +22,19 @@ class IntentParam {
   /// The enum's `.rawValue` is used for URL scheme parameters.
   final String? enumType;
 
+  /// The UTType identifier for file parameters (e.g., 'public.image').
+  ///
+  /// When set, the generated Swift parameter uses `IntentFile` type with
+  /// `supportedTypeIdentifiers` for the `@Parameter` attribute.
+  /// The Dart parameter type should be `IntentFile` or `IntentFile?`.
+  final String? fileType;
+
   const IntentParam({
     required this.title,
     this.description,
     this.isOptional = false,
     this.entityType,
     this.enumType,
+    this.fileType,
   });
 }

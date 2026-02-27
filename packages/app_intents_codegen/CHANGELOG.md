@@ -1,3 +1,21 @@
+## 0.4.0
+
+- Add `supportedModes` support in SwiftGenerator
+  - Generates `@available(iOS 26.0, *) static var supportedModes: IntentModes { .foreground }`
+  - Generates `static var openAppWhenRun: Bool { true }` for backward compatibility
+  - Both properties generated when `supportedModes: foreground` or `urlScheme` is set
+- Add `IntentFile` parameter support in SwiftGenerator
+  - `@Parameter(supportedTypeIdentifiers:)` for file type parameters
+  - File serialization code generation (write to temp file, extract path/mimeType/filename)
+  - `import UniformTypeIdentifiers` when file params present
+- Add cache mode in SwiftGenerator (`_writeCachePerformMethod`)
+  - Auto-generated when `supportedModes: foreground` without `urlScheme`
+  - Caches params to UserDefaults via `AppIntentsPlugin.setPendingAction()`
+  - `processPendingActions()` delivers cached actions via existing `executeIntent` mechanism
+- Add `IntentFile.fromMap()` extraction in DartGenerator for file parameters
+- Add `IntentModeType` enum and `fileType` field to codegen models
+- Update IntentAnalyzer to parse `supportedModes` and `fileType` annotations
+
 ## 0.3.0
 
 - Add `KotlinGenerator` for Android AppFunctions code generation

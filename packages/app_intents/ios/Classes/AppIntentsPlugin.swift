@@ -26,8 +26,71 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         switch call.method {
         case "getPlatformVersion":
             result("iOS " + UIDevice.current.systemVersion)
+        case "getCachedValue":
+            guard let args = call.arguments as? [String: Any],
+                  let key = args["key"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
+                return
+            }
+            result(AppIntentsPlugin.getCached(forKey: key))
+        case "setCachedValue":
+            guard let args = call.arguments as? [String: Any],
+                  let key = args["key"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
+                return
+            }
+            let value = args["value"]
+            AppIntentsPlugin.setCached(value, forKey: key)
+            result(nil)
+        case "clearCachedValue":
+            guard let args = call.arguments as? [String: Any],
+                  let key = args["key"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
+                return
+            }
+            AppIntentsPlugin.setCached(nil, forKey: key)
+            result(nil)
+        case "processPendingActions":
+            if let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
+               let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
+                channel?.invokeMethod("executeIntent", arguments: action)
+                result(true)
+            } else {
+                result(false)
+            }
         default:
             result(FlutterMethodNotImplemented)
+        }
+    }
+
+    // MARK: - Caching API
+
+    /// Caches a value for later retrieval.
+    public static func setCached(_ value: Any?, forKey key: String) {
+        let prefixedKey = "app_intents_cache_\(key)"
+        if let value {
+            UserDefaults.standard.set(value, forKey: prefixedKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: prefixedKey)
+        }
+    }
+
+    /// Retrieves a cached value.
+    public static func getCached(forKey key: String) -> Any? {
+        return UserDefaults.standard.object(forKey: "app_intents_cache_\(key)")
+    }
+
+    /// Stores a pending intent action with its parameters.
+    public static func setPendingAction(
+        identifier: String,
+        params: [String: Any]
+    ) {
+        if let data = try? JSONSerialization.data(withJSONObject: [
+            "identifier": identifier,
+            "params": params
+        ]) {
+            UserDefaults.standard.set(data, forKey: "app_intents_pending_action")
         }
     }
 

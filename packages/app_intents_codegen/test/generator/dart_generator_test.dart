@@ -502,5 +502,62 @@ void main() {
         expect(result, contains("params['dueDate']"));
       });
     });
+
+    group('IntentFile handling', () {
+      test('generates IntentFile.fromMap for file parameters', () {
+        final intents = [
+          const IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'image',
+                dartType: 'IntentFile',
+                title: 'Image',
+                isOptional: false,
+                fileType: 'public.image',
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, isNotNull);
+        expect(result, contains('IntentFile.fromMap'));
+        expect(result, contains("params['image']"));
+      });
+
+      test('generates nullable IntentFile.fromMap for optional file parameters',
+          () {
+        final intents = [
+          const IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'image',
+                dartType: 'IntentFile?',
+                title: 'Image',
+                isOptional: true,
+                fileType: 'public.image',
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, isNotNull);
+        expect(result, contains("params['image']"));
+        expect(result, contains('IntentFile.fromMap'));
+        // Should have null check
+        expect(result, contains('imageRaw'));
+      });
+    });
   });
 }

@@ -173,6 +173,15 @@ AppIntents().registerIntentHandler(
       }
     }
 
+    if (param.fileType != null) {
+      if (isNullable) {
+        return "final ${param.fieldName}Raw = params['${param.fieldName}'] as Map<String, dynamic>?;\n"
+            'final ${param.fieldName} = ${param.fieldName}Raw != null ? IntentFile.fromMap(${param.fieldName}Raw) : null;';
+      } else {
+        return "final ${param.fieldName} = IntentFile.fromMap(params['${param.fieldName}'] as Map<String, dynamic>);";
+      }
+    }
+
     return "final ${param.fieldName} = params['${param.fieldName}'] as ${param.dartType};";
   }
 
