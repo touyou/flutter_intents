@@ -1,3 +1,9 @@
+## 0.2.1
+
+- Fix podspec: update iOS platform from 13.0 to 17.0
+- Fix podspec: update Swift version from 5.0 to 5.9
+- Documentation updates
+
 ## 0.2.0
 
 - **BREAKING**: Raise iOS minimum to 17.0

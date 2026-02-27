@@ -1,3 +1,8 @@
+## 0.2.1
+
+- Documentation updates to reflect v0.2.0 features
+- No code changes
+
 ## 0.2.0
 
 - **BREAKING**: Raise iOS minimum to 17.0

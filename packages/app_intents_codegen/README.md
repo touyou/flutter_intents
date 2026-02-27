@@ -21,11 +21,11 @@ Code generator for Flutter App Intents. Produces Swift and Dart code from `@Inte
 
 ```yaml
 dependencies:
-  app_intents: ^0.2.0
-  app_intents_annotations: ^0.2.0
+  app_intents: ^0.2.1
+  app_intents_annotations: ^0.2.1
 
 dev_dependencies:
-  app_intents_codegen: ^0.2.0
+  app_intents_codegen: ^0.2.1
   build_runner: ^2.4.0
 ```
 

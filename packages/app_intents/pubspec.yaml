@@ -1,6 +1,6 @@
 name: app_intents
 description: Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spotlight support.
-version: 0.2.0
+version: 0.2.1
 homepage: https://github.com/touyou/flutter_intents
 repository: https://github.com/touyou/flutter_intents
 

@@ -17,11 +17,11 @@ Annotations for defining iOS App Intents in Flutter. Use with `app_intents` and 
 
 ```yaml
 dependencies:
-  app_intents: ^0.2.0
-  app_intents_annotations: ^0.2.0
+  app_intents: ^0.2.1
+  app_intents_annotations: ^0.2.1
 
 dev_dependencies:
-  app_intents_codegen: ^0.2.0
+  app_intents_codegen: ^0.2.1
   build_runner: ^2.4.0
 ```
 
