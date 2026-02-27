@@ -7,20 +7,6 @@ import app_intents
   /// Flag to track if executors have been set up
   private static var executorsConfigured = false
 
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-
-    // Wire FlutterBridge to AppIntentsPlugin for intent execution
-    if #available(iOS 16.0, *) {
-      Self.setupFlutterBridgeExecutorsIfNeeded()
-    }
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
