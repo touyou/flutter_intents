@@ -44,6 +44,14 @@ void main() {
         expect(
             generator.dartTypeToKotlinType('CustomType'), equals('CustomType'));
       });
+
+      test('maps IntentFile to String', () {
+        expect(generator.dartTypeToKotlinType('IntentFile'), equals('String'));
+      });
+
+      test('maps IntentFile? to String?', () {
+        expect(generator.dartTypeToKotlinType('IntentFile?'), equals('String?'));
+      });
     });
 
     group('generateIntent', () {
@@ -299,6 +307,64 @@ void main() {
 
         expect(result, isNot(contains('parameterSummary')));
         expect(result, isNot(contains('Summary(')));
+      });
+
+      test('generates intent with IntentFile parameter as String', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create Post',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'text',
+              dartType: 'String',
+              title: 'Text',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'image',
+              dartType: 'IntentFile?',
+              title: 'Image',
+              isOptional: true,
+              fileType: 'public.image',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        // IntentFile should be mapped to String
+        expect(result, contains('image: String? = null'));
+        expect(result, isNot(contains('IntentFile')));
+        // File params should be wrapped in a map with "path" key
+        expect(result, contains('mapOf("path" to image)'));
+      });
+
+      test('generates intent with required IntentFile parameter', () {
+        final intentInfo = IntentInfo(
+          className: 'UploadIntent',
+          identifier: 'com.example.upload',
+          title: 'Upload File',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'file',
+              dartType: 'IntentFile',
+              title: 'File',
+              isOptional: false,
+              fileType: 'public.data',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        // IntentFile should be mapped to String
+        expect(result, contains('file: String'));
+        expect(result, isNot(contains('IntentFile')));
+        // Required file param should also use mapOf
+        expect(result, contains('params["file"] = mapOf("path" to file)'));
       });
 
       test('marks optional parameters in KDoc', () {

@@ -14,6 +14,7 @@ class KotlinGenerator {
     'double': 'Double',
     'bool': 'Boolean',
     'DateTime': 'String', // ISO8601 string
+    'IntentFile': 'String', // File URI/path — KSP doesn't support IntentFile
   };
 
   /// Indentation used for generated Kotlin code.
@@ -220,12 +221,13 @@ class KotlinGenerator {
     // Function body: build params map and delegate to bridge
     buffer.writeln('$prefix${_indent}val params = mutableMapOf<String, Any?>()');
     for (final param in info.parameters) {
+      final value = _paramValueExpression(param);
       if (param.isOptional || param.dartType.endsWith('?')) {
         buffer.writeln(
-            '$prefix${_indent}if (${param.fieldName} != null) params["${param.fieldName}"] = ${param.fieldName}');
+            '$prefix${_indent}if (${param.fieldName} != null) params["${param.fieldName}"] = $value');
       } else {
         buffer.writeln(
-            '$prefix${_indent}params["${param.fieldName}"] = ${param.fieldName}');
+            '$prefix${_indent}params["${param.fieldName}"] = $value');
       }
     }
     buffer.writeln(
@@ -238,6 +240,17 @@ class KotlinGenerator {
     // For entity and enum types on Android, use String (the raw value)
     // since AppFunctions alpha doesn't have picker UI
     return dartTypeToKotlinType(param.dartType);
+  }
+
+  /// Returns the Kotlin expression for a parameter value in the params map.
+  ///
+  /// File parameters (fileType != null) are wrapped in a map with "path" key
+  /// so the Dart side can reconstruct IntentFile via IntentFile.fromMap().
+  String _paramValueExpression(IntentParamInfo param) {
+    if (param.fileType != null) {
+      return 'mapOf("path" to ${param.fieldName})';
+    }
+    return param.fieldName;
   }
 
   /// Generates a @AppFunctionSerializable data class body.
