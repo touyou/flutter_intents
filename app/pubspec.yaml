@@ -45,6 +45,12 @@ dev_dependencies:
     path: ../packages/app_intents_codegen
   build_runner: ^2.4.0
 
+dependency_overrides:
+  app_intents_annotations:
+    path: ../packages/app_intents_annotations
+  app_intents:
+    path: ../packages/app_intents
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
