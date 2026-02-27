@@ -25,7 +25,6 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         let eventChannel = FlutterEventChannel(name: "app_intents/pending_actions", binaryMessenger: registrar.messenger())
         eventChannel.setStreamHandler(notifier)
 
-        // Store shared instance for App Intents access
         shared = instance
     }
 
@@ -34,42 +33,43 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         case "getPlatformVersion":
             result("iOS " + UIDevice.current.systemVersion)
         case "getCachedValue":
-            guard let args = call.arguments as? [String: Any],
-                  let key = args["key"] as? String else {
-                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
-                return
-            }
+            guard let key = Self.extractKey(from: call, result: result) else { return }
             result(AppIntentsPlugin.getCached(forKey: key))
         case "setCachedValue":
-            guard let args = call.arguments as? [String: Any],
-                  let key = args["key"] as? String else {
-                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
-                return
-            }
-            let value = args["value"]
+            guard let key = Self.extractKey(from: call, result: result) else { return }
+            let value = (call.arguments as? [String: Any])?["value"]
             AppIntentsPlugin.setCached(value, forKey: key)
             result(nil)
         case "clearCachedValue":
-            guard let args = call.arguments as? [String: Any],
-                  let key = args["key"] as? String else {
-                result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
-                return
-            }
+            guard let key = Self.extractKey(from: call, result: result) else { return }
             AppIntentsPlugin.setCached(nil, forKey: key)
             result(nil)
         case "processPendingActions":
-            if let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
-               let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
-                // Return the action data directly instead of nested invokeMethod("executeIntent").
-                // The Dart side will call handleIntentExecution internally.
-                result(action)
-            } else {
-                result(nil)
-            }
+            result(Self.consumePendingAction())
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+
+    /// Extracts the "key" argument from a method call, sending an error result if missing.
+    /// Returns `nil` when the key is absent (the error result is already sent).
+    private static func extractKey(from call: FlutterMethodCall, result: FlutterResult) -> String? {
+        guard let args = call.arguments as? [String: Any],
+              let key = args["key"] as? String else {
+            result(FlutterError(code: "INVALID_ARGS", message: "key is required", details: nil))
+            return nil
+        }
+        return key
+    }
+
+    /// Reads and removes the pending action from UserDefaults, returning it if present.
+    private static func consumePendingAction() -> [String: Any]? {
+        guard let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
+              let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
+        return action
     }
 
     // MARK: - Caching API
@@ -351,10 +351,14 @@ public class PendingActionStreamHandler: NSObject, FlutterStreamHandler {
     private var buffer: [String] = []
 
     /// Pushes an event to Dart. Buffers if Dart isn't listening yet.
+    /// Dispatches to the main thread to ensure thread safety with FlutterEventSink.
     public func push(_ value: String) {
-        buffer.append(value)
-        if let sink {
-            flushBuffer(sink)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.buffer.append(value)
+            if let sink = self.sink {
+                self.flushBuffer(sink)
+            }
         }
     }
 

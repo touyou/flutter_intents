@@ -60,15 +60,11 @@ class _TaskListPageState extends State<TaskListPage> {
       }
     });
 
-    // Listen for pending cached actions from cache mode intents.
-    // When a cache mode intent's perform() stores params via setPendingAction(),
-    // the native side pushes an event through the EventChannel.
-    // Events are buffered if Dart isn't listening yet.
+    // Process pending cache-mode intent actions when notified by native side
     AppIntents().pendingActionsStream.listen((_) {
       AppIntents().processPendingActions();
     });
 
-    // Initialize app links handler
     _initAppLinks();
   }
 

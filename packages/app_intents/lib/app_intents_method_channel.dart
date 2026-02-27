@@ -79,14 +79,18 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       Map<Object?, Object?> arguments) async {
     final identifier = arguments['identifier'] as String;
     final params = _convertToStringDynamicMap(arguments['params']);
+    return _emitAndExecute(identifier, params);
+  }
 
-    // Emit event to the stream
+  /// Emits an intent execution event and dispatches to the registered handler.
+  Future<Map<String, dynamic>> _emitAndExecute(
+    String identifier,
+    Map<String, dynamic> params,
+  ) {
     _intentExecutionController.add(IntentExecutionRequest(
       identifier: identifier,
       params: params,
     ));
-
-    // Call the registered handler if available
     return handleIntentExecution(identifier, params);
   }
 
@@ -155,26 +159,30 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       _intentExecutionController.stream;
 
   @override
-  Future<dynamic> getCachedValue(String key) async {
-    return await methodChannel.invokeMethod('getCachedValue', {'key': key});
+  Future<dynamic> getCachedValue(String key) {
+    return methodChannel.invokeMethod('getCachedValue', {'key': key});
   }
 
   @override
-  Future<void> setCachedValue(String key, dynamic value) async {
-    await methodChannel.invokeMethod('setCachedValue', {
+  Future<void> setCachedValue(String key, dynamic value) {
+    return methodChannel.invokeMethod('setCachedValue', {
       'key': key,
       'value': value,
     });
   }
 
   @override
-  Future<void> clearCachedValue(String key) async {
-    await methodChannel.invokeMethod('clearCachedValue', {'key': key});
+  Future<void> clearCachedValue(String key) {
+    return methodChannel.invokeMethod('clearCachedValue', {'key': key});
   }
+
+  Stream<String>? _pendingActionsStreamCache;
 
   @override
   Stream<String> get pendingActionsStream =>
-      pendingActionsChannel.receiveBroadcastStream().map((item) => item.toString());
+      _pendingActionsStreamCache ??= pendingActionsChannel
+          .receiveBroadcastStream()
+          .map((item) => item.toString());
 
   @override
   Future<bool> processPendingActions() async {
@@ -184,15 +192,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
     final identifier = result['identifier'] as String;
     final params = _convertToStringDynamicMap(result['params']);
-
-    // Emit event to the stream
-    _intentExecutionController.add(IntentExecutionRequest(
-      identifier: identifier,
-      params: params,
-    ));
-
-    // Deliver to the registered handler directly (no nested MethodChannel call)
-    await handleIntentExecution(identifier, params);
+    await _emitAndExecute(identifier, params);
     return true;
   }
 

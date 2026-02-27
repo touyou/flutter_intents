@@ -198,6 +198,12 @@ class SwiftGenerator {
     return info.parameters.any((p) => p.fileType != null);
   }
 
+  /// Whether the intent needs to run in the foreground (URL scheme or explicit foreground mode).
+  bool _needsForeground(IntentInfo info) {
+    return info.urlScheme != null ||
+        info.supportedModes == IntentModeType.foreground;
+  }
+
   /// Whether the intent uses cache mode (needs `import app_intents`).
   bool _needsCacheImport(IntentInfo info) {
     return info.urlScheme == null &&
@@ -220,50 +226,70 @@ class SwiftGenerator {
     }
   }
 
-  /// Writes the perform method using FlutterBridge (MethodChannel).
-  void _writeFlutterBridgePerformMethod(StringBuffer buffer, IntentInfo info) {
-    final hasDialog = info.resultDialogTemplate != null;
-    final returnType = hasDialog
+  /// Returns the Swift return type for a perform() method based on dialog presence.
+  String _performReturnType(IntentInfo info) {
+    return info.resultDialogTemplate != null
         ? 'some IntentResult & ProvidesDialog'
         : 'some IntentResult';
+  }
 
+  /// Writes the perform() method signature.
+  void _writePerformSignature(StringBuffer buffer, IntentInfo info) {
     buffer.writeln('$_indent@MainActor');
-    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
+    buffer.writeln(
+        '${_indent}func perform() async throws -> ${_performReturnType(info)} {');
+  }
 
-    // File parameter serialization (before params dictionary)
+  /// Writes file parameter serialization for all file-type parameters.
+  void _writeFileParamSerializations(StringBuffer buffer, IntentInfo info) {
     for (final param in info.parameters) {
       if (param.fileType != null) {
         _writeFileParamSerialization(buffer, param);
         buffer.writeln();
       }
     }
+  }
+
+  /// Writes the return statement (with optional dialog).
+  void _writeReturnResult(
+      StringBuffer buffer, IntentInfo info, String indent) {
+    if (info.resultDialogTemplate != null) {
+      final dialogStr = _interpolateDialogTemplate(
+          info.resultDialogTemplate!, info.parameters);
+      buffer.writeln('${indent}return .result(dialog: .init("$dialogStr"))');
+    } else {
+      buffer.writeln('${indent}return .result()');
+    }
+  }
+
+  /// Writes the perform method using FlutterBridge (MethodChannel).
+  void _writeFlutterBridgePerformMethod(StringBuffer buffer, IntentInfo info) {
+    _writePerformSignature(buffer, info);
+    _writeFileParamSerializations(buffer, info);
+
+    final indent2 = '$_indent$_indent';
 
     // Build params dictionary
     if (info.parameters.isEmpty) {
-      buffer.writeln('$_indent${_indent}let _ = try await FlutterBridge.shared.invoke(');
-      buffer.writeln('$_indent$_indent${_indent}intent: "${info.className}",');
-      buffer.writeln('$_indent$_indent${_indent}params: [:]');
-      buffer.writeln('$_indent$_indent)');
+      buffer.writeln('${indent2}let _ = try await FlutterBridge.shared.invoke(');
+      buffer.writeln('$indent2${_indent}intent: "${info.className}",');
+      buffer.writeln('$indent2${_indent}params: [:]');
+      buffer.writeln('$indent2)');
     } else {
-      buffer.writeln('$_indent${_indent}let _ = try await FlutterBridge.shared.invoke(');
-      buffer.writeln('$_indent$_indent${_indent}intent: "${info.className}",');
-      buffer.writeln('$_indent$_indent${_indent}params: [');
+      buffer.writeln('${indent2}let _ = try await FlutterBridge.shared.invoke(');
+      buffer.writeln('$indent2${_indent}intent: "${info.className}",');
+      buffer.writeln('$indent2${_indent}params: [');
       for (var i = 0; i < info.parameters.length; i++) {
         final param = info.parameters[i];
         final comma = i < info.parameters.length - 1 ? ',' : '';
         final valueExpr = _paramValueExpression(param);
         buffer.writeln('$_indent$_indent$_indent$_indent"${param.fieldName}": $valueExpr$comma');
       }
-      buffer.writeln('$_indent$_indent$_indent]');
-      buffer.writeln('$_indent$_indent)');
+      buffer.writeln('$indent2$_indent]');
+      buffer.writeln('$indent2)');
     }
 
-    if (hasDialog) {
-      final dialogStr = _interpolateDialogTemplate(info.resultDialogTemplate!, info.parameters);
-      buffer.writeln('$_indent${_indent}return .result(dialog: .init("$dialogStr"))');
-    } else {
-      buffer.writeln('$_indent${_indent}return .result()');
-    }
+    _writeReturnResult(buffer, info, indent2);
     buffer.writeln('$_indent}');
   }
 
@@ -274,23 +300,10 @@ class SwiftGenerator {
   /// then returns `.result()`. The app opens in foreground, Flutter starts,
   /// and `processPendingActions()` delivers the cached action.
   void _writeCachePerformMethod(StringBuffer buffer, IntentInfo info) {
-    final hasDialog = info.resultDialogTemplate != null;
-    final returnType = hasDialog
-        ? 'some IntentResult & ProvidesDialog'
-        : 'some IntentResult';
-
-    buffer.writeln('$_indent@MainActor');
-    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
+    _writePerformSignature(buffer, info);
+    _writeFileParamSerializations(buffer, info);
 
     final indent2 = '$_indent$_indent';
-
-    // File parameter serialization (before params dictionary)
-    for (final param in info.parameters) {
-      if (param.fileType != null) {
-        _writeFileParamSerialization(buffer, param);
-        buffer.writeln();
-      }
-    }
 
     // Build params dictionary
     buffer.writeln('${indent2}var params: [String: Any] = [:]');
@@ -311,14 +324,7 @@ class SwiftGenerator {
     buffer.writeln('$indent2${_indent}params: params');
     buffer.writeln('$indent2)');
 
-    if (hasDialog) {
-      final dialogStr = _interpolateDialogTemplate(
-          info.resultDialogTemplate!, info.parameters);
-      buffer.writeln(
-          '${indent2}return .result(dialog: .init("$dialogStr"))');
-    } else {
-      buffer.writeln('${indent2}return .result()');
-    }
+    _writeReturnResult(buffer, info, indent2);
     buffer.writeln('$_indent}');
   }
 
@@ -334,47 +340,38 @@ class SwiftGenerator {
   void _writeUrlSchemePerformMethod(StringBuffer buffer, IntentInfo info) {
     final scheme = info.urlScheme!;
     final action = info.urlAction ?? _defaultAction(info.identifier);
-    final hasDialog = info.resultDialogTemplate != null;
-    final returnType = hasDialog
-        ? 'some IntentResult & ProvidesDialog'
-        : 'some IntentResult';
+    final indent2 = '$_indent$_indent';
 
-    buffer.writeln('$_indent@MainActor');
-    buffer.writeln('${_indent}func perform() async throws -> $returnType {');
+    _writePerformSignature(buffer, info);
 
     if (info.parameters.isEmpty) {
-      buffer.writeln('$_indent${_indent}guard let url = URL(string: "$scheme://$action") else {');
-      buffer.writeln('$_indent$_indent${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
-      buffer.writeln('$_indent$_indent}');
+      buffer.writeln('${indent2}guard let url = URL(string: "$scheme://$action") else {');
+      buffer.writeln('$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
+      buffer.writeln('$indent2}');
     } else {
-      buffer.writeln('$_indent${_indent}var components = URLComponents()');
-      buffer.writeln('$_indent${_indent}components.scheme = "$scheme"');
-      buffer.writeln('$_indent${_indent}components.host = "$action"');
+      buffer.writeln('${indent2}var components = URLComponents()');
+      buffer.writeln('${indent2}components.scheme = "$scheme"');
+      buffer.writeln('${indent2}components.host = "$action"');
       buffer.writeln();
-      buffer.writeln('$_indent${_indent}var queryItems = [URLQueryItem]()');
+      buffer.writeln('${indent2}var queryItems = [URLQueryItem]()');
 
       for (final param in info.parameters) {
         _writeUrlQueryItem(buffer, param);
       }
 
       buffer.writeln();
-      buffer.writeln('$_indent${_indent}if !queryItems.isEmpty {');
-      buffer.writeln('$_indent$_indent${_indent}components.queryItems = queryItems');
-      buffer.writeln('$_indent$_indent}');
+      buffer.writeln('${indent2}if !queryItems.isEmpty {');
+      buffer.writeln('$indent2${_indent}components.queryItems = queryItems');
+      buffer.writeln('$indent2}');
       buffer.writeln();
-      buffer.writeln('$_indent${_indent}guard let url = components.url else {');
-      buffer.writeln('$_indent$_indent${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
-      buffer.writeln('$_indent$_indent}');
+      buffer.writeln('${indent2}guard let url = components.url else {');
+      buffer.writeln('$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
+      buffer.writeln('$indent2}');
     }
 
     buffer.writeln();
-    buffer.writeln('$_indent${_indent}await UIApplication.shared.open(url)');
-    if (hasDialog) {
-      final dialogStr = _interpolateDialogTemplate(info.resultDialogTemplate!, info.parameters);
-      buffer.writeln('$_indent${_indent}return .result(dialog: .init("$dialogStr"))');
-    } else {
-      buffer.writeln('$_indent${_indent}return .result()');
-    }
+    buffer.writeln('${indent2}await UIApplication.shared.open(url)');
+    _writeReturnResult(buffer, info, indent2);
     buffer.writeln('$_indent}');
   }
 
@@ -694,11 +691,9 @@ class SwiftGenerator {
     }
 
     // supportedModes / openAppWhenRun
-    final needsForeground = info.urlScheme != null ||
-        info.supportedModes == IntentModeType.foreground;
-    if (needsForeground) {
+    if (_needsForeground(info)) {
       buffer.writeln();
-      buffer.writeln('${_indent}@available(iOS 26.0, *)');
+      buffer.writeln('$_indent@available(iOS 26.0, *)');
       buffer.writeln(
           '${_indent}static var supportedModes: IntentModes { .foreground }');
       buffer.writeln();
