@@ -20,9 +20,6 @@ void main() async {
   initializeCreateTaskWithImageAppIntents();
   initializeTaskAppIntents();
 
-  // Process any pending cached actions (from cache mode intents)
-  AppIntents().processPendingActions();
-
   runApp(const TaskApp());
 }
 
@@ -52,6 +49,7 @@ class TaskListPage extends StatefulWidget {
 class _TaskListPageState extends State<TaskListPage> {
   List<Task> _tasks = [];
   late AppLinks _appLinks;
+  late AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
@@ -63,8 +61,22 @@ class _TaskListPageState extends State<TaskListPage> {
       }
     });
 
+    // Process pending cached actions when app resumes.
+    // Cache mode intents write to UserDefaults in perform(), which runs
+    // AFTER the app is launched (openAppWhenRun = true). So we need to
+    // check for pending actions each time the app comes to foreground.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () => AppIntents().processPendingActions(),
+    );
+
     // Initialize app links handler
     _initAppLinks();
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
   }
 
   Future<void> _initAppLinks() async {

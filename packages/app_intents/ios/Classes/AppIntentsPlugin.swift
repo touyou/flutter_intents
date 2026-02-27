@@ -81,17 +81,41 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         return UserDefaults.standard.object(forKey: "app_intents_cache_\(key)")
     }
 
-    /// Stores a pending intent action with its parameters.
+    /// Stores a pending intent action and attempts immediate delivery.
+    ///
+    /// If the Flutter MethodChannel is available (app is running),
+    /// delivers the action immediately via `executeIntent`.
+    /// Otherwise, caches to UserDefaults for later retrieval via
+    /// `processPendingActions()`.
     public static func setPendingAction(
         identifier: String,
         params: [String: Any]
     ) {
-        if let data = try? JSONSerialization.data(withJSONObject: [
+        let action: [String: Any] = [
             "identifier": identifier,
             "params": params
-        ]) {
+        ]
+
+        // Always cache as fallback
+        if let data = try? JSONSerialization.data(withJSONObject: action) {
             UserDefaults.standard.set(data, forKey: "app_intents_pending_action")
         }
+
+        // Try immediate delivery via MethodChannel
+        DispatchQueue.main.async {
+            shared?.deliverPendingAction()
+        }
+    }
+
+    /// Attempts to deliver the pending action immediately via MethodChannel.
+    private func deliverPendingAction() {
+        guard let channel = channel,
+              let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
+              let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+        UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
+        channel.invokeMethod("executeIntent", arguments: action)
     }
 
     // MARK: - Flutter Bridge Integration
