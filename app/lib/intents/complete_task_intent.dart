@@ -15,15 +15,19 @@ part 'complete_task_intent.intent.dart';
   urlAction: 'complete',
 )
 class CompleteTaskIntentSpec extends IntentSpecBase<String, Task?> {
-  @IntentParam(title: 'Task ID', description: 'The ID of the task to complete')
-  final String taskId;
+  @IntentParam(
+    title: 'Task',
+    description: 'The task to complete',
+    entityType: 'TaskEntitySpec',
+  )
+  final String task;
 
-  CompleteTaskIntentSpec({required this.taskId});
+  CompleteTaskIntentSpec({required this.task});
 }
 
 /// Handler for the CompleteTask intent.
 Future<Task?> completeTaskIntentHandler({
-  required String taskId,
+  required String task,
 }) async {
-  return TaskRepository.instance.toggleTaskCompletion(taskId);
+  return TaskRepository.instance.toggleTaskCompletion(task);
 }

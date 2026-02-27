@@ -112,7 +112,7 @@ class _TaskListPageState extends State<TaskListPage> {
   }
 
   Future<void> _handleCompleteTask(Map<String, String> params) async {
-    final taskId = params['taskId'];
+    final taskId = params['task'];
     if (taskId == null || taskId.isEmpty) {
       _showSnackBar('Task ID is required');
       return;

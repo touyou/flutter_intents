@@ -105,12 +105,17 @@ class IntentParamInfo {
   /// Whether the parameter is optional.
   final bool isOptional;
 
+  /// The entity type for this parameter (e.g., 'TaskEntitySpec').
+  /// When set, the Swift parameter uses an AppEntity type with picker UI.
+  final String? entityType;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
     required this.title,
     this.description,
     required this.isOptional,
+    this.entityType,
   });
 
   @override
@@ -121,7 +126,8 @@ class IntentParamInfo {
         dartType == other.dartType &&
         title == other.title &&
         description == other.description &&
-        isOptional == other.isOptional;
+        isOptional == other.isOptional &&
+        entityType == other.entityType;
   }
 
   @override
@@ -131,12 +137,13 @@ class IntentParamInfo {
         title,
         description,
         isOptional,
+        entityType,
       );
 
   @override
   String toString() =>
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
-      'description: $description, isOptional: $isOptional)';
+      'description: $description, isOptional: $isOptional, entityType: $entityType)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

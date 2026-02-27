@@ -223,6 +223,38 @@ void main() {
         expect(result.urlAction, isNull);
       });
 
+      test('extracts entityType from @IntentParam annotation', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.completeTask',
+            title: 'Complete Task',
+          )
+          class CompleteTaskIntent extends IntentSpecBase<String, void> {
+            @IntentParam(
+              title: 'Task',
+              entityType: 'TaskEntitySpec',
+            )
+            final String task;
+
+            CompleteTaskIntent({required this.task});
+          }
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CompleteTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.parameters, hasLength(1));
+        final param = result.parameters.first;
+        expect(param.fieldName, equals('task'));
+        expect(param.entityType, equals('TaskEntitySpec'));
+      });
+
       test('returns null for class without @IntentSpec annotation', () async {
         final library = await resolveSource('''
           class PlainClass {}

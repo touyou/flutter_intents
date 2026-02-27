@@ -13,8 +13,8 @@ struct CompleteTaskIntentSpec: AppIntent {
 
     static var openAppWhenRun: Bool { true }
 
-    @Parameter(title: "Task ID", description: "The ID of the task to complete")
-    var taskId: String
+    @Parameter(title: "Task", description: "The task to complete")
+    var task: TaskEntitySpec
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -23,7 +23,7 @@ struct CompleteTaskIntentSpec: AppIntent {
         components.host = "complete"
 
         var queryItems = [URLQueryItem]()
-        queryItems.append(URLQueryItem(name: "taskId", value: String(describing: taskId)))
+        queryItems.append(URLQueryItem(name: "task", value: task.id))
 
         if !queryItems.isEmpty {
             components.queryItems = queryItems
@@ -100,8 +100,33 @@ struct TaskEntitySpec: AppEntity {
 @available(iOS 16.0, *)
 struct TaskEntitySpecQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
-        // TODO: Implement entity fetching via FlutterBridge
-        return []
+        let results = try await FlutterBridge.shared.queryEntities(
+            entityIdentifier: "TaskEntitySpec",
+            identifiers: identifiers
+        )
+        return results.compactMap { dict in
+            guard let id = dict["id"] as? String,
+                let title = dict["title"] as? String else {
+                return nil
+            }
+            let description = dict["description"] as? String
+            return TaskEntitySpec(id: id, title: title, description: description)
+        }
+    }
+
+    func suggestedEntities() async throws -> [TaskEntitySpec] {
+        let results = try await FlutterBridge.shared.suggestedEntities(
+            entityIdentifier: "TaskEntitySpec"
+        )
+        return results.compactMap { dict in
+            guard let id = dict["id"] as? String,
+                let title = dict["title"] as? String else {
+                return nil
+            }
+            let description = dict["description"] as? String
+            return TaskEntitySpec(id: id, title: title, description: description)
+        }
     }
 }
+
 

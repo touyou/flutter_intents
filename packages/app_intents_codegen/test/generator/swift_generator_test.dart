@@ -347,6 +347,57 @@ void main() {
       });
     });
 
+    group('generateIntent with entity parameter', () {
+      test('generates entity type for parameter with entityType', () {
+        final intentInfo = IntentInfo(
+          className: 'CompleteTaskIntent',
+          identifier: 'com.example.completeTask',
+          title: 'Complete Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'task',
+              dartType: 'String',
+              title: 'Task',
+              isOptional: false,
+              entityType: 'TaskEntitySpec',
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'complete',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var task: TaskEntitySpec'));
+        expect(result, contains('task.id'));
+        expect(result, isNot(contains('var task: String')));
+      });
+
+      test('generates entity .id in FlutterBridge params', () {
+        final intentInfo = IntentInfo(
+          className: 'CompleteTaskIntent',
+          identifier: 'com.example.completeTask',
+          title: 'Complete Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'task',
+              dartType: 'String',
+              title: 'Task',
+              isOptional: false,
+              entityType: 'TaskEntitySpec',
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('"task": task.id'));
+        expect(result, contains('var task: TaskEntitySpec'));
+      });
+    });
+
     group('generateAll with URL scheme', () {
       test('includes UIKit import when URL scheme intents exist', () {
         final intents = [

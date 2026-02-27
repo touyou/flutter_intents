@@ -75,7 +75,8 @@ class SwiftGenerator {
 
   /// Writes a parameter declaration to the buffer.
   void _writeParameter(StringBuffer buffer, IntentParamInfo param) {
-    final swiftType = dartTypeToSwiftType(param.dartType);
+    // Use entity type if specified, otherwise map Dart type to Swift type
+    final swiftType = param.entityType ?? dartTypeToSwiftType(param.dartType);
 
     // Build @Parameter annotation
     final paramParts = <String>['title: "${param.title}"'];
@@ -90,7 +91,13 @@ class SwiftGenerator {
   ///
   /// Date types need to be converted to ISO8601 strings since MethodChannel
   /// doesn't support NSDate directly.
+  /// Entity types use `.id` to extract the entity identifier.
   String _paramValueExpression(IntentParamInfo param) {
+    // Entity types: use .id
+    if (param.entityType != null) {
+      return '${param.fieldName}.id';
+    }
+
     final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
     final isNullable = param.dartType.endsWith('?');
 
@@ -193,6 +200,13 @@ class SwiftGenerator {
   void _writeUrlQueryItem(StringBuffer buffer, IntentParamInfo param) {
     final isNullable = param.dartType.endsWith('?');
     final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+    final isEntity = param.entityType != null;
+
+    // Entity types: use .id for the URL value
+    if (isEntity) {
+      buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.id))');
+      return;
+    }
 
     if (isNullable) {
       buffer.writeln('$_indent${_indent}if let ${param.fieldName} {');
@@ -285,15 +299,73 @@ class SwiftGenerator {
     buffer.writeln('$_indent}');
   }
 
-  /// Writes the entity query struct.
+  /// Writes the entity query struct with FlutterBridge integration.
   void _writeQueryStruct(StringBuffer buffer, EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+    final subtitleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.subtitle)
+        .firstOrNull;
+
     buffer.writeln('@available(iOS 16.0, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
+
+    // entities(for:) method
     buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
-    buffer.writeln('$_indent$_indent// TODO: Implement entity fetching via FlutterBridge');
-    buffer.writeln('$_indent${_indent}return []');
+    buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.queryEntities(');
+    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.className}",');
+    buffer.writeln('$_indent$_indent${_indent}identifiers: identifiers');
+    buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
+    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp);
+    buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
+    buffer.writeln();
+
+    // suggestedEntities() method
+    buffer.writeln('${_indent}func suggestedEntities() async throws -> [${info.className}] {');
+    buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.suggestedEntities(');
+    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.className}"');
+    buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
+    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp);
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+
     buffer.writeln('}');
+  }
+
+  /// Writes the dictionary-to-entity mapping inside compactMap.
+  void _writeEntityDictMapping(
+    StringBuffer buffer,
+    EntityInfo info,
+    EntityPropertyInfo? idProp,
+    EntityPropertyInfo? titleProp,
+    EntityPropertyInfo? subtitleProp,
+  ) {
+    final id = idProp?.fieldName ?? 'id';
+    final title = titleProp?.fieldName ?? 'title';
+
+    buffer.writeln('$_indent$_indent${_indent}guard let $id = dict["$id"] as? String,');
+    buffer.writeln('$_indent$_indent$_indent${_indent}let $title = dict["$title"] as? String else {');
+    buffer.writeln('$_indent$_indent$_indent${_indent}return nil');
+    buffer.writeln('$_indent$_indent$_indent}');
+
+    if (subtitleProp != null) {
+      final subtitle = subtitleProp.fieldName;
+      buffer.writeln('$_indent$_indent${_indent}let $subtitle = dict["$subtitle"] as? String');
+    }
+
+    // Build initializer
+    final initParts = <String>['$id: $id', '$title: $title'];
+    if (subtitleProp != null) {
+      initParts.add('${subtitleProp.fieldName}: ${subtitleProp.fieldName}');
+    }
+    buffer.writeln('$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})');
   }
 
   /// Generates an AppShortcutsProvider struct from shortcut information.
@@ -445,13 +517,7 @@ class SwiftGenerator {
     buffer.writeln();
 
     // Generate query struct
-    buffer.writeln('@available(iOS 16.0, *)');
-    buffer.writeln('struct ${info.className}Query: EntityQuery {');
-    buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
-    buffer.writeln('$_indent$_indent// TODO: Implement entity fetching via FlutterBridge');
-    buffer.writeln('$_indent${_indent}return []');
-    buffer.writeln('$_indent}');
-    buffer.write('}');
+    _writeQueryStruct(buffer, info);
 
     return buffer.toString();
   }

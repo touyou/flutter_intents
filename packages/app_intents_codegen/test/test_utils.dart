@@ -45,11 +45,13 @@ Future<LibraryElement> resolveSource(String source) async {
           final String title;
           final String? description;
           final bool isOptional;
+          final String? entityType;
 
           const IntentParam({
             required this.title,
             this.description,
             this.isOptional = false,
+            this.entityType,
           });
         }
       ''',

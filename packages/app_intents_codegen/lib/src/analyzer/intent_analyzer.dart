@@ -111,6 +111,8 @@ class IntentAnalyzer {
       final description = annotation.getField('description')?.toStringValue();
       final isOptional =
           annotation.getField('isOptional')?.toBoolValue() ?? false;
+      final entityType =
+          annotation.getField('entityType')?.toStringValue();
 
       parameters.add(IntentParamInfo(
         fieldName: field.name,
@@ -118,6 +120,7 @@ class IntentAnalyzer {
         title: title,
         description: description,
         isOptional: isOptional,
+        entityType: entityType,
       ));
     }
 
