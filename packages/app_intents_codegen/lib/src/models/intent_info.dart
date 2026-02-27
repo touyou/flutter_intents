@@ -101,6 +101,7 @@ class IntentInfo {
 enum IntentImplementationType {
   dart,
   swift,
+  kotlin,
 }
 
 /// Represents analyzed information about an intent parameter.

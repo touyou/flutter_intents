@@ -2,4 +2,5 @@
 library;
 
 export 'dart_generator.dart';
+export 'kotlin_generator.dart';
 export 'swift_generator.dart';

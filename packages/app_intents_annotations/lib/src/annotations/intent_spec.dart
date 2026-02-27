@@ -53,9 +53,12 @@ class IntentSpec {
 
 /// The implementation language for the intent.
 enum IntentImplementation {
-  /// Dart implementation.
+  /// Dart implementation (logic runs in Flutter).
   dart,
 
-  /// Swift implementation.
+  /// Swift implementation (iOS native).
   swift,
+
+  /// Kotlin implementation (Android native).
+  kotlin,
 }
