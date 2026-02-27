@@ -11,6 +11,8 @@ part 'complete_task_intent.intent.dart';
   identifier: 'com.example.taskapp.completeTask',
   title: 'Complete Task',
   description: 'Mark a task as completed',
+  urlScheme: 'taskapp',
+  urlAction: 'complete',
 )
 class CompleteTaskIntentSpec extends IntentSpecBase<String, Task?> {
   @IntentParam(title: 'Task ID', description: 'The ID of the task to complete')

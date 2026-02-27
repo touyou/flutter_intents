@@ -22,12 +22,16 @@ Future<LibraryElement> resolveSource(String source) async {
           final String title;
           final String? description;
           final IntentImplementation implementation;
+          final String? urlScheme;
+          final String? urlAction;
 
           const IntentSpec({
             required this.identifier,
             required this.title,
             this.description,
             this.implementation = IntentImplementation.dart,
+            this.urlScheme,
+            this.urlAction,
           });
         }
 

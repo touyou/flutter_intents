@@ -154,6 +154,75 @@ void main() {
         expect(messageParam.description, equals('The message to display'));
       });
 
+      test('extracts urlScheme and urlAction when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.taskapp.createTask',
+            title: 'Create Task',
+            urlScheme: 'taskapp',
+            urlAction: 'create',
+          )
+          class CreateTaskIntent extends IntentSpecBase<String, void> {}
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CreateTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.urlScheme, equals('taskapp'));
+        expect(result.urlAction, equals('create'));
+      });
+
+      test('urlScheme and urlAction are null when not provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.greet',
+            title: 'Greet User',
+          )
+          class GreetIntent extends IntentSpecBase<String, void> {}
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'GreetIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.urlScheme, isNull);
+        expect(result.urlAction, isNull);
+      });
+
+      test('urlScheme set without urlAction', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.taskapp.createTask',
+            title: 'Create Task',
+            urlScheme: 'taskapp',
+          )
+          class CreateTaskIntent extends IntentSpecBase<String, void> {}
+        ''');
+
+        final classElement = library.topLevelElements
+            .whereType<ClassElement>()
+            .firstWhere((e) => e.name == 'CreateTaskIntent');
+
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.urlScheme, equals('taskapp'));
+        expect(result.urlAction, isNull);
+      });
+
       test('returns null for class without @IntentSpec annotation', () async {
         final library = await resolveSource('''
           class PlainClass {}

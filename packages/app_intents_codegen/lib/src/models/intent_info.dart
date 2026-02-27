@@ -24,6 +24,13 @@ class IntentInfo {
   /// The output type of the intent.
   final String? outputType;
 
+  /// The URL scheme for intent execution (e.g., 'taskapp').
+  /// When non-null, Swift code uses URL scheme instead of FlutterBridge.
+  final String? urlScheme;
+
+  /// The action segment in the URL (e.g., 'create' for 'taskapp://create?...').
+  final String? urlAction;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -33,6 +40,8 @@ class IntentInfo {
     required this.parameters,
     this.inputType,
     this.outputType,
+    this.urlScheme,
+    this.urlAction,
   });
 
   @override
@@ -46,7 +55,9 @@ class IntentInfo {
         implementation == other.implementation &&
         _listEquals(parameters, other.parameters) &&
         inputType == other.inputType &&
-        outputType == other.outputType;
+        outputType == other.outputType &&
+        urlScheme == other.urlScheme &&
+        urlAction == other.urlAction;
   }
 
   @override
@@ -59,13 +70,16 @@ class IntentInfo {
         Object.hashAll(parameters),
         inputType,
         outputType,
+        urlScheme,
+        urlAction,
       );
 
   @override
   String toString() =>
       'IntentInfo(className: $className, identifier: $identifier, title: $title, '
       'description: $description, implementation: $implementation, '
-      'parameters: $parameters, inputType: $inputType, outputType: $outputType)';
+      'parameters: $parameters, inputType: $inputType, outputType: $outputType, '
+      'urlScheme: $urlScheme, urlAction: $urlAction)';
 }
 
 /// The implementation language for the intent.

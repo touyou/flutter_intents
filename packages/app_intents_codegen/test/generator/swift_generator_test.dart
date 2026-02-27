@@ -199,6 +199,191 @@ void main() {
       });
     });
 
+    group('generateIntent with URL scheme', () {
+      test('generates URL scheme perform with no params', () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet User',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          urlScheme: 'myapp',
+          urlAction: 'greet',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('import UIKit'));
+        expect(result, contains('static var openAppWhenRun: Bool { true }'));
+        expect(result, contains('URL(string: "myapp://greet")'));
+        expect(result, contains('UIApplication.shared.open(url)'));
+        expect(result, isNot(contains('FlutterBridge')));
+      });
+
+      test('generates URL scheme with String parameter', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('var components = URLComponents()'));
+        expect(result, contains('components.scheme = "taskapp"'));
+        expect(result, contains('components.host = "create"'));
+        expect(result, contains('URLQueryItem(name: "title", value: String(describing: title))'));
+        expect(result, contains('UIApplication.shared.open(url)'));
+      });
+
+      test('generates URL scheme with optional DateTime parameter', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Title',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'dueDate',
+              dartType: 'DateTime?',
+              title: 'Due Date',
+              isOptional: true,
+            ),
+          ],
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('if let dueDate'));
+        expect(result, contains('ISO8601DateFormatter().string(from: dueDate)'));
+      });
+
+      test('derives urlAction from identifier when not provided', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.taskapp.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          urlScheme: 'taskapp',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('URL(string: "taskapp://createTask")'));
+      });
+
+      test('without urlScheme still generates FlutterBridge code', () {
+        final intentInfo = IntentInfo(
+          className: 'GreetIntent',
+          identifier: 'com.example.greet',
+          title: 'Greet User',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('FlutterBridge.shared.invoke'));
+        expect(result, isNot(contains('UIApplication')));
+        expect(result, isNot(contains('openAppWhenRun')));
+        expect(result, isNot(contains('import UIKit')));
+      });
+
+      test('generates URL scheme with int, bool, optional String params', () {
+        final intentInfo = IntentInfo(
+          className: 'TestIntent',
+          identifier: 'com.example.test',
+          title: 'Test',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'count',
+              dartType: 'int',
+              title: 'Count',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'enabled',
+              dartType: 'bool',
+              title: 'Enabled',
+              isOptional: false,
+            ),
+            IntentParamInfo(
+              fieldName: 'note',
+              dartType: 'String?',
+              title: 'Note',
+              isOptional: true,
+            ),
+          ],
+          urlScheme: 'testapp',
+          urlAction: 'run',
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('String(describing: count)'));
+        expect(result, contains('String(describing: enabled)'));
+        expect(result, contains('if let note'));
+      });
+    });
+
+    group('generateAll with URL scheme', () {
+      test('includes UIKit import when URL scheme intents exist', () {
+        final intents = [
+          IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            urlScheme: 'taskapp',
+            urlAction: 'create',
+          ),
+        ];
+
+        final result = generator.generateAll(intents: intents);
+
+        expect(result, contains('import UIKit'));
+        expect(result, contains('openAppWhenRun'));
+      });
+
+      test('omits UIKit import when no URL scheme intents', () {
+        final intents = [
+          IntentInfo(
+            className: 'GreetIntent',
+            identifier: 'com.example.greet',
+            title: 'Greet',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+          ),
+        ];
+
+        final result = generator.generateAll(intents: intents);
+
+        expect(result, isNot(contains('import UIKit')));
+      });
+    });
+
     group('generateEntity', () {
       test('generates basic AppEntity struct', () {
         final entityInfo = EntityInfo(

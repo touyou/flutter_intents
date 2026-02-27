@@ -40,6 +40,8 @@ class IntentAnalyzer {
     final description = annotation.getField('description')?.toStringValue();
     final implementationField = annotation.getField('implementation');
     final implementation = _parseImplementation(implementationField);
+    final urlScheme = annotation.getField('urlScheme')?.toStringValue();
+    final urlAction = annotation.getField('urlAction')?.toStringValue();
 
     if (identifier == null || title == null) {
       return null;
@@ -57,6 +59,8 @@ class IntentAnalyzer {
       parameters: parameters,
       inputType: typeArgs.$1,
       outputType: typeArgs.$2,
+      urlScheme: urlScheme,
+      urlAction: urlAction,
     );
   }
 

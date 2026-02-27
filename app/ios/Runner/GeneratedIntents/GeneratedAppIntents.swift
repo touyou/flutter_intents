@@ -5,45 +5,35 @@
 import AppIntents
 import UIKit
 
-// MARK: - URL Scheme Helper
-
-@available(iOS 16.0, *)
-private enum AppIntentURLHelper {
-    static let scheme = "taskapp"
-
-    static func openURL(_ urlString: String) async throws {
-        guard let url = URL(string: urlString) else {
-            throw AppIntentError.custom(code: "INVALID_URL", message: "Failed to create URL")
-        }
-
-        await MainActor.run {
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        }
-    }
-
-    static func encodeParam(_ value: String) -> String {
-        return value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-    }
-}
-
-// MARK: - App Intents
-
 @available(iOS 16.0, *)
 struct CompleteTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Complete Task"
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
 
-    static var openAppWhenRun: Bool = true
+    static var openAppWhenRun: Bool { true }
 
-    @Parameter(title: "Task")
-    var task: TaskEntitySpec
+    @Parameter(title: "Task ID", description: "The ID of the task to complete")
+    var taskId: String
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Open app with URL scheme to complete task
-        let urlString = "\(AppIntentURLHelper.scheme)://complete?taskId=\(AppIntentURLHelper.encodeParam(task.id))"
-        try await AppIntentURLHelper.openURL(urlString)
+        var components = URLComponents()
+        components.scheme = "taskapp"
+        components.host = "complete"
+
+        var queryItems = [URLQueryItem]()
+        queryItems.append(URLQueryItem(name: "taskId", value: String(describing: taskId)))
+
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+
+        guard let url = components.url else {
+            return .result()
+        }
+
+        await UIApplication.shared.open(url)
         return .result()
     }
 }
@@ -54,7 +44,7 @@ struct CreateTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
 
-    static var openAppWhenRun: Bool = true
+    static var openAppWhenRun: Bool { true }
 
     @Parameter(title: "Title", description: "The title of the task")
     var title: String
@@ -65,19 +55,28 @@ struct CreateTaskIntentSpec: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Build URL with parameters
-        var urlString = "\(AppIntentURLHelper.scheme)://create?title=\(AppIntentURLHelper.encodeParam(title))"
+        var components = URLComponents()
+        components.scheme = "taskapp"
+        components.host = "create"
 
-        if let desc = description {
-            urlString += "&description=\(AppIntentURLHelper.encodeParam(desc))"
+        var queryItems = [URLQueryItem]()
+        queryItems.append(URLQueryItem(name: "title", value: String(describing: title)))
+        if let description {
+            queryItems.append(URLQueryItem(name: "description", value: String(describing: description)))
+        }
+        if let dueDate {
+            queryItems.append(URLQueryItem(name: "dueDate", value: ISO8601DateFormatter().string(from: dueDate)))
         }
 
-        if let date = dueDate {
-            let dateString = ISO8601DateFormatter().string(from: date)
-            urlString += "&dueDate=\(AppIntentURLHelper.encodeParam(dateString))"
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
         }
 
-        try await AppIntentURLHelper.openURL(urlString)
+        guard let url = components.url else {
+            return .result()
+        }
+
+        await UIApplication.shared.open(url)
         return .result()
     }
 }
@@ -100,39 +99,9 @@ struct TaskEntitySpec: AppEntity {
 
 @available(iOS 16.0, *)
 struct TaskEntitySpecQuery: EntityQuery {
-    private static let entityIdentifier = "com.example.taskapp.TaskEntity"
-
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
-        let result = try await FlutterBridge.shared.queryEntities(
-            entityIdentifier: Self.entityIdentifier,
-            identifiers: identifiers
-        )
-
-        return result.compactMap { json in
-            guard let id = json["id"] as? String,
-                  let title = json["title"] as? String else { return nil }
-            return TaskEntitySpec(
-                id: id,
-                title: title,
-                description: json["description"] as? String
-            )
-        }
-    }
-
-    func suggestedEntities() async throws -> [TaskEntitySpec] {
-        let result = try await FlutterBridge.shared.suggestedEntities(
-            entityIdentifier: Self.entityIdentifier
-        )
-
-        return result.compactMap { json in
-            guard let id = json["id"] as? String,
-                  let title = json["title"] as? String else { return nil }
-            return TaskEntitySpec(
-                id: id,
-                title: title,
-                description: json["description"] as? String
-            )
-        }
+        // TODO: Implement entity fetching via FlutterBridge
+        return []
     }
 }
 

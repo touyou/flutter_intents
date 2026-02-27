@@ -57,40 +57,18 @@ class SwiftGenerator {
   /// - `@available(iOS 16.0, *)` availability attribute
   /// - Static title and optional description
   /// - `@Parameter` properties for each intent parameter
-  /// - A `perform()` method that calls FlutterBridge
+  /// - A `perform()` method that calls FlutterBridge or opens a URL
   String generateIntent(IntentInfo info) {
     final buffer = StringBuffer();
 
-    // Import statement
+    // Import statements
     buffer.writeln('import AppIntents');
+    if (info.urlScheme != null) {
+      buffer.writeln('import UIKit');
+    }
     buffer.writeln();
 
-    // Availability and struct declaration
-    buffer.writeln('@available(iOS 16.0, *)');
-    buffer.writeln('struct ${info.className}: AppIntent {');
-
-    // Title
-    buffer.writeln('$_indent' 'static var title: LocalizedStringResource = "${info.title}"');
-
-    // Description (if present)
-    if (info.description != null) {
-      buffer.writeln('$_indent' 'static var description: IntentDescription =');
-      buffer.writeln('$_indent$_indent' 'IntentDescription("${info.description}")');
-    }
-
-    // Parameters
-    if (info.parameters.isNotEmpty) {
-      buffer.writeln();
-      for (final param in info.parameters) {
-        _writeParameter(buffer, param);
-      }
-    }
-
-    // Perform method
-    buffer.writeln();
-    _writePerformMethod(buffer, info);
-
-    buffer.writeln('}');
+    _generateIntentBody(buffer, info);
 
     return buffer.toString();
   }
@@ -126,8 +104,17 @@ class SwiftGenerator {
     return param.fieldName;
   }
 
-  /// Writes the perform method to the buffer.
+  /// Writes the perform method to the buffer, dispatching based on URL scheme.
   void _writePerformMethod(StringBuffer buffer, IntentInfo info) {
+    if (info.urlScheme != null) {
+      _writeUrlSchemePerformMethod(buffer, info);
+    } else {
+      _writeFlutterBridgePerformMethod(buffer, info);
+    }
+  }
+
+  /// Writes the perform method using FlutterBridge (MethodChannel).
+  void _writeFlutterBridgePerformMethod(StringBuffer buffer, IntentInfo info) {
     buffer.writeln('$_indent@MainActor');
     buffer.writeln('${_indent}func perform() async throws -> some IntentResult {');
 
@@ -153,6 +140,75 @@ class SwiftGenerator {
 
     buffer.writeln('$_indent${_indent}return .result()');
     buffer.writeln('$_indent}');
+  }
+
+  /// Derives a default URL action from an intent identifier.
+  ///
+  /// e.g., 'com.example.taskapp.createTask' -> 'createTask'
+  String _defaultAction(String identifier) {
+    final parts = identifier.split('.');
+    return parts.last;
+  }
+
+  /// Writes the perform method using URL scheme execution.
+  void _writeUrlSchemePerformMethod(StringBuffer buffer, IntentInfo info) {
+    final scheme = info.urlScheme!;
+    final action = info.urlAction ?? _defaultAction(info.identifier);
+
+    buffer.writeln('$_indent@MainActor');
+    buffer.writeln('${_indent}func perform() async throws -> some IntentResult {');
+
+    if (info.parameters.isEmpty) {
+      buffer.writeln('$_indent${_indent}guard let url = URL(string: "$scheme://$action") else {');
+      buffer.writeln('$_indent$_indent${_indent}return .result()');
+      buffer.writeln('$_indent$_indent}');
+    } else {
+      buffer.writeln('$_indent${_indent}var components = URLComponents()');
+      buffer.writeln('$_indent${_indent}components.scheme = "$scheme"');
+      buffer.writeln('$_indent${_indent}components.host = "$action"');
+      buffer.writeln();
+      buffer.writeln('$_indent${_indent}var queryItems = [URLQueryItem]()');
+
+      for (final param in info.parameters) {
+        _writeUrlQueryItem(buffer, param);
+      }
+
+      buffer.writeln();
+      buffer.writeln('$_indent${_indent}if !queryItems.isEmpty {');
+      buffer.writeln('$_indent$_indent${_indent}components.queryItems = queryItems');
+      buffer.writeln('$_indent$_indent}');
+      buffer.writeln();
+      buffer.writeln('$_indent${_indent}guard let url = components.url else {');
+      buffer.writeln('$_indent$_indent${_indent}return .result()');
+      buffer.writeln('$_indent$_indent}');
+    }
+
+    buffer.writeln();
+    buffer.writeln('$_indent${_indent}await UIApplication.shared.open(url)');
+    buffer.writeln('$_indent${_indent}return .result()');
+    buffer.writeln('$_indent}');
+  }
+
+  /// Writes a URL query item for a parameter.
+  void _writeUrlQueryItem(StringBuffer buffer, IntentParamInfo param) {
+    final isNullable = param.dartType.endsWith('?');
+    final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+
+    if (isNullable) {
+      buffer.writeln('$_indent${_indent}if let ${param.fieldName} {');
+      if (isDate) {
+        buffer.writeln('$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))');
+      } else {
+        buffer.writeln('$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))');
+      }
+      buffer.writeln('$_indent$_indent}');
+    } else {
+      if (isDate) {
+        buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))');
+      } else {
+        buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))');
+      }
+    }
   }
 
   /// Generates a Swift AppEntity struct from an [EntityInfo].
@@ -295,11 +351,16 @@ class SwiftGenerator {
 
     // Single import at the top
     buffer.writeln('import AppIntents');
+    if (intents.any((i) => i.urlScheme != null)) {
+      buffer.writeln('import UIKit');
+    }
     buffer.writeln();
 
     // Generate intents (without individual imports)
     for (final intent in intents) {
-      buffer.writeln(_generateIntentBody(intent));
+      final intentBuffer = StringBuffer();
+      _generateIntentBody(intentBuffer, intent);
+      buffer.writeln(intentBuffer.toString());
       buffer.writeln();
     }
 
@@ -318,9 +379,7 @@ class SwiftGenerator {
   }
 
   /// Generates intent body without import statement.
-  String _generateIntentBody(IntentInfo info) {
-    final buffer = StringBuffer();
-
+  void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
     // Availability and struct declaration
     buffer.writeln('@available(iOS 16.0, *)');
     buffer.writeln('struct ${info.className}: AppIntent {');
@@ -332,6 +391,12 @@ class SwiftGenerator {
     if (info.description != null) {
       buffer.writeln('$_indent' 'static var description: IntentDescription =');
       buffer.writeln('$_indent$_indent' 'IntentDescription("${info.description}")');
+    }
+
+    // openAppWhenRun (for URL scheme)
+    if (info.urlScheme != null) {
+      buffer.writeln();
+      buffer.writeln('${_indent}static var openAppWhenRun: Bool { true }');
     }
 
     // Parameters
@@ -347,8 +412,6 @@ class SwiftGenerator {
     _writePerformMethod(buffer, info);
 
     buffer.write('}');
-
-    return buffer.toString();
   }
 
   /// Generates entity body without import statement.
