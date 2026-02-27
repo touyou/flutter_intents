@@ -1,9 +1,13 @@
+import 'dart:io';
+
+import 'package:app_intents/app_intents.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
 import 'entities/task_entity.dart';
 import 'intents/complete_task_intent.dart';
 import 'intents/create_task_intent.dart';
+import 'intents/create_task_with_image_intent.dart';
 import 'models/task.dart';
 import 'repositories/task_repository.dart';
 
@@ -13,7 +17,11 @@ void main() async {
   // Initialize all App Intents handlers
   initializeCreateTaskAppIntents();
   initializeCompleteTaskAppIntents();
+  initializeCreateTaskWithImageAppIntents();
   initializeTaskAppIntents();
+
+  // Process any pending cached actions (from cache mode intents)
+  AppIntents().processPendingActions();
 
   runApp(const TaskApp());
 }
@@ -229,12 +237,31 @@ class TaskTile extends StatelessWidget {
           ),
         ),
         subtitle: task.description != null ? Text(task.description!) : null,
-        trailing: task.dueDate != null
-            ? Text(
-                '${task.dueDate!.month}/${task.dueDate!.day}',
-                style: Theme.of(context).textTheme.bodySmall,
-              )
-            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (task.imagePath != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.file(
+                  File(task.imagePath!),
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.broken_image, size: 40),
+                ),
+              ),
+            if (task.dueDate != null)
+              Padding(
+                padding: EdgeInsets.only(left: task.imagePath != null ? 8 : 0),
+                child: Text(
+                  '${task.dueDate!.month}/${task.dueDate!.day}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

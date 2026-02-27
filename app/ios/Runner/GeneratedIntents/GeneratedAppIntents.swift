@@ -4,12 +4,17 @@
 
 import AppIntents
 import UIKit
+import UniformTypeIdentifiers
+import app_intents
 
 @available(iOS 17.0, *)
 struct CompleteTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Complete Task"
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
 
     static var openAppWhenRun: Bool { true }
 
@@ -47,6 +52,9 @@ struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Create a new task in your task list")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
 
     static var openAppWhenRun: Bool { true }
 
@@ -86,6 +94,55 @@ struct CreateTaskIntentSpec: AppIntent {
 
         await UIApplication.shared.open(url)
         return .result(dialog: .init("Created task \"\(title)\""))
+    }
+}
+
+@available(iOS 17.0, *)
+struct CreateTaskWithImageIntentSpec: AppIntent {
+    static var title: LocalizedStringResource = "Create Task with Image"
+    static var description: IntentDescription =
+        IntentDescription("Create a new task with an optional image attachment")
+
+    @available(iOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
+
+    static var openAppWhenRun: Bool { true }
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create task \(\.$title)")
+    }
+
+    @Parameter(title: "Title", description: "The title of the task")
+    var title: String
+    @Parameter(title: "Image", description: "An image to attach to the task", supportedTypeIdentifiers: ["public.image"])
+    var image: IntentFile?
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        var imageFileInfo: [String: Any?]? = nil
+        if let image {
+            let fileName = "app_intent_\(UUID().uuidString)"
+            let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent(fileName, conformingTo: image.type ?? .data)
+            try image.data.write(to: tempUrl, options: [.atomic])
+            imageFileInfo = [
+                "path": tempUrl.path(),
+                "mimeType": image.type?.preferredMIMEType as Any,
+                "filename": image.filename as Any
+            ]
+        }
+
+        var params: [String: Any] = [:]
+        params["title"] = title
+        if let imageValue = imageFileInfo {
+            params["image"] = imageValue
+        }
+
+        AppIntentsPlugin.setPendingAction(
+            identifier: "com.example.taskapp.createTaskWithImage",
+            params: params
+        )
+        return .result()
     }
 }
 

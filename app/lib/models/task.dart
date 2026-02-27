@@ -12,6 +12,9 @@ class Task {
   /// Optional due date for the task.
   final DateTime? dueDate;
 
+  /// Optional image file path attached to the task.
+  final String? imagePath;
+
   /// Whether the task is completed.
   final bool isCompleted;
 
@@ -23,6 +26,7 @@ class Task {
     required this.title,
     this.description,
     this.dueDate,
+    this.imagePath,
     this.isCompleted = false,
     required this.createdAt,
   });
@@ -33,6 +37,7 @@ class Task {
     String? title,
     String? description,
     DateTime? dueDate,
+    String? imagePath,
     bool? isCompleted,
     DateTime? createdAt,
   }) {
@@ -41,6 +46,7 @@ class Task {
       title: title ?? this.title,
       description: description ?? this.description,
       dueDate: dueDate ?? this.dueDate,
+      imagePath: imagePath ?? this.imagePath,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -53,6 +59,7 @@ class Task {
       'title': title,
       'description': description,
       'dueDate': dueDate?.toIso8601String(),
+      'imagePath': imagePath,
       'isCompleted': isCompleted,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -67,6 +74,7 @@ class Task {
       dueDate: json['dueDate'] != null
           ? DateTime.parse(json['dueDate'] as String)
           : null,
+      imagePath: json['imagePath'] as String?,
       isCompleted: json['isCompleted'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );

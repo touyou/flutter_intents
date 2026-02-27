@@ -50,6 +50,7 @@ class TaskRepository {
     required String title,
     String? description,
     DateTime? dueDate,
+    String? imagePath,
   }) async {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final task = Task(
@@ -57,6 +58,7 @@ class TaskRepository {
       title: title,
       description: description,
       dueDate: dueDate,
+      imagePath: imagePath,
       createdAt: DateTime.now(),
     );
     _tasks[id] = task;
