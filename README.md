@@ -112,8 +112,8 @@ dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntent
 ## Requirements
 
 - **Dart SDK**: ^3.10.0
-- **Flutter**: 3.38+
-- **Swift**: 5.9+ / Swift Tools 6.0
+- **Flutter**: 3.3+
+- **Swift**: 5.9+
 - **iOS**: 17.0+ (App Intents requires iOS 17)
 
 ## Contributing

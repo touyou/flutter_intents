@@ -227,7 +227,7 @@ Flutter plugin for iOS App Intents integration.
 
 ### Dependencies
 
-- Flutter SDK: >=3.38.0
+- Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
 - iOS: 17.0+
 - Swift: 5.9+

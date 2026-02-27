@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Flutter Intents! This document pr
 
 ### Prerequisites
 
-- Flutter SDK 3.38+
+- Flutter SDK 3.3+
 - Dart SDK 3.10+
 - Xcode 15+ (for iOS development)
 - iOS 17+ device or simulator

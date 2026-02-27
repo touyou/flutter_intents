@@ -15,7 +15,7 @@ Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spo
 ## Requirements
 
 - iOS 17.0 or later
-- Flutter 3.38+
+- Flutter 3.3+
 
 ## Installation
 
