@@ -1,5 +1,5 @@
 PODS:
-  - app_intents (0.0.1):
+  - app_intents (0.1.0):
     - Flutter
   - app_links (6.4.1):
     - Flutter
@@ -19,7 +19,7 @@ EXTERNAL SOURCES:
     :path: Flutter
 
 SPEC CHECKSUMS:
-  app_intents: 704ec446661f7908cb797cf2c37b9f0b2bd91646
+  app_intents: 90eeb068523e917551d1a2baced4502c4f8c1d06
   app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
 

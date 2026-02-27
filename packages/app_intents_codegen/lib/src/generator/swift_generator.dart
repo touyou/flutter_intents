@@ -317,7 +317,7 @@ class SwiftGenerator {
     // entities(for:) method
     buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
     buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.queryEntities(');
-    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.className}",');
+    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}",');
     buffer.writeln('$_indent$_indent${_indent}identifiers: identifiers');
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
@@ -329,7 +329,7 @@ class SwiftGenerator {
     // suggestedEntities() method
     buffer.writeln('${_indent}func suggestedEntities() async throws -> [${info.className}] {');
     buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.suggestedEntities(');
-    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.className}"');
+    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"');
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
     _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp);

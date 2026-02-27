@@ -185,14 +185,7 @@ AppIntents().registerIntentHandler(
 
     for (final entity in entities) {
       statements.add(_buildEntityQueryHandlerRegistration(entity));
-
-      // Check if entity has a defaultQuery property
-      final hasDefaultQuery = entity.properties
-          .any((p) => p.role == EntityPropertyRole.defaultQuery);
-
-      if (hasDefaultQuery) {
-        statements.add(_buildSuggestedEntitiesHandlerRegistration(entity));
-      }
+      statements.add(_buildSuggestedEntitiesHandlerRegistration(entity));
     }
 
     return Method((b) => b

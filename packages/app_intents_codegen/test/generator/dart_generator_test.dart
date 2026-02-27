@@ -312,7 +312,7 @@ void main() {
         expect(result, contains('taskEntitySuggestedEntities'));
       });
 
-      test('does not generate registerSuggestedEntitiesHandler when no defaultQuery', () {
+      test('always generates registerSuggestedEntitiesHandler for entities', () {
         final entities = [
           const EntityInfo(
             className: 'TaskEntity',
@@ -332,7 +332,8 @@ void main() {
         final result = generator.generate([], entities);
 
         expect(result, isNotNull);
-        expect(result, isNot(contains('registerSuggestedEntitiesHandler')));
+        expect(result, contains('registerSuggestedEntitiesHandler'));
+        expect(result, contains('taskEntitySuggestedEntities'));
       });
 
       test('generates multiple entity handlers', () {

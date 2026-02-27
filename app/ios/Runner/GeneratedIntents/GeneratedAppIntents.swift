@@ -101,7 +101,7 @@ struct TaskEntitySpec: AppEntity {
 struct TaskEntitySpecQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
         let results = try await FlutterBridge.shared.queryEntities(
-            entityIdentifier: "TaskEntitySpec",
+            entityIdentifier: "com.example.taskapp.TaskEntity",
             identifiers: identifiers
         )
         return results.compactMap { dict in
@@ -116,7 +116,7 @@ struct TaskEntitySpecQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [TaskEntitySpec] {
         let results = try await FlutterBridge.shared.suggestedEntities(
-            entityIdentifier: "TaskEntitySpec"
+            entityIdentifier: "com.example.taskapp.TaskEntity"
         )
         return results.compactMap { dict in
             guard let id = dict["id"] as? String,

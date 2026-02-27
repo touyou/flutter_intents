@@ -19,8 +19,8 @@ void _registerCompleteTaskIntentHandlers() {
   AppIntents().registerIntentHandler('com.example.taskapp.completeTask', (
     params,
   ) async {
-    final taskId = params['taskId'] as String;
-    final result = await completeTaskIntentHandler(taskId: taskId);
+    final task = params['task'] as String;
+    final result = await completeTaskIntentHandler(task: task);
     return result?.toJson() ?? <String, dynamic>{};
   });
 }

@@ -610,6 +610,33 @@ void main() {
         expect(result, contains('static var defaultQuery = TaskEntityQuery()'));
         expect(result, contains('struct TaskEntityQuery: EntityQuery'));
       });
+
+      test('uses entity identifier (not className) for FlutterBridge entityIdentifier', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntitySpec',
+          identifier: 'com.example.taskapp.TaskEntity',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        // Should use identifier, not className
+        expect(result, contains('entityIdentifier: "com.example.taskapp.TaskEntity"'));
+        expect(result, isNot(contains('entityIdentifier: "TaskEntitySpec"')));
+      });
     });
 
     group('generateAppShortcutsProvider', () {
