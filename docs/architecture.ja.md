@@ -267,8 +267,8 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 | 項目 | 要件 |
 |------|------|
 | **iOS最小バージョン** | iOS 17.0+ |
-| **Swift** | 5.0+ |
-| **Xcode** | 14.0+ |
+| **Swift** | 5.9+ |
+| **Xcode** | 15.0+ |
 
 ### 設計決定事項
 

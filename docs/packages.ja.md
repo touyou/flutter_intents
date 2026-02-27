@@ -227,10 +227,10 @@ iOS App Intents連携用Flutterプラグイン。
 
 ### 依存関係
 
-- Flutter SDK: >=3.3.0
+- Flutter SDK: >=3.38.0
 - plugin_platform_interface: ^2.0.2
-- iOS: 13.0+
-- Swift: 5.0+
+- iOS: 17.0+
+- Swift: 5.9+
 
 ### アーキテクチャ
 
@@ -351,8 +351,8 @@ app_intents/
 ```ruby
 Pod::Spec.new do |s|
   s.name             = 'app_intents'
-  s.platform         = :ios, '13.0'
-  s.swift_version    = '5.0'
+  s.platform         = :ios, '17.0'
+  s.swift_version    = '5.9'
   s.pod_target_xcconfig = {
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386'
   }

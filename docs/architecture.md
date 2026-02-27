@@ -267,8 +267,8 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 | Item | Requirement |
 |------|-------------|
 | **Minimum iOS Version** | iOS 17.0+ |
-| **Swift** | 5.0+ |
-| **Xcode** | 14.0+ |
+| **Swift** | 5.9+ |
+| **Xcode** | 15.0+ |
 
 ### Design Decisions
 

@@ -6,7 +6,7 @@ repository: https://github.com/touyou/flutter_intents
 
 environment:
   sdk: ^3.10.0
-  flutter: '>=3.3.0'
+  flutter: '>=3.38.0'
 
 dependencies:
   flutter:
