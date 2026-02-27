@@ -153,6 +153,19 @@ abstract class AppIntentsPlatform extends PlatformInterface {
         'processPendingActions() has not been implemented.');
   }
 
+  /// A stream of pending action notifications from native App Intents.
+  ///
+  /// Emits the intent identifier when a cache-mode intent's `perform()`
+  /// stores a pending action via `setPendingAction()`. Events are buffered
+  /// on the native side until Dart subscribes.
+  ///
+  /// Listen to this stream and call [processPendingActions] when an event
+  /// arrives to deliver the cached action to the registered handler.
+  Stream<String> get pendingActionsStream {
+    throw UnimplementedError(
+        'pendingActionsStream has not been implemented.');
+  }
+
   /// A stream of intent execution requests from the native platform.
   ///
   /// This stream emits [IntentExecutionRequest] objects whenever iOS

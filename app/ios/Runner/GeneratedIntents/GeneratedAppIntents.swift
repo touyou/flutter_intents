@@ -109,7 +109,7 @@ struct CreateTaskWithImageIntentSpec: AppIntent {
     static var openAppWhenRun: Bool { true }
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Create task \(\.$title)")
+        Summary("Create task \(\.$title) \(\.$image)")
     }
 
     @Parameter(title: "Title", description: "The title of the task")

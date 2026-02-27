@@ -35,6 +35,9 @@ class MockAppIntentsPlatform
       Stream<IntentExecutionRequest>.empty();
 
   @override
+  Stream<String> get pendingActionsStream => Stream<String>.empty();
+
+  @override
   Future<dynamic> getCachedValue(String key) => Future.value(null);
 
   @override

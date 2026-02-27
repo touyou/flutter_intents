@@ -19,7 +19,7 @@ part 'create_task_with_image_intent.intent.dart';
   title: 'Create Task with Image',
   description: 'Create a new task with an optional image attachment',
   supportedModes: IntentMode.foreground,
-  parameterSummary: 'Create task {title}',
+  parameterSummary: 'Create task {title} {image}',
 )
 class CreateTaskWithImageIntentSpec
     extends IntentSpecBase<CreateTaskWithImageInput, Task> {

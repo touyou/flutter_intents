@@ -162,6 +162,14 @@ class AppIntents {
     return AppIntentsPlatform.instance.onIntentExecution;
   }
 
+  /// A stream of pending action notifications from native App Intents.
+  ///
+  /// Listen to this stream and call [processPendingActions] on each event
+  /// to deliver cached intent actions to registered handlers.
+  Stream<String> get pendingActionsStream {
+    return AppIntentsPlatform.instance.pendingActionsStream;
+  }
+
   /// Retrieves a cached value from native storage.
   Future<dynamic> getCachedValue(String key) {
     return AppIntentsPlatform.instance.getCachedValue(key);

@@ -12,11 +12,18 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Shared instance for accessing from App Intents.
     public static var shared: AppIntentsPlugin?
 
+    /// Event stream for notifying Dart about pending intent actions.
+    /// Uses a buffer to hold events until Dart starts listening.
+    public static let notifier = PendingActionStreamHandler()
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "app_intents", binaryMessenger: registrar.messenger())
         let instance = AppIntentsPlugin()
         instance.channel = channel
         registrar.addMethodCallDelegate(instance, channel: channel)
+
+        let eventChannel = FlutterEventChannel(name: "app_intents/pending_actions", binaryMessenger: registrar.messenger())
+        eventChannel.setStreamHandler(notifier)
 
         // Store shared instance for App Intents access
         shared = instance
@@ -81,12 +88,11 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         return UserDefaults.standard.object(forKey: "app_intents_cache_\(key)")
     }
 
-    /// Stores a pending intent action and attempts immediate delivery.
+    /// Stores a pending intent action and notifies Dart via EventChannel.
     ///
-    /// If the Flutter MethodChannel is available (app is running),
-    /// delivers the action immediately via `executeIntent`.
-    /// Otherwise, caches to UserDefaults for later retrieval via
-    /// `processPendingActions()`.
+    /// Parameters are cached to UserDefaults, then `notifier.push(identifier)`
+    /// sends an event to Dart. If Dart isn't listening yet, the event is
+    /// buffered and delivered when the stream subscription starts.
     public static func setPendingAction(
         identifier: String,
         params: [String: Any]
@@ -96,26 +102,12 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             "params": params
         ]
 
-        // Always cache as fallback
         if let data = try? JSONSerialization.data(withJSONObject: action) {
             UserDefaults.standard.set(data, forKey: "app_intents_pending_action")
         }
 
-        // Try immediate delivery via MethodChannel
-        DispatchQueue.main.async {
-            shared?.deliverPendingAction()
-        }
-    }
-
-    /// Attempts to deliver the pending action immediately via MethodChannel.
-    private func deliverPendingAction() {
-        guard let channel = channel,
-              let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
-              let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return
-        }
-        UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
-        channel.invokeMethod("executeIntent", arguments: action)
+        // Notify Dart via EventChannel (buffered if Dart isn't listening yet)
+        notifier.push(identifier)
     }
 
     // MARK: - Flutter Bridge Integration
@@ -344,5 +336,42 @@ public enum AppIntentsError: Error, LocalizedError {
         case .entityQueryHandlerNotFound(let entityIdentifier):
             return "No entity query handler registered for: \(entityIdentifier)"
         }
+    }
+}
+
+// MARK: - Pending Action Stream Handler
+
+/// A push-only stream handler that buffers events until Dart listens.
+///
+/// When `push()` is called before Dart subscribes, events are buffered.
+/// Once Dart calls `listen()`, all buffered events are flushed immediately.
+public class PendingActionStreamHandler: NSObject, FlutterStreamHandler {
+    private var sink: FlutterEventSink?
+    private var buffer: [String] = []
+
+    /// Pushes an event to Dart. Buffers if Dart isn't listening yet.
+    public func push(_ value: String) {
+        buffer.append(value)
+        if let sink {
+            flushBuffer(sink)
+        }
+    }
+
+    private func flushBuffer(_ sink: FlutterEventSink) {
+        for item in buffer {
+            sink(item)
+        }
+        buffer = []
+    }
+
+    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        sink = events
+        flushBuffer(events)
+        return nil
+    }
+
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        sink = nil
+        return nil
     }
 }

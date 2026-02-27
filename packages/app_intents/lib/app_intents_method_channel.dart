@@ -23,6 +23,11 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   @visibleForTesting
   final MethodChannel methodChannel = const MethodChannel('app_intents');
 
+  /// The event channel for receiving pending action notifications.
+  @visibleForTesting
+  final EventChannel pendingActionsChannel =
+      const EventChannel('app_intents/pending_actions');
+
   /// Registered intent handlers, keyed by intent identifier.
   final Map<String, IntentHandler> _intentHandlers = {};
 
@@ -166,6 +171,10 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   Future<void> clearCachedValue(String key) async {
     await methodChannel.invokeMethod('clearCachedValue', {'key': key});
   }
+
+  @override
+  Stream<String> get pendingActionsStream =>
+      pendingActionsChannel.receiveBroadcastStream().map((item) => item.toString());
 
   @override
   Future<bool> processPendingActions() async {
