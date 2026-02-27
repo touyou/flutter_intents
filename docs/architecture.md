@@ -302,30 +302,32 @@ struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
     static var description: IntentDescription =
         IntentDescription("Creates a new task")
-    static var openAppWhenRun: Bool = true  // Launch app before execution
+    static var openAppWhenRun: Bool { true }
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create task \(\.$title)")
+    }
 
     @Parameter(title: "Title")
     var title: String
 
-    @Parameter(title: "Due Date")
-    var dueDate: Date?
-
     @MainActor
-    func perform() async throws -> some IntentResult {
-        // Delegate processing to app via URL scheme
-        var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
-        if let dueDate = dueDate {
-            let formatter = ISO8601DateFormatter()
-            urlString += "&dueDate=\(formatter.string(from: dueDate))"
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        var components = URLComponents()
+        components.scheme = "taskapp"
+        components.host = "create"
+        var queryItems = [URLQueryItem]()
+        queryItems.append(URLQueryItem(name: "title", value: String(describing: title)))
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else {
+            throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")
         }
-        if let url = URL(string: urlString) {
-            await UIApplication.shared.open(url)
-        }
-        return .result()
+        await UIApplication.shared.open(url)
+        return .result(dialog: .init("Created task \"\(title)\""))
     }
 }
 
-// Generated AppShortcutsProvider
+// Generated AppShortcutsProvider (result builder pattern, not array literal)
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {

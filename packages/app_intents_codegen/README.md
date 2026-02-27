@@ -10,6 +10,10 @@ Code generator for Flutter App Intents. Produces Swift and Dart code from `@Inte
 - Generate iOS 17+ Swift code for App Intents
 - Generate Dart initialization code for intent handlers
 - Support for `@AppShortcut` and `@AppShortcutsProvider`
+- `ProvidesDialog` for Siri/Shortcuts dialog feedback
+- `ParameterSummary` for Shortcuts UI display
+- `AppEnum` generation for enum parameters
+- Entity `DisplayRepresentation` with SF Symbol image support
 - CLI tool for Swift code generation
 - Integration with `build_runner` for Dart code generation
 

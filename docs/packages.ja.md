@@ -21,6 +21,10 @@ Intentを定義するためのアノテーション。
   title: 'Create Task',              // 表示タイトル
   description: 'Creates a new task', // 説明文
   implementation: IntentImplementation.dart, // 実装言語
+  urlScheme: 'taskapp',              // Intent実行用URLスキーム
+  urlAction: 'create',              // URLホスト/アクション
+  resultDialogTemplate: 'Created task "{title}"', // Siriダイアログフィードバック
+  parameterSummary: 'Create task {title}',        // Shortcuts UI表示
 )
 class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
 ```
@@ -31,6 +35,10 @@ class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
 | title | String | Yes | ユーザー向け表示名 |
 | description | String | No | Intent説明文 |
 | implementation | IntentImplementation | No | 実装言語（デフォルト: dart） |
+| urlScheme | String | No | Intent実行用URLスキーム |
+| urlAction | String | No | URLホスト/アクションパス |
+| resultDialogTemplate | String | No | ダイアログテンプレート（例: `'Created "{title}"'`） |
+| parameterSummary | String | No | Shortcuts UIサマリー（例: `'Create {title}'`） |
 
 #### IntentImplementation
 
@@ -64,6 +72,8 @@ class MyIntentSpec extends IntentSpecBase<Input, Output> {
 | title | String | Yes | パラメータ表示名 |
 | description | String | No | パラメータ説明 |
 | isOptional | bool | No | 任意パラメータか（デフォルト: false） |
+| entityType | Type | No | ピッカー用エンティティ型 |
+| enumType | Type | No | 選択式AppEnum型 |
 
 #### IntentSpecBase
 
@@ -153,6 +163,37 @@ abstract class EntitySpecBase<M> {
 class TaskEntitySpec extends EntitySpecBase<Task> {}
 ```
 
+### Enum関連
+
+#### EnumSpec
+
+AppEnumを定義するためのアノテーション。
+
+```dart
+@EnumSpec(title: 'Priority')
+enum TaskPriority {
+  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  high,
+  @EnumCaseDisplay(title: 'Medium')
+  medium,
+  @EnumCaseDisplay(title: 'Low')
+  low,
+}
+```
+
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| title | String | Yes | 列挙型の表示名 |
+
+#### EnumCaseDisplay
+
+列挙型ケースの表示プロパティを定義するアノテーション。
+
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| title | String | Yes | ケース表示名 |
+| subtitle | String | No | ケースサブタイトル |
+
 ### ファイル構成
 
 ```
@@ -164,7 +205,8 @@ app_intents_annotations/
 │       │   ├── intent_spec.dart      # IntentSpec, IntentImplementation
 │       │   ├── intent_param.dart     # IntentParam
 │       │   ├── entity_spec.dart      # EntitySpec
-│       │   └── entity_params.dart    # Entity*アノテーション
+│       │   ├── entity_params.dart    # Entity*アノテーション
+│       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
 │       └── bases/
 │           ├── intent_spec_base.dart # IntentSpecBase<I,O>
 │           └── entity_spec_base.dart # EntitySpecBase<M>
@@ -334,10 +376,12 @@ Dartアノテーションからコードを生成するツール。
 ### 実装済み機能
 
 1. **Swiftコード生成** ✅
-   - AppIntent準拠型の生成
-   - AppEntity準拠型の生成
-   - EntityQueryの生成
-   - AppShortcutsProviderの生成
+   - AppIntent準拠型の生成（`ProvidesDialog`、`ParameterSummary` 対応）
+   - AppEntity準拠型の生成（SF Symbol画像付き `DisplayRepresentation`）
+   - AppEnum準拠型の生成（`typeDisplayRepresentation`、`caseDisplayRepresentations`）
+   - EntityQueryの生成（FlutterBridgeバック）
+   - AppShortcutsProviderの生成（result builderパターン）
+   - 適切なエラーハンドリング（URL構築失敗時に `throw`）
 
 2. **Dartバインディング生成** ✅
    - Intent Handler登録コード（part file形式）
@@ -396,14 +440,19 @@ app_intents_codegen/
 │   └── src/
 │       ├── analyzer/               # アノテーション解析
 │       │   ├── intent_analyzer.dart
-│       │   └── entity_analyzer.dart
+│       │   ├── entity_analyzer.dart
+│       │   └── enum_analyzer.dart
 │       ├── generator/              # コード生成
 │       │   ├── swift_generator.dart
 │       │   └── dart_generator.dart
+│       ├── models/                 # データモデル
+│       │   ├── intent_info.dart
+│       │   ├── entity_info.dart
+│       │   └── enum_info.dart
 │       └── builder.dart            # build_runner統合
 ├── bin/
 │   └── generate_swift.dart         # CLIコマンド
-└── test/                           # 70+テスト
+└── test/                           # 114テスト
 ```
 
 ---

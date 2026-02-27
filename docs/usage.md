@@ -333,8 +333,14 @@ import UIKit
 @available(iOS 17.0, *)
 struct CreateTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
-    static var description = IntentDescription("Create a new task in your task list")
-    static var openAppWhenRun: Bool = true  // Ensures app launches
+    static var description: IntentDescription =
+        IntentDescription("Create a new task in your task list")
+    static var openAppWhenRun: Bool { true }
+
+    // ParameterSummary: Controls how the intent appears in Shortcuts UI
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create task \(\.$title)")
+    }
 
     @Parameter(title: "Task Title", description: "The title of the task")
     var title: String
@@ -343,22 +349,84 @@ struct CreateTaskIntent: AppIntent {
     var dueDate: Date?
 
     @MainActor
-    func perform() async throws -> some IntentResult {
-        // Delegate processing to Flutter app via URL scheme
-        var urlString = "taskapp://create?title=\(title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title)"
-        if let dueDate = dueDate {
-            let formatter = ISO8601DateFormatter()
-            urlString += "&dueDate=\(formatter.string(from: dueDate))"
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        var components = URLComponents()
+        components.scheme = "taskapp"
+        components.host = "create"
+        var queryItems = [URLQueryItem]()
+        queryItems.append(URLQueryItem(name: "title", value: String(describing: title)))
+        if let dueDate {
+            queryItems.append(URLQueryItem(name: "dueDate", value: ISO8601DateFormatter().string(from: dueDate)))
         }
-        if let url = URL(string: urlString) {
-            await UIApplication.shared.open(url)
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else {
+            throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")
         }
-        return .result()
+        await UIApplication.shared.open(url)
+        // ProvidesDialog: Shows feedback in Siri/Shortcuts
+        return .result(dialog: .init("Created task \"\(title)\""))
     }
 }
 ```
 
 > **Note**: URL scheme is used because App Intents may run in an isolated iOS process, making direct MethodChannel calls impossible. URL scheme ensures the app is fully launched before Flutter-side processing.
+
+### New in v0.2.0
+
+#### Result Dialog Template
+
+Show feedback to users in Siri/Shortcuts after intent execution:
+
+```dart
+@IntentSpec(
+  identifier: 'CreateTaskIntent',
+  title: 'Create Task',
+  urlScheme: 'taskapp',
+  urlAction: 'create',
+  resultDialogTemplate: 'Created task "{title}"',  // Siri shows this message
+)
+```
+
+The `{paramName}` placeholders are replaced with actual parameter values in the generated Swift code. This generates `some IntentResult & ProvidesDialog` as the return type.
+
+#### Parameter Summary
+
+Control how the intent appears in the Shortcuts editor:
+
+```dart
+@IntentSpec(
+  identifier: 'CreateTaskIntent',
+  title: 'Create Task',
+  parameterSummary: 'Create task {title}',  // Shown in Shortcuts UI
+)
+```
+
+The `{paramName}` placeholders become `\(\.$paramName)` in the generated Swift `ParameterSummary`.
+
+#### AppEnum Support
+
+Define enum parameters for selection-based inputs:
+
+```dart
+@EnumSpec(title: 'Priority')
+enum TaskPriority {
+  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  high,
+  @EnumCaseDisplay(title: 'Medium')
+  medium,
+  @EnumCaseDisplay(title: 'Low')
+  low,
+}
+```
+
+Use with `@IntentParam`:
+
+```dart
+@IntentParam(title: 'Priority', enumType: TaskPriority)
+final TaskPriority priority;
+```
+
+This generates a Swift `AppEnum` with proper `typeDisplayRepresentation` and `caseDisplayRepresentations`.
 
 ## Deep Link Handling (Flutter Side)
 

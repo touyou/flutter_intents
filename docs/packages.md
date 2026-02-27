@@ -21,6 +21,10 @@ Annotation for defining an Intent.
   title: 'Create Task',              // Display title
   description: 'Creates a new task', // Description
   implementation: IntentImplementation.dart, // Implementation language
+  urlScheme: 'taskapp',              // URL scheme for intent execution
+  urlAction: 'create',              // URL host/action
+  resultDialogTemplate: 'Created task "{title}"', // Siri dialog feedback
+  parameterSummary: 'Create task {title}',        // Shortcuts UI display
 )
 class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
 ```
@@ -31,6 +35,10 @@ class CreateTaskIntentSpec extends IntentSpecBase<Input, Output> {}
 | title | String | Yes | User-facing display name |
 | description | String | No | Intent description |
 | implementation | IntentImplementation | No | Implementation language (default: dart) |
+| urlScheme | String | No | URL scheme for intent execution |
+| urlAction | String | No | URL host/action path |
+| resultDialogTemplate | String | No | Dialog feedback template (e.g., `'Created "{title}"'`) |
+| parameterSummary | String | No | Shortcuts UI summary (e.g., `'Create {title}'`) |
 
 #### IntentImplementation
 
@@ -64,6 +72,8 @@ class MyIntentSpec extends IntentSpecBase<Input, Output> {
 | title | String | Yes | Parameter display name |
 | description | String | No | Parameter description |
 | isOptional | bool | No | Whether optional (default: false) |
+| entityType | Type | No | Entity type for picker parameters |
+| enumType | Type | No | AppEnum type for selection parameters |
 
 #### IntentSpecBase
 
@@ -153,6 +163,37 @@ abstract class EntitySpecBase<M> {
 class TaskEntitySpec extends EntitySpecBase<Task> {}
 ```
 
+### Enum Related
+
+#### EnumSpec
+
+Annotation for defining an AppEnum.
+
+```dart
+@EnumSpec(title: 'Priority')
+enum TaskPriority {
+  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  high,
+  @EnumCaseDisplay(title: 'Medium')
+  medium,
+  @EnumCaseDisplay(title: 'Low')
+  low,
+}
+```
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| title | String | Yes | Enum type display name |
+
+#### EnumCaseDisplay
+
+Annotation for defining display properties of enum cases.
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| title | String | Yes | Case display name |
+| subtitle | String | No | Case subtitle |
+
 ### File Structure
 
 ```
@@ -164,7 +205,8 @@ app_intents_annotations/
 │       │   ├── intent_spec.dart      # IntentSpec, IntentImplementation
 │       │   ├── intent_param.dart     # IntentParam
 │       │   ├── entity_spec.dart      # EntitySpec
-│       │   └── entity_params.dart    # Entity* annotations
+│       │   ├── entity_params.dart    # Entity* annotations
+│       │   └── enum_spec.dart        # EnumSpec, EnumCaseDisplay
 │       └── bases/
 │           ├── intent_spec_base.dart # IntentSpecBase<I,O>
 │           └── entity_spec_base.dart # EntitySpecBase<M>
@@ -334,10 +376,12 @@ Tool for generating code from Dart annotations.
 ### Implemented Features
 
 1. **Swift Code Generation** ✅
-   - AppIntent conforming types
-   - AppEntity conforming types
-   - EntityQuery generation
-   - AppShortcutsProvider generation
+   - AppIntent conforming types with `ProvidesDialog` and `ParameterSummary`
+   - AppEntity conforming types with SF Symbol image in `DisplayRepresentation`
+   - AppEnum conforming types with `typeDisplayRepresentation` and `caseDisplayRepresentations`
+   - EntityQuery generation (FlutterBridge-backed)
+   - AppShortcutsProvider generation (result builder pattern)
+   - Proper error handling (`throw` on URL construction failure)
 
 2. **Dart Binding Generation** ✅
    - Intent Handler registration code (part file format)
@@ -396,14 +440,19 @@ app_intents_codegen/
 │   └── src/
 │       ├── analyzer/               # Annotation analysis
 │       │   ├── intent_analyzer.dart
-│       │   └── entity_analyzer.dart
+│       │   ├── entity_analyzer.dart
+│       │   └── enum_analyzer.dart
 │       ├── generator/              # Code generation
 │       │   ├── swift_generator.dart
 │       │   └── dart_generator.dart
+│       ├── models/                 # Data models
+│       │   ├── intent_info.dart
+│       │   ├── entity_info.dart
+│       │   └── enum_info.dart
 │       └── builder.dart            # build_runner integration
 ├── bin/
 │   └── generate_swift.dart         # CLI command
-└── test/                           # 70+ tests
+└── test/                           # 114 tests
 ```
 
 ---

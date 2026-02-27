@@ -91,14 +91,16 @@ class TaskShortcutsProvider {
 
 | Annotation | Description |
 |------------|-------------|
-| `@IntentSpec` | Marks a class as an App Intent definition |
-| `@IntentParam` | Marks a field as an intent parameter |
+| `@IntentSpec` | Marks a class as an App Intent definition (with `resultDialogTemplate`, `parameterSummary`) |
+| `@IntentParam` | Marks a field as an intent parameter (with `entityType`, `enumType`) |
 | `@EntitySpec` | Marks a class as an App Entity definition |
 | `@EntityId` | Marks a method as returning the entity ID |
 | `@EntityTitle` | Marks a method as returning the entity title |
 | `@EntitySubtitle` | Marks a method as returning the entity subtitle |
 | `@EntityImage` | Marks a method as returning the entity image |
 | `@EntityDefaultQuery` | Marks a method as the default query provider |
+| `@EnumSpec` | Marks an enum as an AppEnum definition |
+| `@EnumCaseDisplay` | Defines display properties for an enum case |
 | `@AppShortcut` | Defines a shortcut phrase for an intent |
 | `@AppShortcutsProvider` | Marks a class as providing app shortcuts |
 

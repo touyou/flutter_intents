@@ -332,7 +332,9 @@ cd packages/app_intents && flutter analyze
 
 ## Generated Swift Code Example
 
-The codegen produces Swift with URL scheme execution (when `urlScheme` is set):
+The codegen produces Swift with URL scheme execution (when `urlScheme` is set).
+Features: `ProvidesDialog` for Siri feedback, `ParameterSummary` for Shortcuts UI,
+and proper error handling on URL construction failure.
 
 ```swift
 import AppIntents
@@ -341,22 +343,31 @@ import UIKit
 @available(iOS 17.0, *)
 struct CreateTaskIntentSpec: AppIntent {
     static var title: LocalizedStringResource = "Create Task"
+    static var description: IntentDescription =
+        IntentDescription("Create a new task in your task list")
+
     static var openAppWhenRun: Bool { true }
 
-    @Parameter(title: "Title")
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create task \(\.$title)")
+    }
+
+    @Parameter(title: "Title", description: "The title of the task")
     var title: String
 
     @MainActor
-    func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         var components = URLComponents()
         components.scheme = "taskapp"
         components.host = "create"
         var queryItems = [URLQueryItem]()
         queryItems.append(URLQueryItem(name: "title", value: String(describing: title)))
         if !queryItems.isEmpty { components.queryItems = queryItems }
-        guard let url = components.url else { return .result() }
+        guard let url = components.url else {
+            throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")
+        }
         await UIApplication.shared.open(url)
-        return .result()
+        return .result(dialog: .init("Created task \"\(title)\""))
     }
 }
 ```
