@@ -3,7 +3,7 @@ import UIKit
 import app_intents
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   /// Flag to track if executors have been set up
   private static var executorsConfigured = false
 
@@ -19,6 +19,15 @@ import app_intents
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    // Wire FlutterBridge to AppIntentsPlugin for intent execution
+    if #available(iOS 16.0, *) {
+      Self.setupFlutterBridgeExecutorsIfNeeded()
+    }
   }
 
   @available(iOS 16.0, *)
