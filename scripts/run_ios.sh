@@ -56,24 +56,20 @@ echo ""
 cd "$APP_DIR"
 
 # Step 1: Flutter pub get
-echo -e "${YELLOW}[1/5] Getting Flutter dependencies...${NC}"
+echo -e "${YELLOW}[1/4] Getting Flutter dependencies...${NC}"
 flutter pub get
 
 # Step 2: Run build_runner for Dart code generation
-echo -e "${YELLOW}[2/5] Running build_runner...${NC}"
+echo -e "${YELLOW}[2/4] Running build_runner...${NC}"
 dart run build_runner build --delete-conflicting-outputs
 
 # Step 3: Generate Swift code
-echo -e "${YELLOW}[3/5] Generating Swift code...${NC}"
+echo -e "${YELLOW}[3/4] Generating Swift code...${NC}"
 dart run app_intents_codegen:generate_swift
 
-# Step 4: Pod install (if needed)
-echo -e "${YELLOW}[4/5] Installing CocoaPods dependencies...${NC}"
-cd ios && pod install --silent && cd ..
-
-# Step 5: Build/Run
+# Step 4: Build/Run
 if [ "$RUN_APP" = true ]; then
-    echo -e "${YELLOW}[5/5] Building and running on iOS...${NC}"
+    echo -e "${YELLOW}[4/4] Building and running on iOS...${NC}"
 
     # Find device if not specified
     if [ -z "$DEVICE_ID" ]; then
@@ -105,7 +101,7 @@ if [ "$RUN_APP" = true ]; then
         flutter run -d "$DEVICE_ID"
     fi
 else
-    echo -e "${YELLOW}[5/5] Building iOS app...${NC}"
+    echo -e "${YELLOW}[4/4] Building iOS app...${NC}"
     if [ "$BUILD_MODE" = "release" ]; then
         flutter build ios --no-codesign
     else
