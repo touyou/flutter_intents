@@ -1,6 +1,5 @@
 // ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/entity_info.dart';
@@ -62,8 +61,23 @@ class EntityAnalyzer {
     final enumerable =
         annotation.getField('enumerable')?.toBoolValue() ?? false;
 
-    if (identifier == null || title == null || pluralTitle == null) {
-      return null;
+    if (identifier == null) {
+      throw InvalidGenerationSourceError(
+        '@EntitySpec requires an "identifier" field.',
+        element: element,
+      );
+    }
+    if (title == null) {
+      throw InvalidGenerationSourceError(
+        '@EntitySpec requires a "title" field.',
+        element: element,
+      );
+    }
+    if (pluralTitle == null) {
+      throw InvalidGenerationSourceError(
+        '@EntitySpec requires a "pluralTitle" field.',
+        element: element,
+      );
     }
 
     final modelType = _extractModelType(element);
@@ -88,15 +102,11 @@ class EntityAnalyzer {
       if (_entitySpecBaseChecker.isExactlyType(supertype)) {
         final typeArgs = supertype.typeArguments;
         if (typeArgs.isNotEmpty) {
-          return _formatType(typeArgs[0]);
+          return typeArgs[0].getDisplayString();
         }
       }
     }
     return null;
-  }
-
-  String _formatType(DartType type) {
-    return type.getDisplayString();
   }
 
   List<EntityPropertyInfo> _extractProperties(ClassElement element) {

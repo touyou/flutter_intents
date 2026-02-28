@@ -77,7 +77,13 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// Handles intent execution requests from iOS.
   Future<Map<String, dynamic>> _onExecuteIntent(
       Map<Object?, Object?> arguments) async {
-    final identifier = arguments['identifier'] as String;
+    final identifier = arguments['identifier'] as String?;
+    if (identifier == null) {
+      throw PlatformException(
+        code: 'INVALID_ARGS',
+        message: 'identifier is required',
+      );
+    }
     final params = _convertToStringDynamicMap(arguments['params']);
     return _emitAndExecute(identifier, params);
   }
@@ -97,10 +103,17 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// Handles entity query requests from iOS.
   Future<List<Map<String, dynamic>>> _onQueryEntities(
       Map<Object?, Object?> arguments) async {
-    final entityIdentifier = arguments['entityIdentifier'] as String;
-    final identifiers = (arguments['identifiers'] as List<Object?>)
-        .cast<String>()
-        .toList();
+    final entityIdentifier = arguments['entityIdentifier'] as String?;
+    if (entityIdentifier == null) {
+      throw PlatformException(
+        code: 'INVALID_ARGS',
+        message: 'entityIdentifier is required',
+      );
+    }
+    final identifiers = (arguments['identifiers'] as List?)
+            ?.whereType<String>()
+            .toList() ??
+        <String>[];
 
     return handleEntityQuery(entityIdentifier, identifiers);
   }
@@ -108,7 +121,13 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// Handles suggested entities requests from iOS.
   Future<List<Map<String, dynamic>>> _onGetSuggestedEntities(
       Map<Object?, Object?> arguments) async {
-    final entityIdentifier = arguments['entityIdentifier'] as String;
+    final entityIdentifier = arguments['entityIdentifier'] as String?;
+    if (entityIdentifier == null) {
+      throw PlatformException(
+        code: 'INVALID_ARGS',
+        message: 'entityIdentifier is required',
+      );
+    }
 
     return handleSuggestedEntitiesQuery(entityIdentifier);
   }
@@ -186,14 +205,20 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   @override
   Future<bool> processPendingActions() async {
-    final result =
-        await methodChannel.invokeMethod<Map>('processPendingActions');
-    if (result == null) return false;
+    var processed = false;
+    while (true) {
+      final result =
+          await methodChannel.invokeMethod<Map>('processPendingActions');
+      if (result == null) break;
 
-    final identifier = result['identifier'] as String;
-    final params = _convertToStringDynamicMap(result['params']);
-    await _emitAndExecute(identifier, params);
-    return true;
+      final identifier = result['identifier'] as String?;
+      if (identifier == null) break;
+
+      final params = _convertToStringDynamicMap(result['params']);
+      await _emitAndExecute(identifier, params);
+      processed = true;
+    }
+    return processed;
   }
 
   /// Executes the registered handler for the given intent.
@@ -219,10 +244,11 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       return await handler(params);
     } catch (e) {
       if (e is AppIntentError) rethrow;
+      debugPrint('Intent execution error for $identifier: $e');
       throw AppIntentError(
         code: 'execution_error',
-        message: 'Error executing intent: $e',
-        details: {'identifier': identifier, 'error': e.toString()},
+        message: 'An error occurred while executing the intent.',
+        details: {'identifier': identifier},
       );
     }
   }
@@ -250,10 +276,11 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       return await handler(identifiers);
     } catch (e) {
       if (e is AppIntentError) rethrow;
+      debugPrint('Entity query error for $entityIdentifier: $e');
       throw AppIntentError(
         code: 'query_error',
-        message: 'Error querying entities: $e',
-        details: {'entityIdentifier': entityIdentifier, 'error': e.toString()},
+        message: 'An error occurred while querying entities.',
+        details: {'entityIdentifier': entityIdentifier},
       );
     }
   }
@@ -281,10 +308,11 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       return await handler();
     } catch (e) {
       if (e is AppIntentError) rethrow;
+      debugPrint('Suggested entities error for $entityIdentifier: $e');
       throw AppIntentError(
         code: 'query_error',
-        message: 'Error getting suggested entities: $e',
-        details: {'entityIdentifier': entityIdentifier, 'error': e.toString()},
+        message: 'An error occurred while getting suggested entities.',
+        details: {'entityIdentifier': entityIdentifier},
       );
     }
   }

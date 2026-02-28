@@ -40,11 +40,11 @@ class KotlinGenerator {
     return parts.last;
   }
 
-  /// Converts a Dart enum case name to UPPER_SNAKE_CASE for Kotlin.
+  /// Converts a camelCase name to UPPER_SNAKE_CASE for Kotlin.
   String _toUpperSnakeCase(String name) {
     return name.replaceAllMapped(
-      RegExp(r'[A-Z]'),
-      (match) => '_${match.group(0)}',
+      RegExp(r'(?<=[a-z0-9])([A-Z])'),
+      (match) => '_${match.group(1)}',
     ).toUpperCase();
   }
 

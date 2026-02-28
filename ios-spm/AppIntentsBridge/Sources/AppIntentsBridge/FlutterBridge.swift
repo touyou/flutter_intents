@@ -36,6 +36,17 @@ public actor FlutterBridge {
     /// Private initializer to enforce singleton pattern
     private init() {}
 
+    /// Clears all registered executors.
+    ///
+    /// Call this when the Flutter engine is torn down (e.g., in
+    /// `detachFromEngineForRegistrar`) to prevent stale closures from
+    /// being invoked after a hot restart.
+    public func clearExecutors() {
+        intentExecutor = nil
+        entityQueryExecutor = nil
+        suggestedEntitiesExecutor = nil
+    }
+
     /// Sets the intent executor that handles communication with Flutter.
     ///
     /// This should be called during app initialization to wire FlutterBridge

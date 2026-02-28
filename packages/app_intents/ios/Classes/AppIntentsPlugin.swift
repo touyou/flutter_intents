@@ -62,21 +62,35 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         return key
     }
 
-    /// Reads and removes the pending action from UserDefaults, returning it if present.
+    /// Key for the pending actions queue in UserDefaults.
+    private static let pendingActionsKey = "app_intents_pending_actions"
+
+    /// Reads and removes the first pending action from the queue, returning it if present.
     private static func consumePendingAction() -> [String: Any]? {
-        guard let data = UserDefaults.standard.data(forKey: "app_intents_pending_action"),
-              let action = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard var pending = UserDefaults.standard.array(forKey: pendingActionsKey) as? [Data],
+              !pending.isEmpty else {
             return nil
         }
-        UserDefaults.standard.removeObject(forKey: "app_intents_pending_action")
-        return action
+        let data = pending.removeFirst()
+        if pending.isEmpty {
+            UserDefaults.standard.removeObject(forKey: pendingActionsKey)
+        } else {
+            UserDefaults.standard.set(pending, forKey: pendingActionsKey)
+        }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
     // MARK: - Caching API
 
+    /// Bundle-ID-qualified prefix for cache keys to avoid namespace collisions.
+    private static let cachePrefix: String = {
+        let bundleId = Bundle.main.bundleIdentifier ?? "app_intents"
+        return "app_intents.\(bundleId).cache."
+    }()
+
     /// Caches a value for later retrieval.
     public static func setCached(_ value: Any?, forKey key: String) {
-        let prefixedKey = "app_intents_cache_\(key)"
+        let prefixedKey = "\(cachePrefix)\(key)"
         if let value {
             UserDefaults.standard.set(value, forKey: prefixedKey)
         } else {
@@ -86,7 +100,7 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
 
     /// Retrieves a cached value.
     public static func getCached(forKey key: String) -> Any? {
-        return UserDefaults.standard.object(forKey: "app_intents_cache_\(key)")
+        return UserDefaults.standard.object(forKey: "\(cachePrefix)\(key)")
     }
 
     /// Stores a pending intent action and notifies Dart via EventChannel.
@@ -104,7 +118,9 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         ]
 
         if let data = try? JSONSerialization.data(withJSONObject: action) {
-            UserDefaults.standard.set(data, forKey: "app_intents_pending_action")
+            var pending = (UserDefaults.standard.array(forKey: pendingActionsKey) as? [Data]) ?? []
+            pending.append(data)
+            UserDefaults.standard.set(pending, forKey: pendingActionsKey)
         }
 
         // Notify Dart via EventChannel (buffered if Dart isn't listening yet)

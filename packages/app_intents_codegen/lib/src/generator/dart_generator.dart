@@ -109,7 +109,7 @@ class DartGenerator {
     var hasRequiredFileParam = false;
 
     for (final param in intent.parameters) {
-      final isNullable = param.dartType.endsWith('?') || param.isOptional;
+      final isNullable = _isNullableParam(param);
 
       // Fields
       fields.writeln('  final ${param.dartType} ${param.fieldName};');
@@ -160,7 +160,7 @@ $fromMapParams    );
 
   /// Builds extraction code for fromMap factory.
   String _buildFromMapExtraction(IntentParamInfo param) {
-    final isNullable = param.dartType.endsWith('?') || param.isOptional;
+    final isNullable = _isNullableParam(param);
     final baseType = param.dartType.replaceAll('?', '');
 
     if (baseType == 'DateTime') {
@@ -194,7 +194,7 @@ $fromMapParams    );
 
   /// Builds extraction code for fromQueryParameters factory.
   String _buildFromQueryExtraction(IntentParamInfo param) {
-    final isNullable = param.dartType.endsWith('?') || param.isOptional;
+    final isNullable = _isNullableParam(param);
     final baseType = param.dartType.replaceAll('?', '');
 
     // IntentFile can't be sent through URL scheme
@@ -367,6 +367,10 @@ AppIntents().registerSuggestedEntitiesHandler(
 ''');
   }
 
+  /// Whether a parameter should be treated as nullable.
+  bool _isNullableParam(IntentParamInfo param) =>
+      param.dartType.endsWith('?') || param.isOptional;
+
   /// Converts a PascalCase string to camelCase.
   String _toCamelCase(String pascalCase) {
     if (pascalCase.isEmpty) return pascalCase;
@@ -388,21 +392,14 @@ AppIntents().registerSuggestedEntitiesHandler(
     return name[0].toUpperCase() + name.substring(1);
   }
 
-  /// Removes common suffixes from class names for cleaner handler names.
+  /// Removes the `Spec` suffix from class names for cleaner handler names.
+  ///
+  /// e.g., `CreateTaskIntentSpec` → `CreateTaskIntent`,
+  ///       `TaskEntitySpec` → `TaskEntity`.
   String _cleanClassName(String className) {
-    final suffixes = ['Spec', 'Intent', 'Entity'];
-    var result = className;
-    for (final suffix in suffixes) {
-      if (result.endsWith(suffix) && result.length > suffix.length) {
-        result = result.substring(0, result.length - suffix.length);
-      }
+    if (className.endsWith('Spec') && className.length > 'Spec'.length) {
+      return className.substring(0, className.length - 'Spec'.length);
     }
-    // Re-add Intent/Entity for clarity
-    if (className.contains('Intent')) {
-      result = '${result}Intent';
-    } else if (className.contains('Entity')) {
-      result = '${result}Entity';
-    }
-    return result;
+    return className;
   }
 }

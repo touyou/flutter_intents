@@ -1,3 +1,7 @@
+## 0.6.2
+
+- No API changes; version bump to align with codegen/plugin packages
+
 ## 0.6.1
 
 - Documentation fixes: correct outdated code examples and API references

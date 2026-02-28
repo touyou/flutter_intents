@@ -193,6 +193,26 @@ class SwiftGenerator {
     }
   }
 
+  /// Writes cleanup code for temp files created by [_writeFileParamSerialization].
+  ///
+  /// Only emitted in FlutterBridge mode where the file is consumed synchronously.
+  /// In cache mode, Dart is responsible for cleanup after reading.
+  void _writeFileParamCleanup(StringBuffer buffer, IntentInfo info, String indent) {
+    final fileParams = info.parameters.where((p) => p.fileType != null);
+    if (fileParams.isEmpty) return;
+
+    for (final param in fileParams) {
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+      if (isNullable) {
+        buffer.writeln('${indent}if let path = ${param.fieldName}FileInfo?["path"] as? String {');
+        buffer.writeln('$indent${_indent}try? FileManager.default.removeItem(atPath: path)');
+        buffer.writeln('$indent}');
+      } else {
+        buffer.writeln('${indent}try? FileManager.default.removeItem(at: ${param.fieldName}TempUrl)');
+      }
+    }
+  }
+
   /// Whether the given intent has any file type parameters.
   bool _hasFileParams(IntentInfo info) {
     return info.parameters.any((p) => p.fileType != null);
@@ -288,6 +308,9 @@ class SwiftGenerator {
       buffer.writeln('$indent2$_indent]');
       buffer.writeln('$indent2)');
     }
+
+    // Clean up temp files after FlutterBridge invoke completes
+    _writeFileParamCleanup(buffer, info, indent2);
 
     _writeReturnResult(buffer, info, indent2);
     buffer.writeln('$_indent}');
@@ -527,7 +550,7 @@ class SwiftGenerator {
           '$_indent${_indent}return DisplayRepresentation(${fallbackArgs.join(', ')})');
     } else {
       buffer.writeln(
-          '$_indent${_indent}DisplayRepresentation(${args.join(', ')})');
+          '$_indent${_indent}return DisplayRepresentation(${args.join(', ')})');
     }
 
     buffer.writeln('$_indent}');
@@ -658,34 +681,9 @@ class SwiftGenerator {
   /// - Static `appShortcuts` property with all configured shortcuts
   String generateAppShortcutsProvider(List<AppShortcutInfo> shortcuts) {
     final buffer = StringBuffer();
-
-    // Import statement
     buffer.writeln('import AppIntents');
     buffer.writeln();
-
-    // Availability and struct declaration
-    buffer.writeln('@available(iOS 17.0, *)');
-    buffer.writeln('struct AppShortcuts: AppShortcutsProvider {');
-    buffer.writeln('${_indent}static var appShortcuts: [AppShortcut] {');
-
-    for (final shortcut in shortcuts) {
-      buffer.writeln('$_indent${_indent}AppShortcut(');
-      buffer.writeln('$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
-      buffer.writeln('$_indent$_indent${_indent}phrases: [');
-      for (var j = 0; j < shortcut.phrases.length; j++) {
-        final phraseComma = j < shortcut.phrases.length - 1 ? ',' : '';
-        final swiftPhrase = _convertPhraseToSwift(shortcut.phrases[j]);
-        buffer.writeln('$_indent$_indent$_indent$_indent"$swiftPhrase"$phraseComma');
-      }
-      buffer.writeln('$_indent$_indent$_indent],');
-      buffer.writeln('$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
-      buffer.writeln('$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
-      buffer.writeln('$_indent$_indent)');
-    }
-
-    buffer.writeln('$_indent}');
-    buffer.writeln('}');
-
+    buffer.write(_generateShortcutsProviderBody(shortcuts));
     return buffer.toString();
   }
 
@@ -726,9 +724,8 @@ class SwiftGenerator {
 
     // Generate intents (without individual imports)
     for (final intent in intents) {
-      final intentBuffer = StringBuffer();
-      _generateIntentBody(intentBuffer, intent);
-      buffer.writeln(intentBuffer.toString());
+      _generateIntentBody(buffer, intent);
+      buffer.writeln();
       buffer.writeln();
     }
 

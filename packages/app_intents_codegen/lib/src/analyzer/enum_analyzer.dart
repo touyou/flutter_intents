@@ -32,7 +32,18 @@ class EnumAnalyzer {
     final identifier = annotation.getField('identifier')?.toStringValue();
     final title = annotation.getField('title')?.toStringValue();
 
-    if (identifier == null || title == null) return null;
+    if (identifier == null) {
+      throw InvalidGenerationSourceError(
+        '@EnumSpec requires an "identifier" field.',
+        element: element,
+      );
+    }
+    if (title == null) {
+      throw InvalidGenerationSourceError(
+        '@EnumSpec requires a "title" field.',
+        element: element,
+      );
+    }
 
     final cases = _extractCases(element);
 
@@ -68,7 +79,10 @@ class EnumAnalyzer {
     return cases;
   }
 
-  /// Converts camelCase to capitalized display title.
+  /// Capitalizes the first letter of the name as a fallback display title.
+  ///
+  /// Note: Does not insert spaces between camelCase words.
+  /// Use `@EnumCaseDisplay(title: ...)` for proper multi-word display titles.
   String _toDisplayTitle(String name) {
     if (name.isEmpty) return name;
     return name[0].toUpperCase() + name.substring(1);

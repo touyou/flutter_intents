@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 
@@ -59,14 +60,14 @@ class ShortcutAnalyzer {
     return shortcuts;
   }
 
-  List<String> _extractPhrases(dynamic phrasesField) {
+  List<String> _extractPhrases(DartObject? phrasesField) {
     if (phrasesField == null) return [];
 
     final list = phrasesField.toListValue();
     if (list == null) return [];
 
     return list
-        .map((e) => e?.toStringValue())
+        .map((e) => e.toStringValue())
         .whereType<String>()
         .toList();
   }

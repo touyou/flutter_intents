@@ -1,3 +1,17 @@
+## 0.6.2
+
+- Fix: `_toUpperSnakeCase` no longer prepends underscore to uppercase-starting enum names in KotlinGenerator
+- Fix: Add missing `return` keyword in `displayRepresentation` for entities without nullable image
+- Fix: Deduplicate `generateAppShortcutsProvider` / `_generateShortcutsProviderBody` in SwiftGenerator
+- Fix: Simplify `_cleanClassName` to single-pass `Spec` suffix removal
+- Fix: Extract `_isNullableParam` helper to eliminate triple-computation in DartGenerator
+- Fix: Remove unnecessary intermediate `StringBuffer` in `generateAll`
+- Fix: Add temp file cleanup in generated Swift code for FlutterBridge execution mode
+- Improve: Analyzer error reporting — `InvalidGenerationSourceError` instead of silent null for missing required fields
+- Improve: Fix `_toDisplayTitle` docstring accuracy in EnumAnalyzer
+- Improve: Inline `_formatType` dead abstraction in EntityAnalyzer
+- Improve: Type `_extractPhrases` parameter as `DartObject?` instead of `dynamic` in ShortcutAnalyzer
+
 ## 0.6.1
 
 - Fix: Map `IntentFile`/`IntentFile?` to `String`/`String?` in KotlinGenerator for KSP compatibility (#11)

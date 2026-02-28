@@ -1,3 +1,12 @@
+## 0.6.2
+
+- Fix: Safe casts for all MethodChannel input — prevents crash on malformed native data
+- Fix: Pending actions now use a queue (array) instead of single slot — no more silent drops on concurrent intents
+- Fix: `processPendingActions()` now processes all queued actions in a loop
+- Fix: Sanitize error messages across trust boundary — internal exception details no longer leak to native side
+- Fix: Add bundle-ID-qualified prefix for UserDefaults cache keys to avoid namespace collisions
+- Add: `FlutterBridge.clearExecutors()` for invalidating stale executors after Flutter engine restart
+
 ## 0.6.1
 
 - Documentation fixes: correct outdated code examples and API references

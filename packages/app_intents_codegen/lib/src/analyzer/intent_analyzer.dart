@@ -46,8 +46,17 @@ class IntentAnalyzer {
     final supportedModes = _parseSupportedModes(
         annotation.getField('supportedModes'));
 
-    if (identifier == null || title == null) {
-      return null;
+    if (identifier == null) {
+      throw InvalidGenerationSourceError(
+        '@IntentSpec requires an "identifier" field.',
+        element: element,
+      );
+    }
+    if (title == null) {
+      throw InvalidGenerationSourceError(
+        '@IntentSpec requires a "title" field.',
+        element: element,
+      );
     }
 
     final parameters = _extractParameters(element);
