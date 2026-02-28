@@ -118,24 +118,6 @@ if #available(iOS 17.0, *) {
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-// Input model
-class CreateTaskInput {
-  final String title;
-  final DateTime? dueDate;
-
-  CreateTaskInput({required this.title, this.dueDate});
-}
-
-// Output model
-class Task {
-  final String id;
-  final String title;
-  final DateTime? dueDate;
-
-  Task({required this.id, required this.title, this.dueDate});
-}
-
-// Intent definition
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
@@ -188,6 +170,19 @@ Use for iOS-specific APIs or performance-critical operations:
   implementation: IntentImplementation.swift, // Implement in Swift
 )
 class QuickActionIntentSpec extends IntentSpecBase {}
+```
+
+#### Kotlin Implementation
+
+Use for Android-specific APIs:
+
+```dart
+@IntentSpec(
+  identifier: 'AndroidShareIntent',
+  title: 'Share',
+  implementation: IntentImplementation.kotlin, // Implement in Kotlin
+)
+class AndroidShareIntentSpec extends IntentSpecBase {}
 ```
 
 ## Defining Entities
@@ -509,6 +504,138 @@ final TaskPriority priority;
 
 This generates a Swift `AppEnum` with proper `typeDisplayRepresentation` and `caseDisplayRepresentations`.
 
+## Execution Modes
+
+The code generator automatically selects one of three execution modes based on your `@IntentSpec` configuration. Each mode determines how the generated Swift code communicates with your Flutter app.
+
+### Mode Selection
+
+| Configuration | Mode | File Params | Use Case |
+|---------------|------|-------------|----------|
+| `urlScheme` set | **URL Scheme** | Not supported | Most common. Opens app via deep link. |
+| `supportedModes: foreground`, no `urlScheme` | **Cache** | Supported | When you need `IntentFile` parameters (images, files). |
+| Neither set | **FlutterBridge** | Supported | Background execution (requires Flutter engine to be running). |
+
+### URL Scheme Mode
+
+The most common mode. Set `urlScheme` and `urlAction` to enable:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.createTask',
+  title: 'Create Task',
+  urlScheme: 'taskapp',    // Your app's URL scheme
+  urlAction: 'create',     // Action segment (taskapp://create?...)
+  resultDialogTemplate: 'Created task "{title}"',
+)
+class CreateTaskIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Title')
+  final String title;
+
+  const CreateTaskIntentSpec({required this.title});
+}
+```
+
+The generated Swift code opens `taskapp://create?title=xxx` via `UIApplication.shared.open(url)`. Your Flutter app receives this URL via the `app_links` package (see [Deep Link Handling](#deep-link-handling-flutter-side) below).
+
+**Limitation**: File data cannot be passed through URL query parameters. Use Cache mode instead if you need file parameters.
+
+### Cache Mode (Foreground)
+
+Use this mode when your intent accepts file parameters (`IntentFile`). Set `supportedModes: IntentMode.foreground` without `urlScheme`:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.createTaskWithImage',
+  title: 'Create Task with Image',
+  description: 'Create a new task with an optional image attachment',
+  supportedModes: IntentMode.foreground,
+  parameterSummary: 'Create task {title} {image}',
+)
+class CreateTaskWithImageIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Title', description: 'The title of the task')
+  final String title;
+
+  @IntentParam(
+    title: 'Image',
+    description: 'An image to attach to the task',
+    isOptional: true,
+    fileType: 'public.image',
+  )
+  final IntentFile? image;
+
+  CreateTaskWithImageIntentSpec({required this.title, this.image});
+}
+
+Future<void> createTaskWithImageHandler({
+  required String title,
+  IntentFile? image,
+}) async {
+  // image?.path contains the temp file path written by Swift
+  await TaskRepository.instance.createTask(
+    title: title,
+    imagePath: image?.path,
+  );
+}
+```
+
+**How it works**:
+
+```
+Siri/Shortcuts → Generated AppIntent.perform()
+  → Writes IntentFile data to temp file
+  → Calls AppIntentsPlugin.setPendingAction(identifier, params)
+  → Returns .result() → iOS opens app (supportedModes: .foreground)
+  → Flutter engine starts → handlers register
+  → processPendingActions() reads from UserDefaults
+  → Delivers params to registered handler
+```
+
+**Required**: Call `processPendingActions()` in your `main()` (see [Plugin Usage](#plugin-usage)).
+
+### FlutterBridge Mode (Background)
+
+The default mode when neither `urlScheme` nor `supportedModes` is set:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.quickLookup',
+  title: 'Quick Lookup',
+)
+class QuickLookupIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Query')
+  final String query;
+
+  const QuickLookupIntentSpec({required this.query});
+}
+```
+
+The generated Swift code calls `FlutterBridge.shared.invoke()` directly via MethodChannel.
+
+> **Warning**: This mode requires the Flutter engine to already be running. App Intents may execute in an isolated process (`WFIsolatedShortcutRunner`) where the Flutter engine is not available. For most use cases, prefer URL Scheme or Cache mode.
+
+### File Parameters (IntentFile)
+
+Use `@IntentParam(fileType:)` to accept file inputs from Siri/Shortcuts:
+
+```dart
+@IntentParam(
+  title: 'Photo',
+  isOptional: true,
+  fileType: 'public.image',  // UTType identifier
+)
+final IntentFile? photo;
+```
+
+The `IntentFile` class provides:
+- `path` — Temporary file path (written by the Swift side)
+- `mimeType` — MIME type (e.g., `image/jpeg`), nullable
+- `filename` — Original filename, nullable
+
+Common UTType identifiers: `public.image`, `public.movie`, `public.audio`, `public.data`, `public.pdf`.
+
+File parameters require **Cache mode** (`supportedModes: IntentMode.foreground` without `urlScheme`). On Android, `IntentFile` is mapped to `String` (file URI) in the generated Kotlin code.
+
 ## Deep Link Handling (Flutter Side)
 
 Use the `app_links` package to receive URL schemes from generated Swift Intents.
@@ -590,26 +717,38 @@ class _MyAppState extends State<MyApp> {
 
 ### Initializing Handlers
 
-Call the generated initialization functions in your `main.dart`:
+Call the generated initialization functions in your `main.dart`. Each spec file generates its own `initializeXxxAppIntents()` function that registers intent handlers, entity query handlers, and suggested entities handlers.
 
 ```dart
 import 'package:app_intents/app_intents.dart';
 import 'intents/create_task_intent.dart';
+import 'intents/create_task_with_image_intent.dart';
 import 'entities/task_entity.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize generated handlers
+  // Register intent/entity handlers (generated code)
   initializeCreateTaskAppIntents();
+  initializeCreateTaskWithImageAppIntents();
   initializeTaskEntityAppIntents();
 
-  // Process any pending actions (for cache execution mode)
+  // Required for cache execution mode:
+  // Reads any pending action stored in UserDefaults by setPendingAction()
+  // and delivers it to the registered handler via executeIntent.
   AppIntents().processPendingActions();
+
+  // Listen for pending actions arriving while the app is already running.
+  // This handles the case where an intent fires after Flutter is initialized.
+  AppIntents().pendingActionsStream.listen((identifier) {
+    AppIntents().processPendingActions();
+  });
 
   runApp(MyApp());
 }
 ```
+
+> **Note**: `processPendingActions()` is only needed if you use Cache execution mode (`supportedModes: IntentMode.foreground` without `urlScheme`). It is harmless to call even if no pending actions exist.
 
 ## Best Practices
 

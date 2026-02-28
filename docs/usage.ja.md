@@ -118,24 +118,6 @@ if #available(iOS 17.0, *) {
 ```dart
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-// 入力モデル
-class CreateTaskInput {
-  final String title;
-  final DateTime? dueDate;
-
-  CreateTaskInput({required this.title, this.dueDate});
-}
-
-// 出力モデル
-class Task {
-  final String id;
-  final String title;
-  final DateTime? dueDate;
-
-  Task({required this.id, required this.title, this.dueDate});
-}
-
-// Intent定義
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
@@ -188,6 +170,19 @@ iOS固有APIやパフォーマンスが重要な場合:
   implementation: IntentImplementation.swift, // Swiftで実装
 )
 class QuickActionIntentSpec extends IntentSpecBase {}
+```
+
+#### Kotlin実装
+
+Android固有APIが必要な場合:
+
+```dart
+@IntentSpec(
+  identifier: 'AndroidShareIntent',
+  title: 'Share',
+  implementation: IntentImplementation.kotlin, // Kotlinで実装
+)
+class AndroidShareIntentSpec extends IntentSpecBase {}
 ```
 
 ## Entityの定義
@@ -509,6 +504,138 @@ final TaskPriority priority;
 
 適切な `typeDisplayRepresentation` と `caseDisplayRepresentations` を持つSwift `AppEnum` が生成されます。
 
+## 実行モード
+
+コードジェネレータは `@IntentSpec` の設定に基づいて、3つの実行モードのいずれかを自動選択します。各モードは、生成されるSwiftコードがFlutterアプリとどのように通信するかを決定します。
+
+### モード選択
+
+| 設定 | モード | ファイルパラメータ | ユースケース |
+|------|--------|------------------|------------|
+| `urlScheme` 設定あり | **URL Scheme** | 非対応 | 最も一般的。Deep linkでアプリを起動して処理。 |
+| `supportedModes: foreground`、`urlScheme` なし | **Cache** | 対応 | `IntentFile`パラメータ（画像、ファイル）が必要な場合。 |
+| どちらも未設定 | **FlutterBridge** | 対応 | バックグラウンド実行（Flutterエンジンが起動済みであることが前提）。 |
+
+### URL Schemeモード
+
+最も一般的なモードです。`urlScheme` と `urlAction` を設定すると有効になります:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.createTask',
+  title: 'Create Task',
+  urlScheme: 'taskapp',    // アプリのURLスキーム
+  urlAction: 'create',     // アクションセグメント (taskapp://create?...)
+  resultDialogTemplate: 'Created task "{title}"',
+)
+class CreateTaskIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Title')
+  final String title;
+
+  const CreateTaskIntentSpec({required this.title});
+}
+```
+
+生成されるSwiftコードは `UIApplication.shared.open(url)` で `taskapp://create?title=xxx` を開きます。Flutter側は `app_links` パッケージでこのURLを受信します（下記の [Deep Link受信](#deep-link受信-flutter側) を参照）。
+
+**制限事項**: ファイルデータはURLクエリパラメータに含められません。ファイルパラメータが必要な場合はCacheモードを使用してください。
+
+### Cacheモード (Foreground)
+
+Intentのファイルパラメータ（`IntentFile`）を受け取る場合に使用します。`urlScheme` を設定せずに `supportedModes: IntentMode.foreground` を設定します:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.createTaskWithImage',
+  title: 'Create Task with Image',
+  description: 'Create a new task with an optional image attachment',
+  supportedModes: IntentMode.foreground,
+  parameterSummary: 'Create task {title} {image}',
+)
+class CreateTaskWithImageIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Title', description: 'The title of the task')
+  final String title;
+
+  @IntentParam(
+    title: 'Image',
+    description: 'An image to attach to the task',
+    isOptional: true,
+    fileType: 'public.image',
+  )
+  final IntentFile? image;
+
+  CreateTaskWithImageIntentSpec({required this.title, this.image});
+}
+
+Future<void> createTaskWithImageHandler({
+  required String title,
+  IntentFile? image,
+}) async {
+  // image?.path にはSwift側が書き込んだ一時ファイルのパスが入る
+  await TaskRepository.instance.createTask(
+    title: title,
+    imagePath: image?.path,
+  );
+}
+```
+
+**動作フロー**:
+
+```
+Siri/Shortcuts → 生成されたAppIntent.perform()
+  → IntentFileデータを一時ファイルに書き込み
+  → AppIntentsPlugin.setPendingAction(identifier, params) を呼び出し
+  → .result() を返す → iOS がアプリを起動 (supportedModes: .foreground)
+  → Flutterエンジン起動 → ハンドラー登録
+  → processPendingActions() がUserDefaultsから読み出し
+  → 登録済みハンドラーにパラメータを配信
+```
+
+**必須**: `main()` で `processPendingActions()` を呼び出す必要があります（[プラグインの使用](#プラグインの使用) を参照）。
+
+### FlutterBridgeモード (Background)
+
+`urlScheme` も `supportedModes` も設定しない場合のデフォルトモードです:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.quickLookup',
+  title: 'Quick Lookup',
+)
+class QuickLookupIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Query')
+  final String query;
+
+  const QuickLookupIntentSpec({required this.query});
+}
+```
+
+生成されるSwiftコードは `FlutterBridge.shared.invoke()` を通じて直接MethodChannelを呼び出します。
+
+> **注意**: このモードはFlutterエンジンが既に起動していることが前提です。App Intentsは分離プロセス（`WFIsolatedShortcutRunner`）で実行される場合があり、その場合Flutterエンジンは利用できません。ほとんどのユースケースでは、URL SchemeモードまたはCacheモードを推奨します。
+
+### ファイルパラメータ (IntentFile)
+
+`@IntentParam(fileType:)` を使用してSiri/Shortcutsからファイル入力を受け取ります:
+
+```dart
+@IntentParam(
+  title: 'Photo',
+  isOptional: true,
+  fileType: 'public.image',  // UTType識別子
+)
+final IntentFile? photo;
+```
+
+`IntentFile` クラスのプロパティ:
+- `path` — 一時ファイルパス（Swift側が書き込み）
+- `mimeType` — MIMEタイプ（例: `image/jpeg`）、nullable
+- `filename` — 元のファイル名、nullable
+
+一般的なUTType識別子: `public.image`, `public.movie`, `public.audio`, `public.data`, `public.pdf`
+
+ファイルパラメータは **Cacheモード** (`urlScheme` なしの `supportedModes: IntentMode.foreground`) が必要です。Androidでは、生成されるKotlinコードで `IntentFile` は `String`（ファイルURI）にマッピングされます。
+
 ## Deep Link受信 (Flutter側)
 
 生成されたSwift IntentからのURL schemeを受信するため、`app_links`パッケージを使用します。
@@ -590,26 +717,38 @@ class _MyAppState extends State<MyApp> {
 
 ### ハンドラーの初期化
 
-`main.dart`で生成された初期化関数を呼び出します:
+`main.dart`で生成された初期化関数を呼び出します。各specファイルは独自の `initializeXxxAppIntents()` 関数を生成し、Intentハンドラー、Entityクエリハンドラー、推奨Entityハンドラーを登録します。
 
 ```dart
 import 'package:app_intents/app_intents.dart';
 import 'intents/create_task_intent.dart';
+import 'intents/create_task_with_image_intent.dart';
 import 'entities/task_entity.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 生成されたハンドラーを初期化
+  // Intent/Entityハンドラーを登録（生成コード）
   initializeCreateTaskAppIntents();
+  initializeCreateTaskWithImageAppIntents();
   initializeTaskEntityAppIntents();
 
-  // ペンディングアクションを処理（キャッシュ実行モード用）
+  // Cache実行モードに必要:
+  // setPendingAction()によりUserDefaultsに保存されたアクションを読み出し、
+  // 登録済みハンドラーにexecuteIntent経由で配信する。
   AppIntents().processPendingActions();
+
+  // アプリ実行中に到着するペンディングアクションを監視。
+  // Flutter初期化後にIntentが発火した場合に対応。
+  AppIntents().pendingActionsStream.listen((identifier) {
+    AppIntents().processPendingActions();
+  });
 
   runApp(MyApp());
 }
 ```
+
+> **Note**: `processPendingActions()` はCache実行モード（`urlScheme` なしの `supportedModes: IntentMode.foreground`）を使用する場合に必要です。ペンディングアクションが存在しなくても呼び出しは安全です。
 
 ## ベストプラクティス
 
