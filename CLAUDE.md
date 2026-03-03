@@ -168,6 +168,9 @@ Options:
 - `-i, --input`: Input directory (default: `lib`)
 - `-o, --output`: Output directory (default: `ios/Runner/GeneratedIntents`)
 - `-f, --file`: Output filename (default: `GeneratedAppIntents.swift`)
+- `--xcstrings`: Output path for .xcstrings String Catalog (optional)
+- `-t, --translations`: Path to translations YAML file (optional)
+- `--source-language`: Source language code (default: `en`)
 
 ### CLI Kotlin Generator
 Generate Kotlin code for Android AppFunctions:

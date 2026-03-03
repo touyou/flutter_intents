@@ -1,3 +1,13 @@
+## 0.7.0
+
+- Add `.xcstrings` String Catalog generation for iOS localization
+  - New `XcstringsGenerator` class collects all localizable strings from annotations
+  - Translations YAML file support for multi-language localization
+  - Merge mode preserves existing translations when regenerating
+  - `{param}` placeholders converted to `%@` / `%1$@` format; `${applicationName}` preserved
+- Add CLI options to `generate_swift`: `--xcstrings`, `--translations`, `--source-language`
+- Add `yaml` package dependency
+
 ## 0.6.2
 
 - Fix: `_toUpperSnakeCase` no longer prepends underscore to uppercase-starting enum names in KotlinGenerator

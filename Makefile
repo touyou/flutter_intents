@@ -40,7 +40,9 @@ codegen:
 
 # Generate Swift code
 swift-gen:
-	@cd app && dart run app_intents_codegen:generate_swift
+	@cd app && dart run app_intents_codegen:generate_swift \
+	  --xcstrings ios/Runner/Localizable.xcstrings \
+	  -t translations.yaml
 
 # Generate Kotlin code for Android AppFunctions
 kotlin-gen:

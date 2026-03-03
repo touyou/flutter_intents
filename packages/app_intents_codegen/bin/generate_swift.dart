@@ -12,10 +12,13 @@ import 'package:app_intents_codegen/src/cli/analyze_sources.dart';
 ///   dart run app_intents_codegen:generate_swift [options]
 ///
 /// Options:
-///   -i, --input     Input directory containing Dart files (default: lib)
-///   -o, --output    Output directory for Swift files (default: ios/Runner/GeneratedIntents)
-///   -f, --file      Output filename (default: GeneratedAppIntents.swift)
-///   -h, --help      Show usage information
+///   -i, --input            Input directory containing Dart files (default: lib)
+///   -o, --output           Output directory for Swift files (default: ios/Runner/GeneratedIntents)
+///   -f, --file             Output filename (default: GeneratedAppIntents.swift)
+///       --xcstrings        Output path for .xcstrings String Catalog file
+///   -t, --translations     Path to translations YAML file
+///       --source-language  Source language code (default: en)
+///   -h, --help             Show usage information
 void main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption(
@@ -35,6 +38,20 @@ void main(List<String> arguments) async {
       abbr: 'f',
       help: 'Output filename',
       defaultsTo: 'GeneratedAppIntents.swift',
+    )
+    ..addOption(
+      'xcstrings',
+      help: 'Output path for .xcstrings String Catalog file',
+    )
+    ..addOption(
+      'translations',
+      abbr: 't',
+      help: 'Path to translations YAML file',
+    )
+    ..addOption(
+      'source-language',
+      help: 'Source language code for String Catalog',
+      defaultsTo: 'en',
     )
     ..addFlag(
       'help',
@@ -61,11 +78,17 @@ void main(List<String> arguments) async {
   final inputDir = results['input'] as String;
   final outputDir = results['output'] as String;
   final outputFile = results['file'] as String;
+  final xcstringsPath = results['xcstrings'] as String?;
+  final translationsPath = results['translations'] as String?;
+  final sourceLanguage = results['source-language'] as String;
 
   await generateSwift(
     inputDir: inputDir,
     outputDir: outputDir,
     outputFile: outputFile,
+    xcstringsPath: xcstringsPath,
+    translationsPath: translationsPath,
+    sourceLanguage: sourceLanguage,
   );
 }
 
@@ -83,6 +106,9 @@ Future<void> generateSwift({
   required String inputDir,
   required String outputDir,
   required String outputFile,
+  String? xcstringsPath,
+  String? translationsPath,
+  String sourceLanguage = 'en',
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
@@ -128,6 +154,45 @@ Future<void> generateSwift({
 
   stdout.writeln('');
   stdout.writeln('Generated Swift code written to: $outputPath');
+
+  // Generate .xcstrings String Catalog if requested
+  if (xcstringsPath != null) {
+    final absoluteXcstringsPath = path.isAbsolute(xcstringsPath)
+        ? xcstringsPath
+        : path.join(currentDir, xcstringsPath);
+
+    final xcstringsGenerator = XcstringsGenerator(
+      sourceLanguage: sourceLanguage,
+    );
+
+    final translations = translationsPath != null
+        ? xcstringsGenerator.loadTranslations(
+            path.isAbsolute(translationsPath)
+                ? translationsPath
+                : path.join(currentDir, translationsPath),
+          )
+        : <String, Map<String, String>>{};
+
+    final xcstringsJson = xcstringsGenerator.generate(
+      analyzeResult: analyzeResult,
+      translations: translations,
+      existingXcstringsPath:
+          File(absoluteXcstringsPath).existsSync() ? absoluteXcstringsPath : null,
+    );
+
+    // Ensure output directory exists
+    final xcstringsDir = Directory(path.dirname(absoluteXcstringsPath));
+    if (!xcstringsDir.existsSync()) {
+      xcstringsDir.createSync(recursive: true);
+    }
+
+    File(absoluteXcstringsPath).writeAsStringSync(xcstringsJson);
+    stdout.writeln('Generated String Catalog: $absoluteXcstringsPath');
+    if (translationsPath != null) {
+      stdout.writeln('  Translations loaded from: $translationsPath');
+    }
+  }
+
   stdout.writeln('');
-  stdout.writeln('Add this file to your Xcode project to use the generated intents.');
+  stdout.writeln('Add the generated files to your Xcode project.');
 }

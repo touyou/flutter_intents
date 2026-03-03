@@ -11,6 +11,7 @@ export 'src/analyzer/shortcut_analyzer.dart';
 export 'src/generator/dart_generator.dart';
 export 'src/generator/kotlin_generator.dart';
 export 'src/generator/swift_generator.dart';
+export 'src/generator/xcstrings_generator.dart';
 export 'src/models/entity_info.dart';
 export 'src/models/enum_info.dart';
 export 'src/models/intent_info.dart';

@@ -96,6 +96,32 @@ dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotl
 | `-i, --input` | Input directory to scan | `lib` |
 | `-o, --output` | Output directory for Swift files | `ios/Runner/GeneratedIntents` |
 | `-f, --file` | Output filename | `GeneratedAppIntents.swift` |
+| `--xcstrings` | Output path for .xcstrings String Catalog | (optional) |
+| `-t, --translations` | Path to translations YAML file | (optional) |
+| `--source-language` | Source language code | `en` |
+
+#### Localization (.xcstrings) Generation
+
+When `--xcstrings` is specified, the generator also produces an iOS String Catalog file containing all localizable strings from your annotations. Provide a translations YAML file to include multiple languages:
+
+```yaml
+# translations.yaml
+ja:
+  "Create Task": "タスクを作成"
+  "Title": "タイトル"
+  'Created task "{title}"': 'タスク「{title}」を作成しました'
+zh-Hans:
+  "Create Task": "创建任务"
+```
+
+```bash
+dart run app_intents_codegen:generate_swift \
+  -i lib -o ios/Runner/GeneratedIntents \
+  --xcstrings ios/Runner/Localizable.xcstrings \
+  -t translations.yaml
+```
+
+Keys must match the English text used in annotations. `{param}` placeholders are preserved in keys and converted to `%@` in values. System variables like `${applicationName}` are preserved as-is.
 
 #### Kotlin CLI Options
 

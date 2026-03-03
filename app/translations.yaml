@@ -1,0 +1,37 @@
+# App Intents Localization - Japanese translations
+# Keys must match the English text used in @IntentSpec, @EntitySpec, @EnumSpec annotations.
+# Placeholders like {title} are preserved as-is and converted to %@ in .xcstrings.
+
+ja:
+  # CreateTaskIntentSpec
+  "Create Task": "タスクを作成"
+  "Create a new task in your task list": "タスクリストに新しいタスクを作成します"
+  'Created task "{title}"': 'タスク「{title}」を作成しました'
+  "Create task {title}": "タスクを作成 {title}"
+  "Title": "タイトル"
+  "The title of the task": "タスクのタイトル"
+  "Description": "説明"
+  "Optional description for the task": "タスクの説明（任意）"
+  "Due Date": "期限"
+  "When the task is due": "タスクの期限"
+
+  # CompleteTaskIntentSpec
+  "Complete Task": "タスクを完了"
+  "Mark a task as completed": "タスクを完了にします"
+  "Completed task": "タスクを完了しました"
+  "Complete {task}": "完了 {task}"
+  "Task": "タスク"
+  "The task to complete": "完了するタスク"
+
+  # CreateTaskWithImageIntentSpec
+  "Create Task with Image": "画像付きタスクを作成"
+  "Create a new task with an optional image attachment": "画像を添付して新しいタスクを作成します"
+  "Create task {title} {image}": "タスクを作成 {title} {image}"
+  "Image": "画像"
+  "An image to attach to the task": "タスクに添付する画像"
+
+  # AppShortcuts
+  "Create a task in ${applicationName}": "${applicationName}でタスクを作成"
+  "Add a new task to ${applicationName}": "${applicationName}に新しいタスクを追加"
+  "Complete a task in ${applicationName}": "${applicationName}でタスクを完了"
+  "Mark task as done in ${applicationName}": "${applicationName}でタスクを完了にする"
