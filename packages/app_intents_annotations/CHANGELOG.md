@@ -1,3 +1,7 @@
+## 0.7.1
+
+- No API changes; version bump to align with codegen bug fix release
+
 ## 0.7.0
 
 - No API changes; version bump to align with codegen package (xcstrings generation feature)
