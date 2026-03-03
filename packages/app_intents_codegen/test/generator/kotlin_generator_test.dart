@@ -106,6 +106,26 @@ void main() {
         expect(result, contains(' * Greets the user with a friendly message'));
       });
 
+      test('generates KDoc with multiline description', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create a post',
+          description:
+              "Create posts in specific teams you're part of on Habee.\nIt will be available after you open the team list once.",
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(
+            result,
+            contains(
+                " * Create posts in specific teams you're part of on Habee.\n"
+                " * It will be available after you open the team list once."));
+      });
+
       test('generates intent with String parameter', () {
         final intentInfo = IntentInfo(
           className: 'CreateTaskIntent',
@@ -467,6 +487,30 @@ void main() {
         final result = generator.generateEntity(entityInfo);
 
         expect(result, contains(' * Task'));
+      });
+
+      test('generates KDoc with multiline description for entity', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntity',
+          identifier: 'com.example.task',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          description: 'A task in your task list.\nTasks can have subtasks.',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(
+            result,
+            contains(' * A task in your task list.\n'
+                ' * Tasks can have subtasks.'));
       });
 
       test('generates nullable property with default null', () {

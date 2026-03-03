@@ -1,3 +1,8 @@
+## 0.7.1
+
+- Fix: Kotlin KDoc multiline description now correctly adds ` * ` prefix to continuation lines
+- Fix: Add missing `import AppIntentsBridge` in generated Swift code for FlutterBridge mode and entity queries
+
 ## 0.7.0
 
 - Add `.xcstrings` String Catalog generation for iOS localization

@@ -64,6 +64,13 @@ class SwiftGenerator {
 
     // Import statements
     buffer.writeln('import AppIntents');
+    final needsBridge =
+        (info.urlScheme == null &&
+            info.supportedModes != IntentModeType.foreground) ||
+        info.parameters.any((p) => p.entityType != null);
+    if (needsBridge) {
+      buffer.writeln('import AppIntentsBridge');
+    }
     if (info.urlScheme != null) {
       buffer.writeln('import UIKit');
     }
@@ -701,6 +708,13 @@ class SwiftGenerator {
 
     // Single import at the top
     buffer.writeln('import AppIntents');
+    final needsBridge = entities.isNotEmpty ||
+        intents.any((i) =>
+            i.urlScheme == null &&
+            i.supportedModes != IntentModeType.foreground);
+    if (needsBridge) {
+      buffer.writeln('import AppIntentsBridge');
+    }
     if (intents.any((i) => i.urlScheme != null)) {
       buffer.writeln('import UIKit');
     }

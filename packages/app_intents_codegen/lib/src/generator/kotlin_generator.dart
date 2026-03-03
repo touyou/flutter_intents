@@ -175,11 +175,8 @@ class KotlinGenerator {
 
     // KDoc comment
     buffer.writeln('$prefix/**');
-    if (info.description != null) {
-      buffer.writeln('$prefix * ${info.description}');
-    } else {
-      buffer.writeln('$prefix * ${info.title}');
-    }
+    final descText = info.description ?? info.title;
+    buffer.writeln(_formatKdocLines(descText, prefix));
     buffer.writeln('$prefix *');
     buffer.writeln(
         '$prefix * @param appFunctionContext The context for this app function execution.');
@@ -257,11 +254,8 @@ class KotlinGenerator {
   void _generateEntityBody(StringBuffer buffer, EntityInfo info) {
     // KDoc comment
     buffer.writeln('/**');
-    if (info.description != null) {
-      buffer.writeln(' * ${info.description}');
-    } else {
-      buffer.writeln(' * ${info.title}');
-    }
+    final descText = info.description ?? info.title;
+    buffer.writeln(_formatKdocLines(descText, ''));
     buffer.writeln(' *');
 
     // Filter to properties that map to data class fields
@@ -403,5 +397,13 @@ class KotlinGenerator {
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
     buffer.writeln('}');
+  }
+
+  /// Formats text for KDoc comments, handling multiline descriptions.
+  String _formatKdocLines(String text, String prefix) {
+    return text
+        .split('\n')
+        .map((line) => '$prefix * $line')
+        .join('\n');
   }
 }

@@ -150,6 +150,36 @@ void main() {
         expect(result, contains('return .result()'));
       });
 
+      test('generates import AppIntentsBridge for FlutterBridge mode', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, contains('import AppIntentsBridge'));
+      });
+
+      test('does not generate import AppIntentsBridge for URL scheme mode', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          urlScheme: 'taskapp',
+          urlAction: 'create',
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, isNot(contains('import AppIntentsBridge')));
+      });
+
       test('generates intent with multiple type mappings', () {
         final intentInfo = IntentInfo(
           className: 'TestIntent',
@@ -1716,9 +1746,54 @@ void main() {
 
         // Should contain single import at top
         expect(result.indexOf('import AppIntents'), isNonNegative);
+        // Should contain AppIntentsBridge import (entities use FlutterBridge)
+        expect(result, contains('import AppIntentsBridge'));
         // Should contain both intent and entity
         expect(result, contains('struct CreateTaskIntent: AppIntent'));
         expect(result, contains('struct TaskEntity: AppEntity'));
+      });
+
+      test('generateAll includes import AppIntentsBridge when entities exist',
+          () {
+        final entities = [
+          EntityInfo(
+            className: 'TaskEntity',
+            identifier: 'com.example.task',
+            title: 'Task',
+            pluralTitle: 'Tasks',
+            properties: [
+              EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generateAll(entities: entities);
+
+        expect(result, contains('import AppIntentsBridge'));
+      });
+
+      test(
+          'generateAll does not include import AppIntentsBridge for URL scheme only',
+          () {
+        final intents = [
+          IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            urlScheme: 'taskapp',
+            urlAction: 'create',
+            parameters: [],
+          ),
+        ];
+
+        final result = generator.generateAll(intents: intents);
+
+        expect(result, isNot(contains('import AppIntentsBridge')));
       });
 
       test('generates combined Swift file with shortcuts', () {
