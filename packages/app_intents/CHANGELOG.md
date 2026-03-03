@@ -1,3 +1,7 @@
+## 0.7.0
+
+- No API changes; version bump to align with codegen package (xcstrings generation feature)
+
 ## 0.6.2
 
 - Fix: Safe casts for all MethodChannel input — prevents crash on malformed native data

@@ -400,7 +400,7 @@ Dartアノテーションからコードを生成するツール。
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.6.2
+  app_intents_codegen: ^0.7.0
 ```
 
 ```bash

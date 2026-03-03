@@ -1,6 +1,6 @@
 name: app_intents
 description: Flutter plugin for iOS App Intents and Android AppFunctions integration. Enables Siri, Shortcuts, Spotlight, and AI agent support.
-version: 0.6.2
+version: 0.7.0
 homepage: https://github.com/touyou/flutter_intents
 repository: https://github.com/touyou/flutter_intents
 
