@@ -3,6 +3,7 @@
 // Run `dart run app_intents_codegen:generate_swift` to regenerate
 
 import AppIntents
+import AppIntentsBridge
 import UIKit
 import UniformTypeIdentifiers
 import app_intents
