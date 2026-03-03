@@ -1,3 +1,7 @@
+## 0.7.2
+
+- Fix: Escape newlines in Swift `IntentDescription("...")` string literal to prevent compile errors
+
 ## 0.7.1
 
 - Fix: Kotlin KDoc multiline description now correctly adds ` * ` prefix to continuation lines

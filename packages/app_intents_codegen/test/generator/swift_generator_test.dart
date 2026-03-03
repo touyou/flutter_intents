@@ -48,6 +48,25 @@ void main() {
             result, contains('IntentDescription("Greets the user with a friendly message")'));
       });
 
+      test('escapes newlines in IntentDescription string literal', () {
+        final intentInfo = IntentInfo(
+          className: 'CreatePostIntent',
+          identifier: 'com.example.createPost',
+          title: 'Create a post',
+          description:
+              "Create posts in specific teams.\nIt will be available after you open the team list once.",
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(
+            result,
+            contains(
+                r'IntentDescription("Create posts in specific teams.\nIt will be available after you open the team list once.")'));
+      });
+
       test('generates intent with String parameter', () {
         final intentInfo = IntentInfo(
           className: 'CreateTaskIntent',
