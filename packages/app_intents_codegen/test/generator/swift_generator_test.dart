@@ -45,9 +45,7 @@ void main() {
 
         expect(result, contains('static var description: IntentDescription'));
         expect(
-            result,
-            contains(
-                'IntentDescription(LocalizedStringResource("Greets the user with a friendly message"))'));
+            result, contains('IntentDescription("Greets the user with a friendly message")'));
       });
 
       test('escapes newlines in IntentDescription string literal', () {
@@ -66,7 +64,7 @@ void main() {
         expect(
             result,
             contains(
-                r'IntentDescription(LocalizedStringResource("Create posts in specific teams.\nIt will be available after you open the team list once."))'));
+                r'IntentDescription("Create posts in specific teams.\nIt will be available after you open the team list once.")'));
       });
 
       test('generates intent with String parameter', () {

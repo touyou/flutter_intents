@@ -66,7 +66,8 @@ void main() {
 
       final strings = generator.collectLocalizableStrings(result);
       expect(strings, contains('Created task "{title}"'));
-      expect(strings, contains('Create task {title}'));
+      // parameterSummary uses ${param} format for Swift key-path placeholders
+      expect(strings, contains(r'Create task ${title}'));
     });
 
     test('collects parameter title and description', () {
@@ -164,8 +165,9 @@ void main() {
 
       final strings = generator.collectLocalizableStrings(result);
       expect(strings, contains('Create Task'));
-      expect(strings, contains('Create a task with {applicationName}'));
-      expect(strings, contains('New task in {applicationName}'));
+      // Phrases convert {param} to ${param} for Swift key-path placeholders
+      expect(strings, contains(r'Create a task with ${applicationName}'));
+      expect(strings, contains(r'New task in ${applicationName}'));
     });
 
     test('deduplicates identical strings', () {
@@ -392,6 +394,119 @@ void main() {
       final jaValue = ((localizations['ja']
           as Map<String, dynamic>)['stringUnit'] as Map<String, dynamic>)['value'];
       expect(jaValue, 'タスク「%@」を作成しました');
+    });
+
+    test(r'parameterSummary uses ${param} key and preserves in value', () {
+      final result = AnalyzeResult(
+        intents: [
+          IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'target',
+                dartType: 'String',
+                title: 'Target',
+                isOptional: false,
+              ),
+              IntentParamInfo(
+                fieldName: 'text',
+                dartType: 'String',
+                title: 'Text',
+                isOptional: false,
+              ),
+            ],
+            parameterSummary:
+                'Create a post on {target} with {text}',
+          ),
+        ],
+        entities: [],
+        enums: [],
+        shortcuts: [],
+      );
+
+      final translations = {
+        'ja': {
+          r'Create a post on ${target} with ${text}':
+              r'${target}で${text}を投稿する',
+        },
+      };
+
+      final json = generator.generate(
+        analyzeResult: result,
+        translations: translations,
+      );
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      final strings = parsed['strings'] as Map<String, dynamic>;
+
+      // Key uses ${param} format
+      expect(strings, contains(r'Create a post on ${target} with ${text}'));
+
+      final entry = strings[r'Create a post on ${target} with ${text}']
+          as Map<String, dynamic>;
+      final localizations =
+          entry['localizations'] as Map<String, dynamic>;
+
+      // Values preserve ${param} (not converted to %@)
+      final enValue = ((localizations['en'] as Map<String, dynamic>)[
+          'stringUnit'] as Map<String, dynamic>)['value'];
+      expect(enValue, r'Create a post on ${target} with ${text}');
+
+      final jaValue = ((localizations['ja'] as Map<String, dynamic>)[
+          'stringUnit'] as Map<String, dynamic>)['value'];
+      expect(jaValue, r'${target}で${text}を投稿する');
+    });
+
+    test('YAML translations match with {param} fallback key', () {
+      final result = AnalyzeResult(
+        intents: [
+          IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'title',
+                dartType: 'String',
+                title: 'Title',
+                isOptional: false,
+              ),
+            ],
+            parameterSummary: 'Create post {title}',
+          ),
+        ],
+        entities: [],
+        enums: [],
+        shortcuts: [],
+      );
+
+      // User writes YAML with {param} (without $)
+      final translations = {
+        'ja': {'Create post {title}': '投稿を作成 {title}'},
+      };
+
+      final json = generator.generate(
+        analyzeResult: result,
+        translations: translations,
+      );
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      final strings = parsed['strings'] as Map<String, dynamic>;
+
+      final entry =
+          strings[r'Create post ${title}'] as Map<String, dynamic>;
+      final localizations =
+          entry['localizations'] as Map<String, dynamic>;
+
+      // ja translation found via {param} fallback
+      expect(localizations, contains('ja'));
+      final jaValue = ((localizations['ja'] as Map<String, dynamic>)[
+          'stringUnit'] as Map<String, dynamic>)['value'];
+      // {title} in YAML value gets preserved since convertPlaceholders
+      // treats single {param} → %@
+      expect(jaValue, '投稿を作成 %@');
     });
 
     test('uses custom source language', () {

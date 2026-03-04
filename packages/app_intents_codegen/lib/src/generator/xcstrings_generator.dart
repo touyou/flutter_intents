@@ -31,7 +31,7 @@ class XcstringsGenerator {
         strings.add(intent.resultDialogTemplate!);
       }
       if (intent.parameterSummary != null) {
-        strings.add(intent.parameterSummary!);
+        strings.add(_toSwiftKeyPathPlaceholders(intent.parameterSummary!));
       }
       for (final param in intent.parameters) {
         strings.add(param.title);
@@ -54,7 +54,9 @@ class XcstringsGenerator {
 
     for (final shortcut in result.shortcuts) {
       strings.add(shortcut.shortTitle);
-      strings.addAll(shortcut.phrases);
+      for (final phrase in shortcut.phrases) {
+        strings.add(_toSwiftKeyPathPlaceholders(phrase));
+      }
     }
 
     return strings;
@@ -145,11 +147,12 @@ class XcstringsGenerator {
       for (final entry in translations.entries) {
         final langCode = entry.key;
         final langTranslations = entry.value;
-        if (langTranslations.containsKey(key)) {
+        final translation = _findTranslation(langTranslations, key);
+        if (translation != null) {
           localizations[langCode] = {
             'stringUnit': {
               'state': 'translated',
-              'value': convertPlaceholders(langTranslations[key]!),
+              'value': convertPlaceholders(translation),
             },
           };
         }
@@ -184,6 +187,38 @@ class XcstringsGenerator {
 
     final encoder = JsonEncoder.withIndent('  ');
     return '${encoder.convert(output)}\n';
+  }
+
+  /// Finds a translation for [key] in [langTranslations].
+  ///
+  /// First tries an exact match. If not found, converts `${param}` back to
+  /// `{param}` and tries again, so YAML files can use either format.
+  String? _findTranslation(Map<String, String> langTranslations, String key) {
+    if (langTranslations.containsKey(key)) {
+      return langTranslations[key];
+    }
+    // Fallback: try {param} format (user may write YAML without $ prefix)
+    final fallbackKey = key.replaceAllMapped(
+      RegExp(r'\$\{(\w+)\}'),
+      (match) => '{${match.group(1)}}',
+    );
+    if (fallbackKey != key && langTranslations.containsKey(fallbackKey)) {
+      return langTranslations[fallbackKey];
+    }
+    return null;
+  }
+
+  /// Converts `{paramName}` to `${paramName}` for xcstrings keys.
+  ///
+  /// Swift ParameterSummary and AppShortcut phrases use key-path syntax
+  /// `\(\.$param)` which maps to `${param}` in xcstrings keys.
+  /// System variables like `${applicationName}` are already in the correct format.
+  String _toSwiftKeyPathPlaceholders(String text) {
+    // Match {word} but NOT ${word} (already correct)
+    return text.replaceAllMapped(
+      RegExp(r'(?<!\$)\{(\w+)\}'),
+      (match) => '\${${match.group(1)}}',
+    );
   }
 
   /// Converts `{paramName}` placeholders to `%@` format for .xcstrings values.

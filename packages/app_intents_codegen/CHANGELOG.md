@@ -1,3 +1,10 @@
+## 0.7.4
+
+- Fix: Use `${param}` placeholder format in xcstrings keys for ParameterSummary and AppShortcut phrases (#14)
+  - Swift key-path syntax `\(\.$param)` requires `${param}` in xcstrings keys, not `{param}`
+  - YAML translations support both `{param}` and `${param}` key formats
+- Revert: Remove `LocalizedStringResource` wrapper from `IntentDescription` (unnecessary for localization)
+
 ## 0.7.3
 
 - Fix: Wrap `IntentDescription` with `LocalizedStringResource` for proper localization support (#14)

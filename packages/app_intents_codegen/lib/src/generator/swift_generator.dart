@@ -770,8 +770,7 @@ class SwiftGenerator {
     if (info.description != null) {
       buffer.writeln('$_indent' 'static var description: IntentDescription =');
       final escapedDesc = info.description!.replaceAll('\n', '\\n');
-      buffer.writeln(
-          '$_indent$_indent' 'IntentDescription(LocalizedStringResource("$escapedDesc"))');
+      buffer.writeln('$_indent$_indent' 'IntentDescription("$escapedDesc")');
     }
 
     // supportedModes / openAppWhenRun
