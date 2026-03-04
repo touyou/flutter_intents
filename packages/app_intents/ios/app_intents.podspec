@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'app_intents'
-  s.version          = '0.7.2'
+  s.version          = '0.7.3'
   s.summary          = 'Flutter plugin for iOS App Intents integration.'
   s.description      = <<-DESC
 Flutter plugin for iOS App Intents integration. Enables Siri, Shortcuts, and Spotlight support.
