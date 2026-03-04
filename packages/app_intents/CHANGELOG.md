@@ -1,3 +1,7 @@
+## 0.7.3
+
+- No API changes; version bump to align with codegen bug fix release
+
 ## 0.7.2
 
 - No API changes; version bump to align with codegen bug fix release

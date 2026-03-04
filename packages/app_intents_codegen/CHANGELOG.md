@@ -1,3 +1,7 @@
+## 0.7.3
+
+- Fix: Wrap `IntentDescription` with `LocalizedStringResource` for proper localization support (#14)
+
 ## 0.7.2
 
 - Fix: Escape newlines in Swift `IntentDescription("...")` string literal to prevent compile errors
