@@ -241,11 +241,15 @@ class KotlinGenerator {
 
   /// Returns the Kotlin expression for a parameter value in the params map.
   ///
-  /// File parameters (fileType != null) are wrapped in a map with "path" key
-  /// so the Dart side can reconstruct IntentFile via IntentFile.fromMap().
+  /// File parameters (fileType != null) are wrapped in a map with path,
+  /// mimeType, and filename so the Dart side can reconstruct IntentFile
+  /// via IntentFile.fromMap().
   String _paramValueExpression(IntentParamInfo param) {
     if (param.fileType != null) {
-      return 'mapOf("path" to ${param.fieldName})';
+      final f = param.fieldName;
+      return 'mapOf("path" to $f, '
+          '"mimeType" to java.net.URLConnection.guessContentTypeFromName($f), '
+          '"filename" to java.io.File($f).name)';
     }
     return param.fieldName;
   }

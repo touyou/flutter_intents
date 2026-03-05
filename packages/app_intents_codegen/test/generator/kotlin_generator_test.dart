@@ -357,8 +357,10 @@ void main() {
         // IntentFile should be mapped to String
         expect(result, contains('image: String? = null'));
         expect(result, isNot(contains('IntentFile')));
-        // File params should be wrapped in a map with "path" key
-        expect(result, contains('mapOf("path" to image)'));
+        // File params should be wrapped in a map with path, mimeType, filename
+        expect(result, contains('"path" to image'));
+        expect(result, contains('"mimeType" to java.net.URLConnection.guessContentTypeFromName(image)'));
+        expect(result, contains('"filename" to java.io.File(image).name'));
       });
 
       test('generates intent with required IntentFile parameter', () {
@@ -383,8 +385,10 @@ void main() {
         // IntentFile should be mapped to String
         expect(result, contains('file: String'));
         expect(result, isNot(contains('IntentFile')));
-        // Required file param should also use mapOf
-        expect(result, contains('params["file"] = mapOf("path" to file)'));
+        // Required file param should also include mimeType and filename
+        expect(result, contains('"path" to file'));
+        expect(result, contains('"mimeType" to java.net.URLConnection.guessContentTypeFromName(file)'));
+        expect(result, contains('"filename" to java.io.File(file).name'));
       });
 
       test('marks optional parameters in KDoc', () {

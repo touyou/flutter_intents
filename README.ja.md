@@ -42,11 +42,11 @@ flutter_intents/
 
 ```yaml
 dependencies:
-  app_intents: ^0.7.4
-  app_intents_annotations: ^0.7.4
+  app_intents: ^0.7.5
+  app_intents_annotations: ^0.7.5
 
 dev_dependencies:
-  app_intents_codegen: ^0.7.4
+  app_intents_codegen: ^0.7.5
   build_runner: ^2.4.0
 ```
 

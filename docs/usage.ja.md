@@ -7,11 +7,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  app_intents: ^0.7.4
-  app_intents_annotations: ^0.7.4
+  app_intents: ^0.7.5
+  app_intents_annotations: ^0.7.5
 
 dev_dependencies:
-  app_intents_codegen: ^0.7.4
+  app_intents_codegen: ^0.7.5
   build_runner: ^2.4.0
 ```
 
@@ -110,6 +110,33 @@ if #available(iOS 17.0, *) {
   }
 }
 ```
+
+#### FlutterBridge waitForPlugin パターン
+
+App IntentsがFlutterBridgeモードで実行される場合、Flutterエンジンがまだ初期化されていない可能性があります。生成されたEntityクエリコードは内部的にリトライパターンを使用します（`FlutterBridge`はexecutorが設定されるまで最大5秒待機します）。`AppIntentsPlugin.shared`にアクセスする必要があるカスタムSwiftコードでは、以下のパターンを使用してください:
+
+```swift
+private static func waitForPlugin() async throws -> AppIntentsPlugin {
+    if let plugin = AppIntentsPlugin.shared { return plugin }
+    // 100ms間隔で最大20回リトライ（合計最大2秒）。
+    // Flutterエンジンは最新デバイスで通常0.5〜1.5秒で初期化されます。
+    // 2秒は低速デバイスやデバッグビルドに対する安全マージンです。
+    for _ in 0..<20 {
+        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        if let plugin = AppIntentsPlugin.shared { return plugin }
+    }
+    // 2秒経過後もプラグインがnilの場合、Flutterエンジンの
+    // 起動に失敗しています。Intentはエラーで失敗します。
+    throw AppIntentError.custom(
+        code: "PLUGIN_UNAVAILABLE",
+        message: "Flutter engine did not initialize in time"
+    )
+}
+```
+
+> **タイムアウトの根拠**: 100ms間隔 x 20回リトライ = 最大2秒の待機。iOSでのFlutterエンジン起動は通常0.5〜1.5秒です。2秒のタイムアウトは低速デバイスやデバッグビルドに対して十分なマージンを提供しつつ、ユーザー体験のレスポンシブ性を保ちます。
+
+> **失敗時の挙動**: タイムアウトを超過すると、Intentはエラーをスローします。Siri/Shortcutsはユーザーに汎用的なエラーメッセージを表示します。本番アプリでは、このタイミング問題を完全に回避するURL Schemeモードを推奨します。
 
 ## Intentの定義
 
@@ -749,6 +776,51 @@ void main() {
 ```
 
 > **Note**: `processPendingActions()` はCache実行モード（`urlScheme` なしの `supportedModes: IntentMode.foreground`）を使用する場合に必要です。ペンディングアクションが存在しなくても呼び出しは安全です。
+
+### 初期化順序 (コールドスタート)
+
+`processPendingActions()` を使用する場合、`main()` での初期化順序が重要です。Intentハンドラーは `processPendingActions()` を呼び出す**前に**登録する必要があります。そうしないと、ペンディングアクションがディスパッチされてもハンドラーが受信できません。
+
+```dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. すべてのハンドラーを先に登録
+  initializeCreateTaskAppIntents();
+  initializeTaskEntityAppIntents();
+
+  // 2. その後でペンディングアクションを処理（登録済みハンドラーにディスパッチ）
+  AppIntents().processPendingActions();
+
+  // 3. 今後のペンディングアクションをリッスン
+  AppIntents().pendingActionsStream.listen((_) {
+    AppIntents().processPendingActions();
+  });
+
+  runApp(MyApp());
+}
+```
+
+> **警告**: Cacheモードを使用する場合、ウィジェットの `initState()` やその他のライフサイクルコールバック内でIntentハンドラーを登録しないでください。コールドスタート時、`processPendingActions()` はウィジェットツリーが構築される前に実行されるため、ウィジェットレベルのハンドラーはまだ登録されていません。常に `main()` で `processPendingActions()` を呼ぶ前にハンドラーを登録してください。
+
+> **バッファリング**: `pendingActionsStream` はネイティブ側で `FlutterEventChannel` のバッファードプッシュを使用するため、Dartリスナーがアタッチされる前に到着したイベントは失われません。ただし、`registerIntentHandler` で登録された `onIntentExecution` コールバックはバッファリングされません — `processPendingActions()` がディスパッチした時点でハンドラーが未登録の場合、イベントはサイレントにドロップされます。
+
+### App Shortcutsパラメータの更新
+
+他のApp Intentsライブラリ（例: `intelligence`）から移行する場合、`AppShortcuts.updateAppShortcutParameters()` の明示的な呼び出しが必要だったかもしれません。本ライブラリではエンティティ更新を異なる方法で処理します:
+
+- **エンティティクエリ**（`suggestedEntities()` / `entities(for:)`）は、ショートカットエディタやSiriがエンティティデータを必要とする際にシステムによってオンデマンドで呼び出されます。明示的に更新をプッシュする必要はありません。
+- `@AppShortcutsProvider` で定義された **App Shortcuts** はアプリインストール時に自動的に登録されます。システムは最新データが必要な場合に `suggestedEntities()` を呼び出します。
+- ショートカットパラメータの**強制リフレッシュ**が必要な場合（例: ユーザーが新しいチームに参加した後）、SwiftコードでAPIを直接呼び出せます:
+
+```swift
+// AppDelegateまたはエンティティデータが変更される場所で:
+if #available(iOS 17.0, *) {
+    AppShortcuts.updateAppShortcutParameters()
+}
+```
+
+これはコードジェネレータでは自動生成されません — エンティティデータが変更される場所でSwiftコードに手動で追加してください。
 
 ## ベストプラクティス
 

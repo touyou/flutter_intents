@@ -1,6 +1,6 @@
 name: app_intents_annotations
 description: Annotations for defining iOS App Intents in Flutter. Use with app_intents and app_intents_codegen.
-version: 0.7.4
+version: 0.7.5
 repository: https://github.com/touyou/flutter_intents
 
 environment:

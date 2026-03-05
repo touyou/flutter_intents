@@ -1,3 +1,10 @@
+## 0.7.5
+
+- Fix: Kotlin codegen file parameter (`IntentFile`) now includes `mimeType` and `filename` in generated map (#15)
+- Docs: Add `waitForPlugin()` pattern explanation with timeout rationale and failure behavior (#16)
+- Docs: Document `processPendingActions()` initialization order and cold start race condition (#17)
+- Docs: Add `updateAppShortcutParameters()` migration guide for users migrating from other libraries (#18)
+
 ## 0.7.4
 
 - Fix: Use `${param}` placeholder format in xcstrings keys for ParameterSummary and AppShortcut phrases (#14)
