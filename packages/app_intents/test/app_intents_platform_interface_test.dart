@@ -56,6 +56,17 @@ void main() {
         throwsA(isA<UnimplementedError>()),
       );
     });
+
+    test('throws UnimplementedError for configureStorage', () {
+      final platform = _TestAppIntentsPlatform();
+
+      expect(
+        () => platform.configureStorage(
+          appGroupIdentifier: 'group.com.example.app',
+        ),
+        throwsA(isA<UnimplementedError>()),
+      );
+    });
   });
 }
 

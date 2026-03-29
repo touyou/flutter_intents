@@ -195,6 +195,17 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return methodChannel.invokeMethod('clearCachedValue', {'key': key});
   }
 
+  @override
+  Future<void> configureStorage({
+    required String appGroupIdentifier,
+    String? storageIdentifier,
+  }) {
+    return methodChannel.invokeMethod('configureStorage', {
+      'appGroupIdentifier': appGroupIdentifier,
+      if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
+    });
+  }
+
   Stream<String>? _pendingActionsStreamCache;
 
   @override

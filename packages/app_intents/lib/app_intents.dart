@@ -193,4 +193,35 @@ class AppIntents {
   Future<bool> processPendingActions() {
     return AppIntentsPlatform.instance.processPendingActions();
   }
+
+  /// Configures shared storage for cross-process App Intents communication.
+  ///
+  /// On iOS, App Intents may run in a separate extension process that does
+  /// not share `UserDefaults.standard` with the main app. Without this
+  /// configuration, cached data and pending actions may appear to "reset"
+  /// because each process has its own isolated UserDefaults.
+  ///
+  /// Call this **before** any cache or pending action operations.
+  ///
+  /// Example:
+  /// ```dart
+  /// final appIntents = AppIntents();
+  /// await appIntents.configureStorage(
+  ///   appGroupIdentifier: 'group.com.example.app',
+  /// );
+  /// ```
+  ///
+  /// On iOS, you must also call `AppIntentsPlugin.configure()` in your
+  /// AppDelegate (or wherever generated Swift code runs) with the same
+  /// App Group identifier, so that the extension process uses the shared
+  /// storage as well.
+  Future<void> configureStorage({
+    required String appGroupIdentifier,
+    String? storageIdentifier,
+  }) {
+    return AppIntentsPlatform.instance.configureStorage(
+      appGroupIdentifier: appGroupIdentifier,
+      storageIdentifier: storageIdentifier,
+    );
+  }
 }

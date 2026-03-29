@@ -16,6 +16,56 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Uses a buffer to hold events until Dart starts listening.
     public static let notifier = PendingActionStreamHandler()
 
+    // MARK: - Storage Configuration
+
+    /// The App Group identifier for shared UserDefaults between the main app
+    /// and App Intent extension processes (e.g., `WFIsolatedShortcutRunner`).
+    ///
+    /// **Must be set before any cache/pending action operations.**
+    /// Without this, data written by App Intent extensions is invisible to the
+    /// main app (and vice versa), causing apparent "data resets."
+    ///
+    /// Example (in AppDelegate):
+    /// ```swift
+    /// AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+    /// ```
+    private static var _appGroupIdentifier: String?
+
+    /// A fixed identifier used for cache key prefixes, ensuring consistency
+    /// across processes. Defaults to `"app_intents"` if not explicitly set.
+    ///
+    /// Unlike `Bundle.main.bundleIdentifier`, this value is stable regardless
+    /// of whether code runs in the main app or an extension process.
+    private static var _storageIdentifier: String?
+
+    /// Configures shared storage for cross-process App Intents communication.
+    ///
+    /// - Parameters:
+    ///   - appGroupIdentifier: The App Group identifier (e.g., `"group.com.example.app"`).
+    ///     Required for data to persist correctly when App Intents run in extension processes.
+    ///   - storageIdentifier: Optional fixed identifier for cache key prefixes.
+    ///     Defaults to the main bundle identifier or `"app_intents"`.
+    public static func configure(
+        appGroupIdentifier: String,
+        storageIdentifier: String? = nil
+    ) {
+        _appGroupIdentifier = appGroupIdentifier
+        _storageIdentifier = storageIdentifier
+    }
+
+    /// The UserDefaults instance used for all storage operations.
+    ///
+    /// Returns the App Group suite when configured, falling back to `.standard`.
+    /// Using `.standard` without App Group will cause data isolation between
+    /// the main app and extension processes.
+    static var storage: UserDefaults {
+        if let groupId = _appGroupIdentifier,
+           let groupDefaults = UserDefaults(suiteName: groupId) {
+            return groupDefaults
+        }
+        return .standard
+    }
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "app_intents", binaryMessenger: registrar.messenger())
         let instance = AppIntentsPlugin()
@@ -46,6 +96,18 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             result(nil)
         case "processPendingActions":
             result(Self.consumePendingAction())
+        case "configureStorage":
+            guard let args = call.arguments as? [String: Any],
+                  let appGroupIdentifier = args["appGroupIdentifier"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "appGroupIdentifier is required", details: nil))
+                return
+            }
+            let storageIdentifier = args["storageIdentifier"] as? String
+            AppIntentsPlugin.configure(
+                appGroupIdentifier: appGroupIdentifier,
+                storageIdentifier: storageIdentifier
+            )
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -67,40 +129,52 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
 
     /// Reads and removes the first pending action from the queue, returning it if present.
     private static func consumePendingAction() -> [String: Any]? {
-        guard var pending = UserDefaults.standard.array(forKey: pendingActionsKey) as? [Data],
+        let defaults = storage
+        guard var pending = defaults.array(forKey: pendingActionsKey) as? [Data],
               !pending.isEmpty else {
             return nil
         }
         let data = pending.removeFirst()
         if pending.isEmpty {
-            UserDefaults.standard.removeObject(forKey: pendingActionsKey)
+            defaults.removeObject(forKey: pendingActionsKey)
         } else {
-            UserDefaults.standard.set(pending, forKey: pendingActionsKey)
+            defaults.set(pending, forKey: pendingActionsKey)
         }
+        defaults.synchronize()
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
     // MARK: - Caching API
 
-    /// Bundle-ID-qualified prefix for cache keys to avoid namespace collisions.
-    private static let cachePrefix: String = {
-        let bundleId = Bundle.main.bundleIdentifier ?? "app_intents"
-        return "app_intents.\(bundleId).cache."
-    }()
+    /// Process-stable prefix for cache keys to avoid namespace collisions.
+    ///
+    /// Uses `_storageIdentifier` (if configured via `configure()`), falling back
+    /// to `Bundle.main.bundleIdentifier`. This ensures the same prefix is used
+    /// regardless of whether the code runs in the main app or an extension process,
+    /// as long as `configure()` is called in both contexts.
+    private static var cachePrefix: String {
+        let id = _storageIdentifier
+            ?? _appGroupIdentifier
+            ?? Bundle.main.bundleIdentifier
+            ?? "app_intents"
+        return "app_intents.\(id).cache."
+    }
 
     /// Caches a value for later retrieval.
     public static func setCached(_ value: Any?, forKey key: String) {
+        let defaults = storage
         let prefixedKey = "\(cachePrefix)\(key)"
         if let value {
-            UserDefaults.standard.set(value, forKey: prefixedKey)
+            defaults.set(value, forKey: prefixedKey)
         } else {
-            UserDefaults.standard.removeObject(forKey: prefixedKey)
+            defaults.removeObject(forKey: prefixedKey)
         }
+        defaults.synchronize()
     }
 
     /// Retrieves a cached value.
     public static func getCached(forKey key: String) -> Any? {
-        return UserDefaults.standard.object(forKey: "\(cachePrefix)\(key)")
+        return storage.object(forKey: "\(cachePrefix)\(key)")
     }
 
     /// Stores a pending intent action and notifies Dart via EventChannel.
@@ -117,10 +191,12 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             "params": params
         ]
 
+        let defaults = storage
         if let data = try? JSONSerialization.data(withJSONObject: action) {
-            var pending = (UserDefaults.standard.array(forKey: pendingActionsKey) as? [Data]) ?? []
+            var pending = (defaults.array(forKey: pendingActionsKey) as? [Data]) ?? []
             pending.append(data)
-            UserDefaults.standard.set(pending, forKey: pendingActionsKey)
+            defaults.set(pending, forKey: pendingActionsKey)
+            defaults.synchronize()
         }
 
         // Notify Dart via EventChannel (buffered if Dart isn't listening yet)
