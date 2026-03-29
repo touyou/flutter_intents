@@ -316,6 +316,12 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
   // - "setCachedValue"        → Write to UserDefaults cache
   // - "clearCachedValue"      → Clear cached value
   // - "processPendingActions" → Process queued intent actions
+  // - "configureStorage"      → Set App Group identifier for cross-process storage
+
+  // Storage configuration (required for cache mode):
+  // AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+  // Uses App Group UserDefaults instead of .standard to share data between
+  // the main app and App Intent extension processes.
 }
 ```
 

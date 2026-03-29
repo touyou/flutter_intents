@@ -280,6 +280,7 @@ class TaskEntitySpec extends EntitySpecBase<Task> {
 | Localization | String Catalog (iOS standard) |
 | Error Handling | Both (iOS standard + custom error types) |
 | Entity Image Formats | URL + Asset + SF Symbol |
+| Cross-Process Storage | App Group UserDefaults (explicit `configure()` required) |
 
 ### Supported Features
 

@@ -1,3 +1,12 @@
+## 0.7.6
+
+- Fix: Use App Group UserDefaults to prevent cross-process data resets on iOS
+  - App Intents running in extension processes (`WFIsolatedShortcutRunner`) now share storage with the main app
+  - Cache key prefix uses stable identifier instead of `Bundle.main.bundleIdentifier` (which differs across processes)
+  - Added `synchronize()` after all UserDefaults writes for reliability
+- Add: `configureStorage(appGroupIdentifier:)` API for Dart-side App Group configuration
+- Add: `AppIntentsPlugin.configure(appGroupIdentifier:)` static method for Swift-side configuration
+
 ## 0.7.5
 
 - No API changes; version bump to align with codegen bug fix release

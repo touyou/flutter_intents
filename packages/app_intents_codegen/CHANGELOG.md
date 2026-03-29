@@ -1,3 +1,7 @@
+## 0.7.6
+
+- No codegen changes; version bump to align with plugin bug fix release (App Group storage fix)
+
 ## 0.7.5
 
 - Fix: Kotlin codegen file parameter (`IntentFile`) now includes `mimeType` and `filename` in generated map (#15)

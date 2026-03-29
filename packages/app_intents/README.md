@@ -94,6 +94,22 @@ appIntents.onIntentExecution.listen((request) {
 });
 ```
 
+### Storage Configuration (iOS)
+
+For cache-mode intents, configure App Group storage to enable cross-process data sharing. Without this, data may appear to "reset" when App Intents run in extension processes.
+
+```dart
+// Call before any cache operations (typically in main())
+await appIntents.configureStorage(
+  appGroupIdentifier: 'group.com.example.app',
+);
+```
+
+On the iOS side, also call in your AppDelegate:
+```swift
+AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+```
+
 ### Caching API
 
 For foreground intent execution (cache mode), the plugin provides caching support:
