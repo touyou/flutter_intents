@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import app_intents
+import AppIntentsBridge
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
