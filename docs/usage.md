@@ -74,6 +74,11 @@ The `AppIntentsBridge` Swift package provides the native bridge between your Flu
 4. Select the `AppIntentsBridge` package product
 5. Add it to your `Runner` target
 
+Then configure App Groups for cross-process storage (required for cache mode):
+
+1. In Xcode: Select Runner target → **Signing & Capabilities** → **+ Capability** → **App Groups**
+2. Add an identifier (e.g., `group.com.example.app`)
+
 Then in your `AppDelegate.swift`:
 
 ```swift
@@ -82,6 +87,11 @@ import AppIntentsBridge
 
 // In your AppDelegate (using FlutterImplicitEngineDelegate):
 if #available(iOS 17.0, *) {
+  // Configure App Group storage — required for cache mode intents to share data
+  // between the main app and App Intent extension processes.
+  // Without this, cached data may appear to "reset" across processes.
+  AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+
   Task { @MainActor in
     // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
@@ -618,7 +628,9 @@ Siri/Shortcuts → Generated AppIntent.perform()
   → Delivers params to registered handler
 ```
 
-**Required**: Call `processPendingActions()` in your `main()` (see [Plugin Usage](#plugin-usage)).
+**Required**:
+- Call `AppIntentsPlugin.configure(appGroupIdentifier:)` in your AppDelegate (see [iOS Native Setup](#3-ios-native-setup-appintentsbridge))
+- Call `configureStorage()` and `processPendingActions()` in your `main()` (see [Plugin Usage](#plugin-usage))
 
 ### FlutterBridge Mode (Background)
 
@@ -752,8 +764,14 @@ import 'intents/create_task_intent.dart';
 import 'intents/create_task_with_image_intent.dart';
 import 'entities/task_entity.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure App Group storage (iOS, required for cache mode).
+  // Must match the appGroupIdentifier in AppDelegate.swift.
+  await AppIntents().configureStorage(
+    appGroupIdentifier: 'group.com.example.app',
+  );
 
   // Register intent/entity handlers (generated code)
   initializeCreateTaskAppIntents();
@@ -782,10 +800,15 @@ void main() {
 When using `processPendingActions()`, the initialization order in `main()` is critical. Intent handlers must be registered **before** calling `processPendingActions()`, otherwise the pending action will be dispatched but no handler will receive it.
 
 ```dart
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Register ALL handlers first
+  // 0. Configure App Group storage (must come first)
+  await AppIntents().configureStorage(
+    appGroupIdentifier: 'group.com.example.app',
+  );
+
+  // 1. Register ALL handlers
   initializeCreateTaskAppIntents();
   initializeTaskEntityAppIntents();
 

@@ -153,6 +153,30 @@ abstract class AppIntentsPlatform extends PlatformInterface {
         'processPendingActions() has not been implemented.');
   }
 
+  /// Configures shared storage for cross-process App Intents communication.
+  ///
+  /// On iOS, App Intents may run in a separate extension process
+  /// (`WFIsolatedShortcutRunner`) that does not share `UserDefaults.standard`
+  /// with the main app. Without App Group configuration, data written by one
+  /// process is invisible to the other, causing apparent "data resets."
+  ///
+  /// Call this **before** any cache or pending action operations (typically
+  /// at the start of `main()` or in the AppDelegate).
+  ///
+  /// - [appGroupIdentifier]: The App Group identifier (e.g.,
+  ///   `"group.com.example.app"`). Must match the App Group configured in
+  ///   Xcode under Signing & Capabilities.
+  /// - [storageIdentifier]: Optional fixed identifier for cache key prefixes.
+  ///   Ensures consistent keys across processes. Defaults to the
+  ///   [appGroupIdentifier].
+  Future<void> configureStorage({
+    required String appGroupIdentifier,
+    String? storageIdentifier,
+  }) {
+    throw UnimplementedError(
+        'configureStorage() has not been implemented.');
+  }
+
   /// A stream of pending action notifications from native App Intents.
   ///
   /// Emits the intent identifier when a cache-mode intent's `perform()`

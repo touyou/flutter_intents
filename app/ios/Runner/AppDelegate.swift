@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import app_intents
+import AppIntentsBridge
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -9,6 +10,10 @@ import app_intents
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    // Configure App Group storage for cross-process data sharing.
+    // Must match the identifier used in Dart's configureStorage() call.
+    AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.taskapp")
 
     // Wire FlutterBridge to AppIntentsPlugin for intent execution
     if #available(iOS 17.0, *) {

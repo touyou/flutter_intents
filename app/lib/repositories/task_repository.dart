@@ -1,17 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:app_intents/app_intents.dart';
 
 import '../models/task.dart';
 
-/// Repository for managing tasks in memory.
+/// Repository for managing tasks with App Group UserDefaults persistence.
 ///
-/// In a real app, this would persist to a database or API.
+/// Uses the app_intents caching API (App Group UserDefaults) so that
+/// task data is accessible from both the main app and App Intent
+/// extension processes (e.g., WFIsolatedShortcutRunner).
 class TaskRepository {
   TaskRepository._();
 
   /// Singleton instance.
   static final TaskRepository instance = TaskRepository._();
 
-  /// In-memory storage for tasks.
+  static const _storageKey = 'tasks';
+
+  /// In-memory cache backed by App Group UserDefaults.
   final Map<String, Task> _tasks = {};
 
   /// Stream controller for task changes.
@@ -19,6 +26,37 @@ class TaskRepository {
 
   /// Stream of all tasks.
   Stream<List<Task>> get tasksStream => _tasksController.stream;
+
+  /// Loads tasks from App Group UserDefaults into memory.
+  ///
+  /// Call this once at startup, after `configureStorage()`.
+  Future<void> loadFromStorage() async {
+    final raw = await AppIntents().getCachedValue(_storageKey);
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List<dynamic>;
+        _tasks.clear();
+        for (final item in list) {
+          final task = Task.fromJson(item as Map<String, dynamic>);
+          _tasks[task.id] = task;
+        }
+        _notifyListeners();
+      } catch (e) {
+        // Corrupted data — start fresh but log it
+        assert(() {
+          // ignore: avoid_print
+          print('[TaskRepository] Failed to load tasks from storage: $e');
+          return true;
+        }());
+      }
+    }
+  }
+
+  /// Persists current tasks to App Group UserDefaults.
+  Future<void> _saveToStorage() async {
+    final json = jsonEncode(_tasks.values.map((t) => t.toJson()).toList());
+    await AppIntents().setCachedValue(_storageKey, json);
+  }
 
   /// Gets all tasks.
   List<Task> getAllTasks() {
@@ -63,6 +101,7 @@ class TaskRepository {
     );
     _tasks[id] = task;
     _notifyListeners();
+    await _saveToStorage();
     return task;
   }
 
@@ -85,6 +124,7 @@ class TaskRepository {
     );
     _tasks[id] = updated;
     _notifyListeners();
+    await _saveToStorage();
     return updated;
   }
 
@@ -101,15 +141,17 @@ class TaskRepository {
     final removed = _tasks.remove(id);
     if (removed != null) {
       _notifyListeners();
+      await _saveToStorage();
       return true;
     }
     return false;
   }
 
   /// Clears all tasks.
-  void clear() {
+  Future<void> clear() async {
     _tasks.clear();
     _notifyListeners();
+    await _saveToStorage();
   }
 
   void _notifyListeners() {

@@ -195,6 +195,22 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return methodChannel.invokeMethod('clearCachedValue', {'key': key});
   }
 
+  @override
+  Future<void> configureStorage({
+    required String appGroupIdentifier,
+    String? storageIdentifier,
+  }) async {
+    try {
+      await methodChannel.invokeMethod('configureStorage', {
+        'appGroupIdentifier': appGroupIdentifier,
+        if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // Cross-process storage configuration is iOS-specific.
+    }
+  }
+
   Stream<String>? _pendingActionsStreamCache;
 
   @override

@@ -35,6 +35,7 @@ docs/
 | Deep Linking | **app_links** package |
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha07** |
+| Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 
 ## Implementation Status
 
@@ -48,8 +49,8 @@ docs/
 - `app_intents`: Platform Interface extended
   - `registerIntentHandler`, `registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`
   - `onIntentExecution` stream
-  - Caching API: `getCachedValue`, `setCachedValue`, `clearCachedValue`, `processPendingActions`
-  - iOS `AppIntentsPlugin.swift`: caching via UserDefaults, `setPendingAction` for cache mode
+  - Caching API: `getCachedValue`, `setCachedValue`, `clearCachedValue`, `processPendingActions`, `configureStorage`
+  - iOS `AppIntentsPlugin.swift`: App Group UserDefaults for cross-process storage, `setPendingAction` for cache mode, `configure(appGroupIdentifier:)` for shared storage
 - `app_intents_codegen`: build_runner integration + Analyzers + Generators
   - `IntentAnalyzer`, `EntityAnalyzer`, `EnumAnalyzer`, `ShortcutAnalyzer` for annotation parsing
   - `SwiftGenerator`: Generates iOS 17+ AppIntent/AppEntity/AppEnum/AppShortcutsProvider Swift code
@@ -124,6 +125,12 @@ docs/
   - These handlers are never called because intent execution uses URL scheme instead
   - Entity query handlers (`registerEntityQueryHandler`, `registerSuggestedEntitiesHandler`) are still used
   - Keeping unused handlers is harmless (minimal overhead) and useful for testing
+
+- **Cross-Process Storage Requires App Group**: Cache mode intents running in extension processes (`WFIsolatedShortcutRunner`) require App Group configuration:
+  - Without App Group, `UserDefaults.standard` is isolated per process → data appears to "reset"
+  - `Bundle.main.bundleIdentifier` differs between main app and extensions → cache key mismatch
+  - Solution: Call `AppIntentsPlugin.configure(appGroupIdentifier:)` in both AppDelegate and generated Swift code
+  - Dart side: Call `AppIntents().configureStorage(appGroupIdentifier:)` before cache operations
 
 ### Future Migration
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
@@ -380,12 +387,18 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 1. Add AppIntentsBridge: either via SPM (`File → Add Package Dependencies` → `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product) or copy Swift files to `ios/Runner/AppIntentsBridge/`
 2. Run `dart run app_intents_codegen:generate_swift` to generate Swift code
 3. Add Swift files to Xcode project (update project.pbxproj)
-4. Wire FlutterBridge in AppDelegate (using `FlutterImplicitEngineDelegate`):
+4. Enable App Groups in Xcode (required for cache mode):
+   - Select Runner target → Signing & Capabilities → + Capability → App Groups
+   - Add identifier (e.g., `group.com.example.app`)
+5. Wire FlutterBridge and configure storage in AppDelegate (using `FlutterImplicitEngineDelegate`):
 ```swift
 import app_intents
 
 // In didInitializeImplicitFlutterEngine(_:):
 if #available(iOS 17.0, *) {
+  // Configure App Group storage (required for cache mode cross-process data sharing)
+  AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+
   Task { @MainActor in
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
       guard let plugin = AppIntentsPlugin.shared else {
@@ -409,7 +422,7 @@ if #available(iOS 17.0, *) {
   }
 }
 ```
-5. Set iOS deployment target to 17.0 in Podfile
+6. Set iOS deployment target to 17.0 in Podfile
 
 ### Android App Integration Steps
 1. Add KSP plugin to `android/settings.gradle.kts`:
