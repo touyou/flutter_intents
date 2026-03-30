@@ -49,6 +49,13 @@ class MockAppIntentsPlatform
   @override
   Future<bool> processPendingActions() => Future.value(false);
 
+  @override
+  Future<void> configureStorage({
+    required String appGroupIdentifier,
+    String? storageIdentifier,
+  }) =>
+      Future.value();
+
   // Test helpers
   bool hasIntentHandler(String identifier) =>
       _intentHandlers.containsKey(identifier);

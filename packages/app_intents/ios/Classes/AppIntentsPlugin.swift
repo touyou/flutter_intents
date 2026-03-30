@@ -49,6 +49,19 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         appGroupIdentifier: String,
         storageIdentifier: String? = nil
     ) {
+        guard !appGroupIdentifier.isEmpty else {
+            NSLog("[AppIntentsPlugin] ERROR: appGroupIdentifier must not be empty.")
+            assertionFailure("[AppIntentsPlugin] appGroupIdentifier must not be empty.")
+            return
+        }
+
+        // Eagerly validate that the App Group is accessible
+        if UserDefaults(suiteName: appGroupIdentifier) == nil {
+            NSLog("[AppIntentsPlugin] WARNING: UserDefaults(suiteName: \"%@\") returned nil. " +
+                  "Verify the App Group entitlement is added in Xcode Signing & Capabilities " +
+                  "and matches this identifier exactly.", appGroupIdentifier)
+        }
+
         _appGroupIdentifier = appGroupIdentifier
         _storageIdentifier = storageIdentifier
     }
@@ -59,9 +72,29 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Using `.standard` without App Group will cause data isolation between
     /// the main app and extension processes.
     static var storage: UserDefaults {
-        if let groupId = _appGroupIdentifier,
-           let groupDefaults = UserDefaults(suiteName: groupId) {
-            return groupDefaults
+        if let groupId = _appGroupIdentifier {
+            if let groupDefaults = UserDefaults(suiteName: groupId) {
+                return groupDefaults
+            }
+            // The developer called configure() but the App Group is invalid.
+            NSLog("[AppIntentsPlugin] ERROR: UserDefaults(suiteName: \"%@\") returned nil. " +
+                  "Verify the App Group entitlement is added in Xcode Signing & Capabilities " +
+                  "and matches this identifier exactly. Falling back to UserDefaults.standard, " +
+                  "which will NOT share data across processes.", groupId)
+            assertionFailure(
+                "[AppIntentsPlugin] Invalid App Group identifier: \(groupId). " +
+                "UserDefaults(suiteName:) returned nil."
+            )
+        } else {
+            // Log once when configure() was never called
+            struct Once { static var logged = false }
+            if !Once.logged {
+                Once.logged = true
+                NSLog("[AppIntentsPlugin] WARNING: App Group not configured. " +
+                      "Call AppIntentsPlugin.configure(appGroupIdentifier:) before " +
+                      "using cache or pending action APIs. Without this, data will " +
+                      "not be shared between the main app and extension processes.")
+            }
         }
         return .standard
     }
@@ -130,6 +163,11 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Reads and removes the first pending action from the queue, returning it if present.
     private static func consumePendingAction() -> [String: Any]? {
         let defaults = storage
+        // Ensure we read the latest cross-process state from disk.
+        // While Apple considers synchronize() unnecessary for single-process use,
+        // it helps flush pending writes in the App Group cross-process scenario
+        // where the extension process writes and the main app reads shortly after.
+        defaults.synchronize()
         guard var pending = defaults.array(forKey: pendingActionsKey) as? [Data],
               !pending.isEmpty else {
             return nil
@@ -141,21 +179,30 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             defaults.set(pending, forKey: pendingActionsKey)
         }
         defaults.synchronize()
-        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+
+        guard let deserialized = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            NSLog("[AppIntentsPlugin] ERROR: Failed to deserialize pending action (data size: %d bytes). " +
+                  "The action has been removed from the queue and is lost.", data.count)
+            return nil
+        }
+        return deserialized
     }
 
     // MARK: - Caching API
 
     /// Process-stable prefix for cache keys to avoid namespace collisions.
     ///
-    /// Uses `_storageIdentifier` (if configured via `configure()`), falling back
-    /// to `Bundle.main.bundleIdentifier`. This ensures the same prefix is used
-    /// regardless of whether the code runs in the main app or an extension process,
-    /// as long as `configure()` is called in both contexts.
+    /// Fallback order: `_storageIdentifier` (explicit) → `Bundle.main.bundleIdentifier`
+    /// (preserves pre-0.7.6 key format) → `_appGroupIdentifier` → `"app_intents"`.
+    ///
+    /// Note: `Bundle.main.bundleIdentifier` is preferred over `_appGroupIdentifier`
+    /// to maintain backward compatibility with cache keys written before 0.7.6.
+    /// In extension processes where `bundleIdentifier` differs, set `storageIdentifier`
+    /// explicitly via `configure()` to ensure a consistent prefix.
     private static var cachePrefix: String {
         let id = _storageIdentifier
-            ?? _appGroupIdentifier
             ?? Bundle.main.bundleIdentifier
+            ?? _appGroupIdentifier
             ?? "app_intents"
         return "app_intents.\(id).cache."
     }
@@ -169,12 +216,16 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         } else {
             defaults.removeObject(forKey: prefixedKey)
         }
+        // Flush to disk for cross-process visibility (App Group UserDefaults).
         defaults.synchronize()
     }
 
     /// Retrieves a cached value.
     public static func getCached(forKey key: String) -> Any? {
-        return storage.object(forKey: "\(cachePrefix)\(key)")
+        let defaults = storage
+        // Ensure we read the latest cross-process state from disk.
+        defaults.synchronize()
+        return defaults.object(forKey: "\(cachePrefix)\(key)")
     }
 
     /// Stores a pending intent action and notifies Dart via EventChannel.
@@ -192,11 +243,16 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         ]
 
         let defaults = storage
-        if let data = try? JSONSerialization.data(withJSONObject: action) {
+        do {
+            let data = try JSONSerialization.data(withJSONObject: action)
             var pending = (defaults.array(forKey: pendingActionsKey) as? [Data]) ?? []
             pending.append(data)
             defaults.set(pending, forKey: pendingActionsKey)
+            // Flush to disk for cross-process visibility (App Group UserDefaults).
             defaults.synchronize()
+        } catch {
+            NSLog("[AppIntentsPlugin] ERROR: Failed to serialize pending action '%@': %@. " +
+                  "The action will NOT be queued.", identifier, error.localizedDescription)
         }
 
         // Notify Dart via EventChannel (buffered if Dart isn't listening yet)

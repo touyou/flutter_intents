@@ -196,6 +196,8 @@ class AppIntents {
 
   /// Configures shared storage for cross-process App Intents communication.
   ///
+  /// **iOS only.** On other platforms this is a no-op.
+  ///
   /// On iOS, App Intents may run in a separate extension process that does
   /// not share `UserDefaults.standard` with the main app. Without this
   /// configuration, cached data and pending actions may appear to "reset"

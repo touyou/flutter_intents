@@ -199,11 +199,16 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   Future<void> configureStorage({
     required String appGroupIdentifier,
     String? storageIdentifier,
-  }) {
-    return methodChannel.invokeMethod('configureStorage', {
-      'appGroupIdentifier': appGroupIdentifier,
-      if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
-    });
+  }) async {
+    try {
+      await methodChannel.invokeMethod('configureStorage', {
+        'appGroupIdentifier': appGroupIdentifier,
+        if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // Cross-process storage configuration is iOS-specific.
+    }
   }
 
   Stream<String>? _pendingActionsStreamCache;
