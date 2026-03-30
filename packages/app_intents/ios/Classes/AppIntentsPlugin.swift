@@ -45,14 +45,16 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     ///     Required for data to persist correctly when App Intents run in extension processes.
     ///   - storageIdentifier: Optional fixed identifier for cache key prefixes.
     ///     Defaults to the main bundle identifier or `"app_intents"`.
+    /// Returns `false` if validation fails (empty string).
+    @discardableResult
     public static func configure(
         appGroupIdentifier: String,
         storageIdentifier: String? = nil
-    ) {
+    ) -> Bool {
         guard !appGroupIdentifier.isEmpty else {
             NSLog("[AppIntentsPlugin] ERROR: appGroupIdentifier must not be empty.")
             assertionFailure("[AppIntentsPlugin] appGroupIdentifier must not be empty.")
-            return
+            return false
         }
 
         // Eagerly validate that the App Group is accessible
@@ -64,6 +66,7 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
 
         _appGroupIdentifier = appGroupIdentifier
         _storageIdentifier = storageIdentifier
+        return true
     }
 
     /// The UserDefaults instance used for all storage operations.
@@ -136,11 +139,15 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
                 return
             }
             let storageIdentifier = args["storageIdentifier"] as? String
-            AppIntentsPlugin.configure(
+            let success = AppIntentsPlugin.configure(
                 appGroupIdentifier: appGroupIdentifier,
                 storageIdentifier: storageIdentifier
             )
-            result(nil)
+            if success {
+                result(nil)
+            } else {
+                result(FlutterError(code: "INVALID_ARGS", message: "appGroupIdentifier must not be empty", details: nil))
+            }
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -250,13 +257,14 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             defaults.set(pending, forKey: pendingActionsKey)
             // Flush to disk for cross-process visibility (App Group UserDefaults).
             defaults.synchronize()
+
+            // Only notify Dart if the action was successfully queued.
+            // Notifying on failure would cause Dart to poll for a non-existent action.
+            notifier.push(identifier)
         } catch {
             NSLog("[AppIntentsPlugin] ERROR: Failed to serialize pending action '%@': %@. " +
                   "The action will NOT be queued.", identifier, error.localizedDescription)
         }
-
-        // Notify Dart via EventChannel (buffered if Dart isn't listening yet)
-        notifier.push(identifier)
     }
 
     // MARK: - Flutter Bridge Integration
