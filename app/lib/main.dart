@@ -14,6 +14,16 @@ import 'repositories/task_repository.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Configure App Group storage (iOS) for cross-process data sharing.
+  // Must be called before any cache operations or handler registrations
+  // that depend on persisted data.
+  await AppIntents().configureStorage(
+    appGroupIdentifier: 'group.com.example.taskapp',
+  );
+
+  // Load persisted tasks from App Group UserDefaults
+  await TaskRepository.instance.loadFromStorage();
+
   // Initialize all App Intents handlers
   initializeCreateTaskAppIntents();
   initializeCompleteTaskAppIntents();
