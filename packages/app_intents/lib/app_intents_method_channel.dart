@@ -281,11 +281,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   ) async {
     final handler = _entityQueryHandlers[entityIdentifier];
     if (handler == null) {
-      throw AppIntentError.fromCode(
-        AppIntentErrorCode.entityQueryHandlerNotFound,
-        message: 'No entity query handler registered for: $entityIdentifier',
-        details: {'entityIdentifier': entityIdentifier},
-      );
+      return <Map<String, dynamic>>[];
     }
 
     try {
@@ -312,12 +308,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   ) async {
     final handler = _suggestedEntitiesHandlers[entityIdentifier];
     if (handler == null) {
-      throw AppIntentError.fromCode(
-        AppIntentErrorCode.entityQueryHandlerNotFound,
-        message:
-            'No suggested entities handler registered for: $entityIdentifier',
-        details: {'entityIdentifier': entityIdentifier},
-      );
+      return <Map<String, dynamic>>[];
     }
 
     try {

@@ -94,11 +94,9 @@ void main() {
       expect(result[0]['id'], '1');
     });
 
-    test('registerEntityQueryHandler throws error for unknown entity', () async {
-      expect(
-        () => platform.handleEntityQuery('unknown.entity', ['1']),
-        throwsA(isA<AppIntentError>()),
-      );
+    test('handleEntityQuery returns empty list for unregistered entity', () async {
+      final result = await platform.handleEntityQuery('unknown.entity', ['1']);
+      expect(result, isEmpty);
     });
 
     test('registerSuggestedEntitiesHandler stores handler correctly', () async {
@@ -124,11 +122,9 @@ void main() {
       expect(result[0]['title'], 'Suggested Task');
     });
 
-    test('registerSuggestedEntitiesHandler throws error for unknown entity', () async {
-      expect(
-        () => platform.handleSuggestedEntitiesQuery('unknown.entity'),
-        throwsA(isA<AppIntentError>()),
-      );
+    test('handleSuggestedEntitiesQuery returns empty list for unregistered entity', () async {
+      final result = await platform.handleSuggestedEntitiesQuery('unknown.entity');
+      expect(result, isEmpty);
     });
   });
 
