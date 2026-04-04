@@ -1,3 +1,10 @@
+## 0.7.7
+
+- Fix: Return empty list instead of throwing when entity query handler is not yet registered
+  - iOS may issue entity queries (Spotlight indexing, Siri Suggestions) before Dart-side handlers are registered
+  - `handleEntityQuery()` and `handleSuggestedEntitiesQuery()` now return `[]` for unregistered entities
+  - The next query after handler registration returns real data
+
 ## 0.7.6
 
 - Fix: Use App Group UserDefaults to prevent cross-process data resets on iOS

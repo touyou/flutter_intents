@@ -1,3 +1,7 @@
+## 0.7.7
+
+- No API changes; version bump to align with plugin fix release
+
 ## 0.7.6
 
 - No API changes; version bump to align with plugin bug fix release (App Group storage fix)
