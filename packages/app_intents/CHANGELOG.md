@@ -1,3 +1,10 @@
+## 0.7.8
+
+- Fix: Android `AppIntentsPlugin` now handles iOS-only cache methods as no-ops instead of throwing `MissingPluginException` (#22)
+  - `getCachedValue`, `setCachedValue`, `clearCachedValue`, `configureStorage`, and `processPendingActions` return `null` on Android
+  - Prevents silent failures in release builds where `PlatformDispatcher.onError` may swallow the exception
+  - Cross-platform callers no longer need to wrap each invocation in try-catch or guard with `Platform.isIOS`
+
 ## 0.7.7
 
 - Fix: Return empty list instead of throwing when entity query handler is not yet registered

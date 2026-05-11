@@ -1,3 +1,7 @@
+## 0.7.8
+
+- No codegen changes; version bump to align with plugin fix release (Android cache no-op handlers)
+
 ## 0.7.7
 
 - No codegen changes; version bump to align with plugin fix release

@@ -42,6 +42,16 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
             "getPlatformVersion" -> {
                 result.success("Android ${Build.VERSION.RELEASE}")
             }
+            // iOS-only cache/storage APIs. Implemented as no-ops on Android so
+            // cross-platform callers don't have to guard every call with
+            // Platform.isIOS or swallow MissingPluginException — which is
+            // particularly dangerous in release builds where
+            // PlatformDispatcher.onError can silently consume the exception.
+            "getCachedValue",
+            "setCachedValue",
+            "clearCachedValue",
+            "configureStorage",
+            "processPendingActions" -> result.success(null)
             else -> result.notImplemented()
         }
     }
