@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
  * @param title The display title.
  * @param description The subtitle or description.
  */
-@AppFunctionSerializable(isDescribedByKdoc = true)
+@AppFunctionSerializable(isDescribedByKDoc = true)
 data class TaskEntitySpec(
     val id: String,
     val title: String,
@@ -89,7 +89,7 @@ class GeneratedAppFunctions {
      * @param appFunctionContext The context for this app function execution.
      * @param task The task to complete
      */
-    @AppFunction(isDescribedByKdoc = true)
+    @AppFunction(isDescribedByKDoc = true)
     suspend fun completeTask(
         appFunctionContext: AppFunctionContext,
         task: String
@@ -107,7 +107,7 @@ class GeneratedAppFunctions {
      * @param description Optional description for the task (optional)
      * @param dueDate When the task is due (optional)
      */
-    @AppFunction(isDescribedByKdoc = true)
+    @AppFunction(isDescribedByKDoc = true)
     suspend fun createTask(
         appFunctionContext: AppFunctionContext,
         title: String,
@@ -128,15 +128,15 @@ class GeneratedAppFunctions {
      * @param title The title of the task
      * @param image An image to attach to the task (optional)
      */
-    @AppFunction(isDescribedByKdoc = true)
+    @AppFunction(isDescribedByKDoc = true)
     suspend fun createTaskWithImage(
         appFunctionContext: AppFunctionContext,
         title: String,
-        image: IntentFile? = null
+        image: String? = null
     ): String {
         val params = mutableMapOf<String, Any?>()
         params["title"] = title
-        if (image != null) params["image"] = image
+        if (image != null) params["image"] = mapOf("path" to image, "mimeType" to java.net.URLConnection.guessContentTypeFromName(image), "filename" to java.io.File(image).name)
         return bridge.executeIntent("com.example.taskapp.createTaskWithImage", params)
     }
 }

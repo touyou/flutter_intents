@@ -357,7 +357,7 @@ struct AppShortcuts: AppShortcutsProvider {
 |------|------|
 | **Android最小バージョン** | API 36 (Android 16) |
 | **Kotlin** | 2.2+ |
-| **Jetpack AppFunctions** | 1.0.0-alpha07 |
+| **Jetpack AppFunctions** | 1.0.0-alpha09 |
 
 ### 設計決定事項
 

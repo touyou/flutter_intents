@@ -1,5 +1,5 @@
 PODS:
-  - app_intents (0.7.5):
+  - app_intents (0.7.8):
     - Flutter
   - Flutter (1.0.0)
 
@@ -14,7 +14,7 @@ EXTERNAL SOURCES:
     :path: Flutter
 
 SPEC CHECKSUMS:
-  app_intents: e1c16ea8d1a87b224913f87ceecd0790d280530d
+  app_intents: 882a5f43aa82bf06ae6dbcbe6f2d3beeaaf36934
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
 
 PODFILE CHECKSUM: 68a0fe41997147e5d043c7ed50614ab4a3969700

@@ -34,7 +34,7 @@ docs/
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
-| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha07** |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha09** |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 
 ## Implementation Status
@@ -104,7 +104,7 @@ docs/
 
 - Android AppFunctions Integration:
   - `KotlinGenerator`: Generates Android 16+ AppFunctions Kotlin code
-    - `@AppFunction(isDescribedByKdoc = true)` annotated methods
+    - `@AppFunction(isDescribedByKDoc = true)` annotated methods
     - `@AppFunctionSerializable` data classes for entities
     - `AppFunctionsBridge` singleton for MethodChannel communication
     - `GeneratedAppFunctions` class with no-arg constructor (KSP requirement)
@@ -198,7 +198,7 @@ Options:
 - `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`)
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
-- Parameter name is `isDescribedByKdoc` (lowercase 'd'), NOT `isDescribedByKDoc`
+- Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version format: `{kotlin-version}-{ksp-version}` (e.g., `2.2.20-2.0.4`)
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
@@ -425,16 +425,24 @@ if #available(iOS 17.0, *) {
 6. Set iOS deployment target to 17.0 in Podfile
 
 ### Android App Integration Steps
-1. Add KSP plugin to `android/settings.gradle.kts`:
+1. Use AGP 9.1.0+ / Gradle 9.3.1+ (required by `appfunctions:1.0.0-alpha09`)
+2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
+   id("com.android.application") version "9.1.1" apply false
+   id("org.jetbrains.kotlin.android") version "2.2.20" apply false
    id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
    ```
-2. Configure `android/app/build.gradle.kts`:
-   - Apply KSP plugin, set `compileSdk = 36`, `minSdk = 36`
+3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
+   ```properties
+   android.newDsl=false
+   android.builtInKotlin=false
+   ```
+4. Configure `android/app/build.gradle.kts`:
+   - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`, `minSdk = 36`
    - Add AppFunctions dependencies (`appfunctions`, `appfunctions-service`, `appfunctions-compiler`)
    - Add KSP arg: `ksp { arg("appfunctions:aggregateAppFunctions", "true") }`
-3. Run `make kotlin-gen` to generate Kotlin code
-4. Wire AppFunctionsBridge in MainActivity:
+5. Run `make kotlin-gen` to generate Kotlin code
+6. Wire AppFunctionsBridge in MainActivity:
 ```kotlin
 import com.example.app_intents.AppIntentsPlugin
 import com.example.app.generated.AppFunctionsBridge
@@ -449,7 +457,7 @@ class MainActivity : FlutterActivity() {
     }
 }
 ```
-5. Register AppFunctionService in `AndroidManifest.xml`
+7. Register AppFunctionService in `AndroidManifest.xml`
 
 ## Development Commands
 
@@ -635,7 +643,7 @@ import androidx.appfunctions.AppFunctionSerializable
 import androidx.appfunctions.service.AppFunction
 import io.flutter.plugin.common.MethodChannel
 
-@AppFunctionSerializable(isDescribedByKdoc = true)
+@AppFunctionSerializable(isDescribedByKDoc = true)
 data class TaskEntitySpec(
     val id: String,
     val title: String,
@@ -652,7 +660,7 @@ class GeneratedAppFunctions {
      * @param appFunctionContext The context for this app function execution.
      * @param title The title of the task
      */
-    @AppFunction(isDescribedByKdoc = true)
+    @AppFunction(isDescribedByKDoc = true)
     suspend fun createTask(
         appFunctionContext: AppFunctionContext,
         title: String

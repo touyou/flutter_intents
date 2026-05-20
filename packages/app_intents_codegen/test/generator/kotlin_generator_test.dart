@@ -69,7 +69,7 @@ void main() {
         expect(result, contains('import androidx.appfunctions.service.AppFunction'));
         expect(
             result, contains('import androidx.appfunctions.AppFunctionContext'));
-        expect(result, contains('@AppFunction(isDescribedByKdoc = true)'));
+        expect(result, contains('@AppFunction(isDescribedByKDoc = true)'));
         expect(result, contains('suspend fun greet('));
         expect(result, contains('appFunctionContext: AppFunctionContext'));
         expect(result, contains('): String {'));
@@ -446,7 +446,7 @@ void main() {
         expect(result, contains(
             'import androidx.appfunctions.AppFunctionSerializable'));
         expect(result, contains(
-            '@AppFunctionSerializable(isDescribedByKdoc = true)'));
+            '@AppFunctionSerializable(isDescribedByKDoc = true)'));
         expect(result, contains('data class TaskEntity('));
         expect(result, contains('val id: String'));
         expect(result, contains('val title: String'));

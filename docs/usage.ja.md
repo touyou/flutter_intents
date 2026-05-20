@@ -29,14 +29,15 @@ platform :ios, '17.0'
 
 #### Android
 
-`android/app/build.gradle.kts`で`compileSdk`、`minSdk`、`targetSdk`を36に設定（AppFunctionsはAndroid 16が必要）:
+`appfunctions:1.0.0-alpha09` は **Android Gradle Plugin 9.1.0+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
+`android/app/build.gradle.kts` を更新します（`minSdk = 36` は AppFunctions が Android 16 を必要とするため）:
 
 ```kotlin
 android {
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 36
-        targetSdk = 36
+        targetSdk = 37
     }
 }
 ```
@@ -45,16 +46,21 @@ KSPとAppFunctionsの依存関係を追加:
 
 ```kotlin
 // android/settings.gradle.kts
+id("com.android.application") version "9.1.1" apply false
+id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
 
 // android/app/build.gradle.kts
 plugins {
+    id("com.android.application")
+    id("kotlin-android")
     id("com.google.devtools.ksp")
+    id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha07")
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
 }
 
 ksp {
@@ -62,7 +68,22 @@ ksp {
 }
 ```
 
-> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。
+`android/gradle.properties` に AGP 9 互換性のための shim を追加します:
+
+```properties
+# Flutter Gradle plugin はまだ AGP 9 の new DSL をサポートしていないため legacy DSL を使う
+android.newDsl=false
+# KSP は AGP 9 の built-in Kotlin と非互換のため kotlin-android プラグインを維持する
+android.builtInKotlin=false
+```
+
+`android/gradle/wrapper/gradle-wrapper.properties` の Gradle wrapper を 9.3.1+ に更新します:
+
+```properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+```
+
+> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha09` の AAR メタデータに由来します。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 
