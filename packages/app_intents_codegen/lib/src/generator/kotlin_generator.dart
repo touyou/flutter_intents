@@ -193,7 +193,7 @@ class KotlinGenerator {
     buffer.writeln('$prefix */');
 
     // @AppFunction annotation
-    buffer.writeln('$prefix@AppFunction(isDescribedByKdoc = true)');
+    buffer.writeln('$prefix@AppFunction(isDescribedByKDoc = true)');
 
     // Function signature
     final paramStrings = <String>[
@@ -276,7 +276,7 @@ class KotlinGenerator {
     buffer.writeln(' */');
 
     // Annotation
-    buffer.writeln('@AppFunctionSerializable(isDescribedByKdoc = true)');
+    buffer.writeln('@AppFunctionSerializable(isDescribedByKDoc = true)');
 
     // Data class
     buffer.writeln('data class ${info.className}(');

@@ -29,14 +29,15 @@ platform :ios, '17.0'
 
 #### Android
 
-Set `compileSdk`, `minSdk`, and `targetSdk` to 36 in `android/app/build.gradle.kts` (AppFunctions requires Android 16):
+`appfunctions:1.0.0-alpha09` requires **Android Gradle Plugin 9.1.0+**, **Gradle 9.3.1+**, and **compileSdk 37**.
+Update `android/app/build.gradle.kts` (`minSdk = 36` because AppFunctions requires Android 16):
 
 ```kotlin
 android {
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 36
-        targetSdk = 36
+        targetSdk = 37
     }
 }
 ```
@@ -45,16 +46,21 @@ Add KSP and AppFunctions dependencies:
 
 ```kotlin
 // android/settings.gradle.kts
+id("com.android.application") version "9.1.1" apply false
+id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
 
 // android/app/build.gradle.kts
 plugins {
+    id("com.android.application")
+    id("kotlin-android")
     id("com.google.devtools.ksp")
+    id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha07")
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
 }
 
 ksp {
@@ -62,7 +68,22 @@ ksp {
 }
 ```
 
-> **Note**: AppFunctions requires Android 16 (API 36) or later.
+Add the following AGP 9 compatibility shims to `android/gradle.properties`:
+
+```properties
+# Flutter Gradle plugin does not yet support the new AGP 9 DSL — keep legacy DSL.
+android.newDsl=false
+# KSP is incompatible with AGP 9's built-in Kotlin — keep the kotlin-android plugin.
+android.builtInKotlin=false
+```
+
+Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.properties`:
+
+```properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+```
+
+> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha09` AAR metadata.
 
 ### 3. iOS Native Setup (AppIntentsBridge)
 

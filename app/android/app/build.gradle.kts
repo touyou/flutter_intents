@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.app"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -23,7 +23,7 @@ android {
     defaultConfig {
         applicationId = "com.example.app"
         minSdk = 36
-        targetSdk = 36
+        targetSdk = 37
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -42,9 +42,9 @@ ksp {
 }
 
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha07")
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha07")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha07")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
 }
 
 flutter {
