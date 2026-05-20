@@ -1,3 +1,7 @@
+## 0.8.0
+
+- No API changes; version bump to align with the AppFunctions alpha09 upgrade in `app_intents_codegen` (#23)
+
 ## 0.7.8
 
 - No API changes; version bump to align with plugin fix release (Android cache no-op handlers)

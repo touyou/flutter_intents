@@ -1,3 +1,8 @@
+## 0.8.0
+
+- No plugin API changes; version bump aligns with the AppFunctions alpha09 upgrade in `app_intents_codegen` (#23)
+- Note for downstream Android users: bumping the generated Kotlin to alpha09 requires the host app to use AGP 9.1.0+, Gradle 9.3.1+, `compileSdk = 37`, and the `android.newDsl=false` / `android.builtInKotlin=false` shims in `gradle.properties`. See `docs/usage.md` for the full migration.
+
 ## 0.7.8
 
 - Fix: Android `AppIntentsPlugin` now handles iOS-only cache methods as no-ops instead of throwing `MissingPluginException` (#22)

@@ -7,11 +7,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  app_intents: ^0.7.8
-  app_intents_annotations: ^0.7.8
+  app_intents: ^0.8.0
+  app_intents_annotations: ^0.8.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.7.8
+  app_intents_codegen: ^0.8.0
   build_runner: ^2.4.0
 ```
 

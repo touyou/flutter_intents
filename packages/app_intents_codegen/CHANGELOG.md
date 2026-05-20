@@ -1,3 +1,9 @@
+## 0.8.0
+
+- Upgrade `androidx.appfunctions` from `1.0.0-alpha07` to `1.0.0-alpha09` in the example app (#23)
+- `KotlinGenerator` now emits `@AppFunction(isDescribedByKDoc = true)` and `@AppFunctionSerializable(isDescribedByKDoc = true)` (uppercase `D`) to match the renamed parameter introduced in alpha08
+- **Breaking** for downstream Android hosts: alpha09's AAR metadata requires AGP 9.1.0+, Gradle 9.3.1+, and `compileSdk = 37`. Hosts also need `android.newDsl=false` (Flutter Gradle plugin compatibility) and `android.builtInKotlin=false` (KSP compatibility) in `android/gradle.properties`. Regenerate Kotlin output with `dart run app_intents_codegen:generate_kotlin` after upgrading. See `docs/usage.md` for the full setup.
+
 ## 0.7.8
 
 - No codegen changes; version bump to align with plugin fix release (Android cache no-op handlers)
