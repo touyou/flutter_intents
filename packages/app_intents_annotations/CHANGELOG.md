@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - Add `@EntitySpec.persistedCacheKey` for EntityQuery cold-start fallback (#26)
 

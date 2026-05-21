@@ -1,3 +1,7 @@
+## 0.9.0
+
+- No plugin API changes; version bump aligns with codegen `0.9.0` which adds EntityQuery cold-start fallback via App Group `UserDefaults` (#26) and the `@AppShortcutsBuilder` annotation in generated Swift (#25)
+
 ## 0.8.0
 
 - No plugin API changes; version bump aligns with the AppFunctions alpha09 upgrade in `app_intents_codegen` (#23)

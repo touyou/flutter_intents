@@ -25,11 +25,11 @@ Add `app_intents` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  app_intents: ^0.8.0
-  app_intents_annotations: ^0.8.0
+  app_intents: ^0.9.0
+  app_intents_annotations: ^0.9.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.8.0
+  app_intents_codegen: ^0.9.0
   build_runner: ^2.4.0
 ```
 

@@ -23,7 +23,7 @@ packages:
       path: "../app_intents_annotations"
       relative: true
     source: path
-    version: "0.8.0"
+    version: "0.9.0"
   args:
     dependency: "direct main"
     description:
