@@ -258,6 +258,104 @@ void main() {
         expect(result!.indexed, isFalse);
         expect(result!.enumerable, isFalse);
         expect(result!.displayImageName, isNull);
+        expect(result!.persistedCacheKey, isNull);
+      });
+
+      test('extracts persistedCacheKey when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            persistedCacheKey: 'com.example.cache.teams',
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.persistedCacheKey, equals('com.example.cache.teams'));
+        expect(result.effectiveCacheKey, equals('com.example.cache.teams'));
+      });
+
+      test(
+          'effectiveCacheKey falls back to default identifier-based key when indexed',
+          () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            indexed: true,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.persistedCacheKey, isNull);
+        expect(result.effectiveCacheKey,
+            equals('app_intents.entities.com.example.team'));
+      });
+
+      test(
+          'effectiveCacheKey falls back to default identifier-based key when enumerable',
+          () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            enumerable: true,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.persistedCacheKey, isNull);
+        expect(result.effectiveCacheKey,
+            equals('app_intents.entities.com.example.team'));
+      });
+
+      test('effectiveCacheKey is null when no cache hint is provided',
+          () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final classElement = findClass(library, 'TeamEntity');
+        final result = analyzer.analyze(classElement);
+
+        expect(result, isNotNull);
+        expect(result!.effectiveCacheKey, isNull);
       });
     });
 

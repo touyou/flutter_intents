@@ -1,3 +1,7 @@
+## Unreleased
+
+- Add `@EntitySpec.persistedCacheKey` for EntityQuery cold-start fallback (#26)
+
 ## 0.8.0
 
 - No API changes; version bump to align with the AppFunctions alpha09 upgrade in `app_intents_codegen` (#23)

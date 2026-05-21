@@ -30,6 +30,14 @@ class EntityInfo {
   /// Whether to generate EnumerableEntityQuery conformance.
   final bool enumerable;
 
+  /// Optional App Group UserDefaults key for the persisted entity list.
+  ///
+  /// When non-null, the generated EntityQuery reads cached entities from this
+  /// key before waiting on the Flutter executor (cold-start fallback). When
+  /// null but [enumerable] or [indexed] is true, a default key
+  /// `app_intents.entities.<identifier>` is used.
+  final String? persistedCacheKey;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -41,7 +49,21 @@ class EntityInfo {
     this.displayImageName,
     this.indexed = false,
     this.enumerable = false,
+    this.persistedCacheKey,
   });
+
+  /// Returns the effective cache key to use for App Group fallback, or null
+  /// when no fallback should be generated.
+  ///
+  /// - Returns [persistedCacheKey] verbatim when explicitly set.
+  /// - Returns `app_intents.entities.<identifier>` when [enumerable] or
+  ///   [indexed] is true (auto-fallback for long-lived entities).
+  /// - Returns null otherwise.
+  String? get effectiveCacheKey {
+    if (persistedCacheKey != null) return persistedCacheKey;
+    if (enumerable || indexed) return 'app_intents.entities.$identifier';
+    return null;
+  }
 
   @override
   bool operator ==(Object other) {
@@ -56,6 +78,7 @@ class EntityInfo {
         displayImageName == other.displayImageName &&
         indexed == other.indexed &&
         enumerable == other.enumerable &&
+        persistedCacheKey == other.persistedCacheKey &&
         _listEquals(properties, other.properties);
   }
 
@@ -70,6 +93,7 @@ class EntityInfo {
         displayImageName,
         indexed,
         enumerable,
+        persistedCacheKey,
         Object.hashAll(properties),
       );
 
@@ -78,7 +102,7 @@ class EntityInfo {
       'EntityInfo(className: $className, identifier: $identifier, title: $title, '
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
-      'properties: $properties)';
+      'persistedCacheKey: $persistedCacheKey, properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.

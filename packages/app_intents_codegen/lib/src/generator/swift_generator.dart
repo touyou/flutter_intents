@@ -457,6 +457,9 @@ class SwiftGenerator {
     if (info.indexed) {
       buffer.writeln('import CoreSpotlight');
     }
+    if (info.effectiveCacheKey != null) {
+      buffer.writeln('import app_intents');
+    }
     buffer.writeln();
 
     // Entity body
@@ -578,11 +581,31 @@ class SwiftGenerator {
         .where((p) => p.role == EntityPropertyRole.image)
         .firstOrNull;
 
+    final cacheKey = info.effectiveCacheKey;
+
     buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
 
+    if (cacheKey != null) {
+      buffer.writeln(
+          '$_indent/// App Group UserDefaults key written from Dart via setCachedValue.');
+      buffer.writeln('${_indent}static let cacheKey = "$cacheKey"');
+      buffer.writeln();
+    }
+
     // entities(for:) method
     buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
+    if (cacheKey != null) {
+      final idField = idProp?.fieldName ?? 'id';
+      buffer.writeln(
+          '$_indent${_indent}if let cached = Self._readCachedEntities() {');
+      buffer.writeln(
+          '$_indent$_indent${_indent}let filtered = cached.filter { identifiers.contains(\$0.$idField) }');
+      buffer.writeln('$_indent$_indent${_indent}if !filtered.isEmpty {');
+      buffer.writeln('$_indent$_indent$_indent${_indent}return filtered');
+      buffer.writeln('$_indent$_indent$_indent}');
+      buffer.writeln('$_indent$_indent}');
+    }
     buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.queryEntities(');
     buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}",');
     buffer.writeln('$_indent$_indent${_indent}identifiers: identifiers');
@@ -595,6 +618,12 @@ class SwiftGenerator {
 
     // suggestedEntities() method
     buffer.writeln('${_indent}func suggestedEntities() async throws -> [${info.className}] {');
+    if (cacheKey != null) {
+      buffer.writeln(
+          '$_indent${_indent}if let cached = Self._readCachedEntities(), !cached.isEmpty {');
+      buffer.writeln('$_indent$_indent${_indent}return cached');
+      buffer.writeln('$_indent$_indent}');
+    }
     buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.suggestedEntities(');
     buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"');
     buffer.writeln('$_indent$_indent)');
@@ -603,7 +632,54 @@ class SwiftGenerator {
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
 
+    if (cacheKey != null) {
+      buffer.writeln();
+      _writeCachedEntityReader(
+          buffer, info, idProp, titleProp, subtitleProp, imageProp);
+    }
+
     buffer.writeln('}');
+  }
+
+  /// Writes the static `_readCachedEntities()` helper used as the cold-start
+  /// fallback. Returns nil when the key is missing, decode fails, or the
+  /// cached payload is empty so callers can fall through to FlutterBridge.
+  void _writeCachedEntityReader(
+    StringBuffer buffer,
+    EntityInfo info,
+    EntityPropertyInfo? idProp,
+    EntityPropertyInfo? titleProp,
+    EntityPropertyInfo? subtitleProp,
+    EntityPropertyInfo? imageProp,
+  ) {
+    buffer.writeln(
+        '$_indent/// Reads cached entities from App Group UserDefaults.');
+    buffer.writeln(
+        '$_indent/// Accepts either a JSON string payload or a pre-decoded array of maps.');
+    buffer.writeln(
+        '${_indent}private static func _readCachedEntities() -> [${info.className}]? {');
+    buffer.writeln(
+        '$_indent${_indent}guard let raw = AppIntentsPlugin.getCached(forKey: cacheKey) else {');
+    buffer.writeln('$_indent$_indent${_indent}return nil');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent${_indent}let dicts: [[String: Any]]');
+    buffer.writeln('$_indent${_indent}if let array = raw as? [[String: Any]] {');
+    buffer.writeln('$_indent$_indent${_indent}dicts = array');
+    buffer.writeln('$_indent$_indent} else if let jsonString = raw as? String,');
+    buffer.writeln(
+        '$_indent$_indent$_indent${_indent}let data = jsonString.data(using: .utf8),');
+    buffer.writeln(
+        '$_indent$_indent$_indent${_indent}let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {');
+    buffer.writeln('$_indent$_indent${_indent}dicts = parsed');
+    buffer.writeln('$_indent$_indent} else {');
+    buffer.writeln('$_indent$_indent${_indent}return nil');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent${_indent}let entities: [${info.className}] = dicts.compactMap { dict in');
+    _writeEntityDictMapping(
+        buffer, info, idProp, titleProp, subtitleProp, imageProp);
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent${_indent}return entities');
+    buffer.writeln('$_indent}');
   }
 
   /// Writes the dictionary-to-entity mapping inside compactMap.
@@ -721,7 +797,8 @@ class SwiftGenerator {
     if (intents.any((i) => _hasFileParams(i))) {
       buffer.writeln('import UniformTypeIdentifiers');
     }
-    if (intents.any((i) => _needsCacheImport(i))) {
+    if (intents.any((i) => _needsCacheImport(i)) ||
+        entities.any((e) => e.effectiveCacheKey != null)) {
       buffer.writeln('import app_intents');
     }
     if (entities.any((e) => e.indexed)) {
