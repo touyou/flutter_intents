@@ -1612,6 +1612,7 @@ void main() {
         expect(result, contains('import AppIntents'));
         expect(result, contains('@available(iOS 17.0, *)'));
         expect(result, contains('struct AppShortcuts: AppShortcutsProvider'));
+        expect(result, contains('@AppShortcutsBuilder'));
         expect(result, contains('static var appShortcuts: [AppShortcut]'));
         expect(result, contains('AppShortcut('));
         expect(result, contains('intent: CreateTaskIntent()'));

@@ -814,6 +814,7 @@ class SwiftGenerator {
     // Availability and struct declaration
     buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct AppShortcuts: AppShortcutsProvider {');
+    buffer.writeln('$_indent@AppShortcutsBuilder');
     buffer.writeln('${_indent}static var appShortcuts: [AppShortcut] {');
 
     for (final shortcut in shortcuts) {
