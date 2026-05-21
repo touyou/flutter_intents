@@ -203,6 +203,7 @@ struct TaskEntitySpecQuery: EntityQuery {
 
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
+    @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: CreateTaskIntentSpec(),
