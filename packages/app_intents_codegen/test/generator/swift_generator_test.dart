@@ -1594,6 +1594,152 @@ void main() {
         expect(result, isNot(contains('IndexedEntity')));
         expect(result, isNot(contains('CoreSpotlight')));
       });
+
+      test(
+          'generates App Group cache fallback in EntityQuery when persistedCacheKey is set',
+          () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          persistedCacheKey: 'com.example.cache.teams',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('import app_intents'));
+        expect(result,
+            contains('static let cacheKey = "com.example.cache.teams"'));
+        expect(result, contains('Self._readCachedEntities()'));
+        expect(result,
+            contains(r'cached.filter { identifiers.contains($0.id) }'));
+        expect(result,
+            contains('AppIntentsPlugin.getCached(forKey: cacheKey)'));
+        expect(result, contains('private static func _readCachedEntities()'));
+      });
+
+      test(
+          'uses default cache key when persistedCacheKey is null but indexed is true',
+          () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          indexed: true,
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(
+            result,
+            contains(
+                'static let cacheKey = "app_intents.entities.com.example.team"'));
+        expect(result, contains('Self._readCachedEntities()'));
+      });
+
+      test(
+          'uses default cache key when persistedCacheKey is null but enumerable is true',
+          () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          enumerable: true,
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(
+            result,
+            contains(
+                'static let cacheKey = "app_intents.entities.com.example.team"'));
+        expect(result, contains('Self._readCachedEntities()'));
+      });
+
+      test(
+          'does not generate cache fallback when persistedCacheKey is null and not enumerable/indexed',
+          () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'name',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, isNot(contains('cacheKey')));
+        expect(result, isNot(contains('_readCachedEntities')));
+        expect(result, isNot(contains('import app_intents')));
+      });
+
+      test('uses the entity\'s id field name for the cache filter', () {
+        final entityInfo = EntityInfo(
+          className: 'TaskEntity',
+          identifier: 'com.example.task',
+          title: 'Task',
+          pluralTitle: 'Tasks',
+          persistedCacheKey: 'com.example.cache.tasks',
+          properties: [
+            EntityPropertyInfo(
+                fieldName: 'taskId',
+                dartType: 'String',
+                role: EntityPropertyRole.id),
+            EntityPropertyInfo(
+                fieldName: 'title',
+                dartType: 'String',
+                role: EntityPropertyRole.title),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result,
+            contains(r'cached.filter { identifiers.contains($0.taskId) }'));
+      });
     });
 
     group('generateAppShortcutsProvider', () {

@@ -15,6 +15,7 @@ part 'task_entity.intent.dart';
   title: 'Task',
   pluralTitle: 'Tasks',
   description: 'A task in your task list',
+  persistedCacheKey: 'com.example.taskapp.cache.tasks',
 )
 class TaskEntitySpec extends EntitySpecBase<Task> {
   @EntityId()

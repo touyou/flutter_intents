@@ -18,6 +18,13 @@ class TaskRepository {
 
   static const _storageKey = 'tasks';
 
+  /// Cache key that mirrors the entity list for EntityQuery cold-start fallback.
+  ///
+  /// Must match `TaskEntitySpec`'s `persistedCacheKey`. Generated Swift reads
+  /// from this key (via `AppIntentsPlugin.getCached`) when Siri/Shortcuts
+  /// fires an EntityQuery before the Flutter engine has finished initializing.
+  static const _entityCacheKey = 'com.example.taskapp.cache.tasks';
+
   /// In-memory cache backed by App Group UserDefaults.
   final Map<String, Task> _tasks = {};
 
@@ -53,9 +60,25 @@ class TaskRepository {
   }
 
   /// Persists current tasks to App Group UserDefaults.
+  ///
+  /// Writes both the full task list (`_storageKey`) and the
+  /// entity-shaped projection used by the EntityQuery cold-start fallback
+  /// (`_entityCacheKey`). Field names in the entity projection must match
+  /// `TaskEntitySpec`'s `@EntityId`/`@EntityTitle`/etc. annotations.
   Future<void> _saveToStorage() async {
     final json = jsonEncode(_tasks.values.map((t) => t.toJson()).toList());
     await AppIntents().setCachedValue(_storageKey, json);
+
+    final entityJson = jsonEncode(
+      _tasks.values
+          .map((t) => {
+                'id': t.id,
+                'title': t.title,
+                'description': t.description,
+              })
+          .toList(),
+    );
+    await AppIntents().setCachedValue(_entityCacheKey, entityJson);
   }
 
   /// Gets all tasks.

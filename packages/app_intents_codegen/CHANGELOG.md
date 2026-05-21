@@ -1,3 +1,9 @@
+## Unreleased
+
+- Generated Swift `EntityQuery` now reads cached entities from App Group `UserDefaults` before waiting on the Flutter executor, mitigating the cold-start `entityQueryNotConfigured` error when iOS has killed the host app (#26)
+- `SwiftGenerator` emits the new App Group fallback path when `@EntitySpec(persistedCacheKey: ...)` is set, or when `enumerable: true` / `indexed: true` provides a default key `app_intents.entities.<identifier>`
+- Generated Swift `AppShortcuts` struct now uses the `@AppShortcutsBuilder` result builder annotation per Apple's `AppShortcutsProvider` protocol requirement (#25)
+
 ## 0.8.0
 
 - Upgrade `androidx.appfunctions` from `1.0.0-alpha07` to `1.0.0-alpha09` in the example app (#23)

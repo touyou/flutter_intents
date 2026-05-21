@@ -169,7 +169,16 @@ struct TaskEntitySpec: AppEntity {
 
 @available(iOS 17.0, *)
 struct TaskEntitySpecQuery: EntityQuery {
+    /// App Group UserDefaults key written from Dart via setCachedValue.
+    static let cacheKey = "com.example.taskapp.cache.tasks"
+
     func entities(for identifiers: [String]) async throws -> [TaskEntitySpec] {
+        if let cached = Self._readCachedEntities() {
+            let filtered = cached.filter { identifiers.contains($0.id) }
+            if !filtered.isEmpty {
+                return filtered
+            }
+        }
         let results = try await FlutterBridge.shared.queryEntities(
             entityIdentifier: "com.example.taskapp.TaskEntity",
             identifiers: identifiers
@@ -186,6 +195,9 @@ struct TaskEntitySpecQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [TaskEntitySpec] {
+        if let cached = Self._readCachedEntities(), !cached.isEmpty {
+            return cached
+        }
         let results = try await FlutterBridge.shared.suggestedEntities(
             entityIdentifier: "com.example.taskapp.TaskEntity"
         )
@@ -198,6 +210,34 @@ struct TaskEntitySpecQuery: EntityQuery {
             let iconName = dict["iconName"] as? String
             return TaskEntitySpec(id: id, title: title, description: description, iconName: iconName)
         }
+    }
+
+    /// Reads cached entities from App Group UserDefaults.
+    /// Accepts either a JSON string payload or a pre-decoded array of maps.
+    private static func _readCachedEntities() -> [TaskEntitySpec]? {
+        guard let raw = AppIntentsPlugin.getCached(forKey: cacheKey) else {
+            return nil
+        }
+        let dicts: [[String: Any]]
+        if let array = raw as? [[String: Any]] {
+            dicts = array
+        } else if let jsonString = raw as? String,
+                let data = jsonString.data(using: .utf8),
+                let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            dicts = parsed
+        } else {
+            return nil
+        }
+        let entities: [TaskEntitySpec] = dicts.compactMap { dict in
+            guard let id = dict["id"] as? String,
+                let title = dict["title"] as? String else {
+                return nil
+            }
+            let description = dict["description"] as? String
+            let iconName = dict["iconName"] as? String
+            return TaskEntitySpec(id: id, title: title, description: description, iconName: iconName)
+        }
+        return entities
     }
 }
 

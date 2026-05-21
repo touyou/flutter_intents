@@ -60,6 +60,8 @@ class EntityAnalyzer {
     final indexed = annotation.getField('indexed')?.toBoolValue() ?? false;
     final enumerable =
         annotation.getField('enumerable')?.toBoolValue() ?? false;
+    final persistedCacheKey =
+        annotation.getField('persistedCacheKey')?.toStringValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -94,6 +96,7 @@ class EntityAnalyzer {
       displayImageName: displayImageName,
       indexed: indexed,
       enumerable: enumerable,
+      persistedCacheKey: persistedCacheKey,
     );
   }
 

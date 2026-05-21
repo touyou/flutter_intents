@@ -28,6 +28,41 @@ class EntitySpec {
   /// Generates an extension with `allEntities()` that delegates to `suggestedEntities()`.
   final bool enumerable;
 
+  /// Cache key used by the generated Swift `EntityQuery` to look up the entity
+  /// list before waiting on the Flutter executor.
+  ///
+  /// This is the key passed to `AppIntents().setCachedValue(key, value)` from
+  /// Dart — not the raw `UserDefaults` key (the plugin internally namespaces
+  /// it under `app_intents.<bundleId>.cache.`).
+  ///
+  /// ## Payload shape
+  /// The value written from Dart must be either:
+  /// - A `String` containing JSON of `List<Map<String, dynamic>>`, or
+  /// - A pre-decoded `List<Map<String, dynamic>>` (passes through the
+  ///   MethodChannel as `[[String: Any]]` on the Swift side).
+  ///
+  /// Each map must contain string-typed keys matching the entity's annotated
+  /// field names (`@EntityId`, `@EntityTitle`, `@EntitySubtitle`,
+  /// `@EntityImage`). Maps missing the id or title fields are silently
+  /// dropped. Use entity field names, **not** the underlying model's field
+  /// names — they often differ.
+  ///
+  /// ## Cold-start motivation
+  /// When iOS kills the host app and Siri/Shortcuts fires an EntityQuery,
+  /// `FlutterBridge` waits up to 5 seconds for the Flutter executor to be
+  /// registered. On a real cold start, that timeout can be exhausted before
+  /// the engine is ready, surfacing as a generic "internal error". The cache
+  /// lookup runs synchronously and short-circuits this path when the data is
+  /// already in App Group UserDefaults.
+  ///
+  /// ## Default key
+  /// When unset but [enumerable] or [indexed] is `true`, codegen uses
+  /// `app_intents.entities.<identifier>` as the default cache key. The Dart
+  /// side must call `setCachedValue` with that exact string. When unset and
+  /// neither flag is true, no fallback is generated and the Flutter executor
+  /// must be available.
+  final String? persistedCacheKey;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -36,5 +71,6 @@ class EntitySpec {
     this.displayImageName,
     this.indexed = false,
     this.enumerable = false,
+    this.persistedCacheKey,
   });
 }

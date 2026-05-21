@@ -43,7 +43,7 @@ docs/
 - `app_intents_annotations`: All annotations defined
   - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
   - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)
-  - `@EntitySpec`, `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery`
+  - `@EntitySpec` (with `persistedCacheKey` for App Group cold-start fallback), `@EntityId`, `@EntityTitle`, `@EntitySubtitle`, `@EntityImage`, `@EntityDefaultQuery`
   - `@EnumSpec`, `@EnumCaseDisplay` for AppEnum support
   - `@AppShortcut`, `@AppShortcutsProvider`
 - `app_intents`: Platform Interface extended
@@ -66,6 +66,7 @@ docs/
     - AppShortcut phrase `{paramName}` → `\(\.$paramName)` conversion
     - Proper error handling (`throw` instead of silent `return .result()`)
     - FlutterBridge-backed EntityQuery with `entities(for:)` and `suggestedEntities()`
+    - App Group UserDefaults fallback in EntityQuery (when `persistedCacheKey` set, or `enumerable`/`indexed` provides a default key) for cold-start resilience
   - `DartGenerator`: Generates `initializeXxxAppIntents()` as part files
     - Generates type-safe `XxxParams` classes with `fromMap()` and `fromQueryParameters()` factories
     - Always registers both `registerEntityQueryHandler` and `registerSuggestedEntitiesHandler`
@@ -131,6 +132,14 @@ docs/
   - `Bundle.main.bundleIdentifier` differs between main app and extensions → cache key mismatch
   - Solution: Call `AppIntentsPlugin.configure(appGroupIdentifier:)` in both AppDelegate and generated Swift code
   - Dart side: Call `AppIntents().configureStorage(appGroupIdentifier:)` before cache operations
+
+- **EntityQuery Cold-Start Fallback (`persistedCacheKey`)**: When the host app is killed by iOS and Siri/Shortcuts triggers an EntityQuery, the Flutter engine may not finish initializing within `FlutterBridge`'s 5-second timeout, causing `entityQueryNotConfigured` errors. To handle this:
+  - Set `@EntitySpec(persistedCacheKey: 'your.cache.key')` to make the generated `EntityQuery` read the entity list from App Group UserDefaults before waiting on the Flutter executor.
+  - When `persistedCacheKey` is not set but `enumerable: true` or `indexed: true`, codegen falls back to the default key `app_intents.entities.<identifier>`. The Dart side must use that exact string with `setCachedValue`.
+  - **Key namespacing**: `persistedCacheKey` is the value you pass to `AppIntents().setCachedValue(key, value)` — not the raw `UserDefaults` key. The plugin namespaces it under `app_intents.<bundleId-or-storageId>.cache.` internally.
+  - **Payload shape**: Pass either a JSON-encoded string of `List<Map<String, dynamic>>` or a pre-decoded `List<Map>`. Each map's keys must match the entity's `@EntityId`/`@EntityTitle`/`@EntitySubtitle`/`@EntityImage` field names (not the underlying model's field names — they often differ). Maps missing id or title are silently dropped.
+  - **App Group prerequisite**: Same as cache-mode intents — call `AppIntentsPlugin.configure(appGroupIdentifier:)` in AppDelegate and `AppIntents().configureStorage(appGroupIdentifier:)` in Dart. Without this, the EntityQuery extension process and main app cannot share storage and the fallback won't help.
+  - **Example**: `app/lib/repositories/task_repository.dart` writes both the full task storage and the entity-shaped projection under `com.example.taskapp.cache.tasks` every time tasks change.
 
 ### Future Migration
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)

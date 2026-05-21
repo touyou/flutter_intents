@@ -87,6 +87,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? displayImageName;
           final bool indexed;
           final bool enumerable;
+          final String? persistedCacheKey;
 
           const EntitySpec({
             required this.identifier,
@@ -96,6 +97,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.displayImageName,
             this.indexed = false,
             this.enumerable = false,
+            this.persistedCacheKey,
           });
         }
       ''',
