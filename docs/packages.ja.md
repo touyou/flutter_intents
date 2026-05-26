@@ -328,9 +328,12 @@ app_intents/
 │   ├── app_intents_platform_interface.dart # Platform Interface
 │   └── app_intents_method_channel.dart     # Method Channel実装
 ├── ios/
-│   ├── Classes/
-│   │   └── AppIntentsPlugin.swift          # iOS Swift実装
-│   └── app_intents.podspec                 # CocoaPods設定
+│   ├── app_intents/
+│   │   ├── Package.swift                    # Swift Package Managerマニフェスト
+│   │   └── Sources/app_intents/
+│   │       ├── AppIntentsPlugin.swift       # iOS Swift実装
+│   │       └── PrivacyInfo.xcprivacy        # プライバシーマニフェスト
+│   └── app_intents.podspec                  # CocoaPods設定（Sources/ を共有）
 ├── android/
 │   └── src/main/kotlin/.../
 │       └── AppIntentsPlugin.kt             # Android Kotlin実装

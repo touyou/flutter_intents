@@ -1,3 +1,11 @@
+## Unreleased
+
+- Add Swift Package Manager (SPM) support for the iOS plugin (#29)
+  - New manifest at `ios/app_intents/Package.swift`; native sources moved to `ios/app_intents/Sources/app_intents/` (SPM-standard layout)
+  - `app_intents.podspec` now points `source_files`/`resource_bundles` at the shared `Sources/` location, so CocoaPods and SPM build the same files (both remain supported during the transition)
+  - Fixes Flutter reporting `app_intents` as "does not support Swift Package Manager" when host apps enable SPM
+  - Host apps that enable SPM need Flutter 3.24+ (the minimum for app-side SPM); CocoaPods users are unaffected and the package's `flutter: '>=3.3.0'` constraint is unchanged
+
 ## 0.9.0
 
 - No plugin API changes; version bump aligns with codegen `0.9.0` which adds EntityQuery cold-start fallback via App Group `UserDefaults` (#26) and the `@AppShortcutsBuilder` annotation in generated Swift (#25)
