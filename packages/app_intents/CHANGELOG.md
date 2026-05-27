@@ -1,4 +1,4 @@
-## Unreleased
+## 0.10.0
 
 - Add Swift Package Manager (SPM) support for the iOS plugin (#29)
   - New manifest at `ios/app_intents/Package.swift`; native sources moved to `ios/app_intents/Sources/app_intents/` (SPM-standard layout)

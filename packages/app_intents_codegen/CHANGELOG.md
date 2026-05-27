@@ -1,3 +1,7 @@
+## 0.10.0
+
+- No codegen changes; version bump aligns with `app_intents` 0.10.0 (Swift Package Manager support for the iOS plugin, #29)
+
 ## 0.9.0
 
 - Generated Swift `EntityQuery` now reads cached entities from App Group `UserDefaults` before waiting on the Flutter executor, mitigating the cold-start `entityQueryNotConfigured` error when iOS has killed the host app (#26)

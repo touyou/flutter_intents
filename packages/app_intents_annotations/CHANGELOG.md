@@ -1,3 +1,7 @@
+## 0.10.0
+
+- No annotation changes; version bump aligns with `app_intents` 0.10.0 (Swift Package Manager support for the iOS plugin, #29)
+
 ## 0.9.0
 
 - Add `@EntitySpec.persistedCacheKey` for EntityQuery cold-start fallback (#26)
