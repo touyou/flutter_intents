@@ -5,6 +5,10 @@
   - `app_intents.podspec` now points `source_files`/`resource_bundles` at the shared `Sources/` location, so CocoaPods and SPM build the same files (both remain supported during the transition)
   - Fixes Flutter reporting `app_intents` as "does not support Swift Package Manager" when host apps enable SPM
   - Host apps that enable SPM need Flutter 3.24+ (the minimum for app-side SPM); CocoaPods users are unaffected and the package's `flutter: '>=3.3.0'` constraint is unchanged
+  - The privacy manifest is now actually bundled (it was previously present but commented out in the podspec)
+- Declare the `NSPrivacyAccessedAPICategoryUserDefaults` required-reason API in `PrivacyInfo.xcprivacy`
+  - Reason `CA92.1` (UserDefaults accessible only to the app itself — the `UserDefaults.standard` fallback) and `1C8F.1` (UserDefaults shared within the App Group — `UserDefaults(suiteName:)` used for cross-process cache/EntityQuery data)
+  - Required for App Store review of downstream apps that bundle the plugin via SPM or CocoaPods
 
 ## 0.9.0
 

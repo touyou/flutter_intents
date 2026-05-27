@@ -5,7 +5,22 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- CA92.1: user defaults accessible only to the app itself
+				     (UserDefaults.standard fallback when no App Group is configured). -->
+				<string>CA92.1</string>
+				<!-- 1C8F.1: user defaults shared within the same App Group so the
+				     main app and App Intents extension processes can share cached
+				     intent/entity data (UserDefaults(suiteName:)). -->
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
 	<key>NSPrivacyTracking</key>
