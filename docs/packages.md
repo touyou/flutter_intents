@@ -337,9 +337,12 @@ app_intents/
 │       ├── app_intent_error.dart           # Error model
 │       └── intent_execution_request.dart   # Intent request model
 ├── ios/
-│   ├── Classes/
-│   │   └── AppIntentsPlugin.swift          # iOS Swift implementation
-│   └── app_intents.podspec                 # CocoaPods config
+│   ├── app_intents/
+│   │   ├── Package.swift                    # Swift Package Manager manifest
+│   │   └── Sources/app_intents/
+│   │       ├── AppIntentsPlugin.swift       # iOS Swift implementation
+│   │       └── PrivacyInfo.xcprivacy        # Privacy manifest
+│   └── app_intents.podspec                  # CocoaPods config (shares Sources/ files)
 ├── android/
 │   └── src/main/kotlin/.../
 │       └── AppIntentsPlugin.kt             # Android Kotlin implementation

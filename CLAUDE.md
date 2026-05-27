@@ -273,7 +273,7 @@ Use conventional commit prefixes:
 1. `packages/app_intents/lib/app_intents_platform_interface.dart` - Add abstract method
 2. `packages/app_intents/lib/app_intents_method_channel.dart` - Implement
 3. `packages/app_intents/lib/app_intents.dart` - Expose in public API
-4. `packages/app_intents/ios/Classes/AppIntentsPlugin.swift` - iOS implementation
+4. `packages/app_intents/ios/app_intents/Sources/app_intents/AppIntentsPlugin.swift` - iOS implementation
 5. `packages/app_intents/test/` - Add tests
 
 ### iOS Native (Swift Package)
