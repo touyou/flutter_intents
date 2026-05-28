@@ -175,9 +175,7 @@ Future<LibraryElement> resolveSource(String source) async {
       'test_lib|lib/test.dart': source,
     },
     (resolver) async {
-      return await resolver.libraryFor(
-        AssetId('test_lib', 'lib/test.dart'),
-      );
+      return await resolver.libraryFor(AssetId('test_lib', 'lib/test.dart'));
     },
   );
   return library;

@@ -1,5 +1,14 @@
 # Flutter Intents
 
+[![CI](https://github.com/touyou/flutter_intents/actions/workflows/ci.yml/badge.svg)](https://github.com/touyou/flutter_intents/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+| パッケージ | pub.dev |
+| --- | --- |
+| [`app_intents`](packages/app_intents/) | [![pub package](https://img.shields.io/pub/v/app_intents.svg)](https://pub.dev/packages/app_intents) |
+| [`app_intents_annotations`](packages/app_intents_annotations/) | [![pub package](https://img.shields.io/pub/v/app_intents_annotations.svg)](https://pub.dev/packages/app_intents_annotations) |
+| [`app_intents_codegen`](packages/app_intents_codegen/) | [![pub package](https://img.shields.io/pub/v/app_intents_codegen.svg)](https://pub.dev/packages/app_intents_codegen) |
+
 [English README](README.md)
 
 FlutterアプリケーションからiOS App IntentsおよびAndroid AppFunctionsフレームワークを利用するためのパッケージ群です。
@@ -120,6 +129,9 @@ dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotl
 ## コントリビュート
 
 コントリビュートのガイドラインは [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+すべての参加者は [行動規範（Code of Conduct）](CODE_OF_CONDUCT.md) に従うことが求められます。
+
+セキュリティ脆弱性の報告手順は [SECURITY.md](SECURITY.md) を参照してください。
 
 ## ライセンス
 

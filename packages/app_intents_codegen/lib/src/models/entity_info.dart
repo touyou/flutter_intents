@@ -84,18 +84,18 @@ class EntityInfo {
 
   @override
   int get hashCode => Object.hash(
-        className,
-        identifier,
-        title,
-        pluralTitle,
-        description,
-        modelType,
-        displayImageName,
-        indexed,
-        enumerable,
-        persistedCacheKey,
-        Object.hashAll(properties),
-      );
+    className,
+    identifier,
+    title,
+    pluralTitle,
+    description,
+    modelType,
+    displayImageName,
+    indexed,
+    enumerable,
+    persistedCacheKey,
+    Object.hashAll(properties),
+  );
 
   @override
   String toString() =>

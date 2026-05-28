@@ -46,5 +46,8 @@ Future<List<Task>> taskEntityQuery(List<String> identifiers) async {
 /// Suggested entities handler for TaskEntity.
 /// Returns all incomplete tasks as suggestions.
 Future<List<Task>> taskEntitySuggestedEntities() async {
-  return TaskRepository.instance.getAllTasks().where((t) => !t.isCompleted).toList();
+  return TaskRepository.instance
+      .getAllTasks()
+      .where((t) => !t.isCompleted)
+      .toList();
 }

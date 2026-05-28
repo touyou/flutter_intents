@@ -12,11 +12,7 @@ class CreateTaskInput {
   final String? description;
   final DateTime? dueDate;
 
-  const CreateTaskInput({
-    required this.title,
-    this.description,
-    this.dueDate,
-  });
+  const CreateTaskInput({required this.title, this.description, this.dueDate});
 }
 
 /// Intent specification for creating a new task.
@@ -47,11 +43,7 @@ class CreateTaskIntentSpec extends IntentSpecBase {
   )
   final DateTime? dueDate;
 
-  CreateTaskIntentSpec({
-    required this.title,
-    this.description,
-    this.dueDate,
-  });
+  CreateTaskIntentSpec({required this.title, this.description, this.dueDate});
 }
 
 /// Handler for the CreateTask intent.

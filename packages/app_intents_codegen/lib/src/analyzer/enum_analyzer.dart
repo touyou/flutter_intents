@@ -6,11 +6,13 @@ import '../models/enum_info.dart';
 
 /// Type checker for EnumSpec annotation.
 const _enumSpecChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumSpec');
+  'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumSpec',
+);
 
 /// Type checker for EnumCaseDisplay annotation.
 const _enumCaseDisplayChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumCaseDisplay');
+  'package:app_intents_annotations/src/annotations/enum_spec.dart#EnumCaseDisplay',
+);
 
 /// Analyzer for extracting enum information from annotated enums.
 class EnumAnalyzer {
@@ -61,19 +63,23 @@ class EnumAnalyzer {
     for (final field in element.fields) {
       if (!field.isEnumConstant) continue;
 
-      final displayAnnotation =
-          _enumCaseDisplayChecker.firstAnnotationOfExact(field);
+      final displayAnnotation = _enumCaseDisplayChecker.firstAnnotationOfExact(
+        field,
+      );
       final displayTitle =
           displayAnnotation?.getField('title')?.toStringValue() ??
-              _toDisplayTitle(field.name!);
-      final imageName =
-          displayAnnotation?.getField('imageName')?.toStringValue();
+          _toDisplayTitle(field.name!);
+      final imageName = displayAnnotation
+          ?.getField('imageName')
+          ?.toStringValue();
 
-      cases.add(EnumCaseInfo(
-        name: field.name!,
-        displayTitle: displayTitle,
-        imageName: imageName,
-      ));
+      cases.add(
+        EnumCaseInfo(
+          name: field.name!,
+          displayTitle: displayTitle,
+          imageName: imageName,
+        ),
+      );
     }
 
     return cases;

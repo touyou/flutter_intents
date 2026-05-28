@@ -2,6 +2,11 @@
 
 Thank you for your interest in contributing to Flutter Intents! This document provides guidelines and instructions for contributing.
 
+By participating in this project you agree to abide by the project's
+[Code of Conduct](CODE_OF_CONDUCT.md). For security issues, please follow
+the private reporting process in [SECURITY.md](SECURITY.md) instead of
+filing a public issue.
+
 ## Development Setup
 
 ### Prerequisites
@@ -78,7 +83,7 @@ feat: Add support for custom entity images
    git checkout -b feature/your-feature-name
    ```
 
-2. Make your changes and commit them
+2. Make your changes and commit them.
 
 3. Ensure all tests pass:
    ```bash
@@ -88,16 +93,31 @@ feat: Add support for custom entity images
    cd packages/app_intents && flutter analyze
    ```
 
-4. Push to your fork and open a Pull Request with:
-   - Summary of changes
-   - Related issues
-   - Test plan
+4. Push to your fork and open a Pull Request. GitHub will pre-populate
+   the body from [`.github/pull_request_template.md`](.github/pull_request_template.md) —
+   please fill in every section so reviewers have full context.
 
 ### PR Review
 
-- All PRs require at least one approval
-- CI checks must pass
-- Documentation must be updated if applicable
+- All PRs require at least one approval.
+- CI checks must pass (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+- Documentation must be updated if applicable, including both `README.md`
+  **and** `README.ja.md` for any user-visible change.
+- Public API changes must be reflected in the relevant `CHANGELOG.md`.
+
+## Reporting issues
+
+- **Bug?** Open a [bug report](https://github.com/touyou/flutter_intents/issues/new?template=bug_report.yml) — the template asks for the platform / version / environment fields we need to triage.
+- **Feature idea?** Open a [feature request](https://github.com/touyou/flutter_intents/issues/new?template=feature_request.yml).
+- **Security vulnerability?** See [SECURITY.md](SECURITY.md) — do **not** open a public issue.
+
+## Releasing
+
+Release coordination is documented in [RELEASING.md](RELEASING.md). External
+contributors should **not** bump package versions in their PRs — the maintainer
+handles version bumps and `CHANGELOG.md` updates at release time.
+
+See [MAINTAINERS.md](MAINTAINERS.md) for the current maintainer list.
 
 ## Running Tests
 
@@ -141,7 +161,7 @@ make kotlin-gen
 
 ## Questions?
 
-- Open an issue for bugs or feature requests
-- Start a discussion for questions
+- Bug reports and feature requests: see [Reporting issues](#reporting-issues) above.
+- Behavioral concerns: see [Code of Conduct](CODE_OF_CONDUCT.md) for the private reporting flow.
 
 Thank you for contributing!

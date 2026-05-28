@@ -28,8 +28,6 @@ class CompleteTaskIntentSpec extends IntentSpecBase {
 }
 
 /// Handler for the CompleteTask intent.
-Future<Task?> completeTaskIntentHandler({
-  required String task,
-}) async {
+Future<Task?> completeTaskIntentHandler({required String task}) async {
   return TaskRepository.instance.toggleTaskCompletion(task);
 }

@@ -62,7 +62,8 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     Future<Map<String, dynamic>> Function(Map<String, dynamic> params) handler,
   ) {
     throw UnimplementedError(
-        'registerIntentHandler() has not been implemented.');
+      'registerIntentHandler() has not been implemented.',
+    );
   }
 
   /// Registers a handler for querying entities by their identifiers.
@@ -91,10 +92,11 @@ abstract class AppIntentsPlatform extends PlatformInterface {
   void registerEntityQueryHandler(
     String entityIdentifier,
     Future<List<Map<String, dynamic>>> Function(List<String> identifiers)
-        handler,
+    handler,
   ) {
     throw UnimplementedError(
-        'registerEntityQueryHandler() has not been implemented.');
+      'registerEntityQueryHandler() has not been implemented.',
+    );
   }
 
   /// Registers a handler for providing suggested/default entities.
@@ -125,7 +127,8 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     Future<List<Map<String, dynamic>>> Function() handler,
   ) {
     throw UnimplementedError(
-        'registerSuggestedEntitiesHandler() has not been implemented.');
+      'registerSuggestedEntitiesHandler() has not been implemented.',
+    );
   }
 
   /// Retrieves a cached value from native storage.
@@ -150,7 +153,8 @@ abstract class AppIntentsPlatform extends PlatformInterface {
   /// Returns `true` if a pending action was found and delivered.
   Future<bool> processPendingActions() {
     throw UnimplementedError(
-        'processPendingActions() has not been implemented.');
+      'processPendingActions() has not been implemented.',
+    );
   }
 
   /// Configures shared storage for cross-process App Intents communication.
@@ -173,8 +177,7 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     required String appGroupIdentifier,
     String? storageIdentifier,
   }) {
-    throw UnimplementedError(
-        'configureStorage() has not been implemented.');
+    throw UnimplementedError('configureStorage() has not been implemented.');
   }
 
   /// A stream of pending action notifications from native App Intents.
@@ -186,8 +189,7 @@ abstract class AppIntentsPlatform extends PlatformInterface {
   /// Listen to this stream and call [processPendingActions] when an event
   /// arrives to deliver the cached action to the registered handler.
   Stream<String> get pendingActionsStream {
-    throw UnimplementedError(
-        'pendingActionsStream has not been implemented.');
+    throw UnimplementedError('pendingActionsStream has not been implemented.');
   }
 
   /// A stream of intent execution requests from the native platform.
@@ -204,7 +206,6 @@ abstract class AppIntentsPlatform extends PlatformInterface {
   /// });
   /// ```
   Stream<IntentExecutionRequest> get onIntentExecution {
-    throw UnimplementedError(
-        'onIntentExecution has not been implemented.');
+    throw UnimplementedError('onIntentExecution has not been implemented.');
   }
 }

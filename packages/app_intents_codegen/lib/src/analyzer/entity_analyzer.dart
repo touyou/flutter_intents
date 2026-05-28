@@ -6,31 +6,38 @@ import '../models/entity_info.dart';
 
 /// Type checker for EntitySpec annotation.
 const _entitySpecChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_spec.dart#EntitySpec');
+  'package:app_intents_annotations/src/annotations/entity_spec.dart#EntitySpec',
+);
 
 /// Type checker for EntityId annotation.
 const _entityIdChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityId');
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntityId',
+);
 
 /// Type checker for EntityTitle annotation.
 const _entityTitleChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityTitle');
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntityTitle',
+);
 
 /// Type checker for EntitySubtitle annotation.
 const _entitySubtitleChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_params.dart#EntitySubtitle');
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntitySubtitle',
+);
 
 /// Type checker for EntityImage annotation.
 const _entityImageChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityImage');
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntityImage',
+);
 
 /// Type checker for EntityDefaultQuery annotation.
 const _entityDefaultQueryChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/entity_params.dart#EntityDefaultQuery');
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntityDefaultQuery',
+);
 
 /// Type checker for EntitySpecBase base class.
 const _entitySpecBaseChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/bases/entity_spec_base.dart#EntitySpecBase');
+  'package:app_intents_annotations/src/bases/entity_spec_base.dart#EntitySpecBase',
+);
 
 /// Analyzer for extracting entity information from annotated classes.
 class EntityAnalyzer {
@@ -55,13 +62,15 @@ class EntityAnalyzer {
     final title = annotation.getField('title')?.toStringValue();
     final pluralTitle = annotation.getField('pluralTitle')?.toStringValue();
     final description = annotation.getField('description')?.toStringValue();
-    final displayImageName =
-        annotation.getField('displayImageName')?.toStringValue();
+    final displayImageName = annotation
+        .getField('displayImageName')
+        ?.toStringValue();
     final indexed = annotation.getField('indexed')?.toBoolValue() ?? false;
     final enumerable =
         annotation.getField('enumerable')?.toBoolValue() ?? false;
-    final persistedCacheKey =
-        annotation.getField('persistedCacheKey')?.toStringValue();
+    final persistedCacheKey = annotation
+        .getField('persistedCacheKey')
+        ?.toStringValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -119,11 +128,13 @@ class EntityAnalyzer {
       final role = _determinePropertyRole(field);
       if (role == EntityPropertyRole.none) continue;
 
-      properties.add(EntityPropertyInfo(
-        fieldName: field.name!,
-        dartType: field.type.getDisplayString(),
-        role: role,
-      ));
+      properties.add(
+        EntityPropertyInfo(
+          fieldName: field.name!,
+          dartType: field.type.getDisplayString(),
+          role: role,
+        ),
+      );
     }
 
     return properties;

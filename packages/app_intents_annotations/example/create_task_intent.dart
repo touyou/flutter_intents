@@ -1,7 +1,5 @@
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-import 'models/task.dart';
-
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',
@@ -15,18 +13,12 @@ class CreateTaskIntentSpec extends IntentSpecBase {
   @IntentParam(title: "Due Date", isOptional: true)
   final DateTime? dueDate;
 
-  const CreateTaskIntentSpec({
-    required this.title,
-    this.dueDate,
-  });
+  const CreateTaskIntentSpec({required this.title, this.dueDate});
 }
 
 class CreateTaskInput {
   final String title;
   final DateTime? dueDate;
 
-  const CreateTaskInput({
-    required this.title,
-    this.dueDate,
-  });
+  const CreateTaskInput({required this.title, this.dueDate});
 }

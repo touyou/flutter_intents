@@ -50,7 +50,10 @@ void main() {
 
         expect(result, isNotNull);
         // Part files inherit imports from the parent library
-        expect(result, isNot(contains("import 'package:app_intents/app_intents.dart'")));
+        expect(
+          result,
+          isNot(contains("import 'package:app_intents/app_intents.dart'")),
+        );
       });
 
       test('generates initializeAppIntents function', () {
@@ -88,10 +91,7 @@ void main() {
 
         expect(result, isNotNull);
         expect(result, contains('_registerIntentHandlers'));
-        expect(
-          result,
-          contains("AppIntents().registerIntentHandler"),
-        );
+        expect(result, contains("AppIntents().registerIntentHandler"));
         expect(result, contains("'com.example.createTask'"));
       });
 
@@ -321,53 +321,59 @@ void main() {
         expect(result, contains('toJson'));
       });
 
-      test('generates registerSuggestedEntitiesHandler when defaultQuery exists', () {
-        final entities = [
-          const EntityInfo(
-            className: 'TaskEntity',
-            identifier: 'com.example.TaskEntity',
-            title: 'Task',
-            pluralTitle: 'Tasks',
-            properties: [
-              EntityPropertyInfo(
-                fieldName: 'defaultQuery',
-                dartType: 'List<Task>',
-                role: EntityPropertyRole.defaultQuery,
-              ),
-            ],
-          ),
-        ];
+      test(
+        'generates registerSuggestedEntitiesHandler when defaultQuery exists',
+        () {
+          final entities = [
+            const EntityInfo(
+              className: 'TaskEntity',
+              identifier: 'com.example.TaskEntity',
+              title: 'Task',
+              pluralTitle: 'Tasks',
+              properties: [
+                EntityPropertyInfo(
+                  fieldName: 'defaultQuery',
+                  dartType: 'List<Task>',
+                  role: EntityPropertyRole.defaultQuery,
+                ),
+              ],
+            ),
+          ];
 
-        final result = generator.generate([], entities);
+          final result = generator.generate([], entities);
 
-        expect(result, isNotNull);
-        expect(result, contains('registerSuggestedEntitiesHandler'));
-        expect(result, contains('taskEntitySuggestedEntities'));
-      });
+          expect(result, isNotNull);
+          expect(result, contains('registerSuggestedEntitiesHandler'));
+          expect(result, contains('taskEntitySuggestedEntities'));
+        },
+      );
 
-      test('always generates registerSuggestedEntitiesHandler for entities', () {
-        final entities = [
-          const EntityInfo(
-            className: 'TaskEntity',
-            identifier: 'com.example.TaskEntity',
-            title: 'Task',
-            pluralTitle: 'Tasks',
-            properties: [
-              EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id,
-              ),
-            ],
-          ),
-        ];
+      test(
+        'always generates registerSuggestedEntitiesHandler for entities',
+        () {
+          final entities = [
+            const EntityInfo(
+              className: 'TaskEntity',
+              identifier: 'com.example.TaskEntity',
+              title: 'Task',
+              pluralTitle: 'Tasks',
+              properties: [
+                EntityPropertyInfo(
+                  fieldName: 'id',
+                  dartType: 'String',
+                  role: EntityPropertyRole.id,
+                ),
+              ],
+            ),
+          ];
 
-        final result = generator.generate([], entities);
+          final result = generator.generate([], entities);
 
-        expect(result, isNotNull);
-        expect(result, contains('registerSuggestedEntitiesHandler'));
-        expect(result, contains('taskEntitySuggestedEntities'));
-      });
+          expect(result, isNotNull);
+          expect(result, contains('registerSuggestedEntitiesHandler'));
+          expect(result, contains('taskEntitySuggestedEntities'));
+        },
+      );
 
       test('generates multiple entity handlers', () {
         final entities = [
@@ -473,7 +479,10 @@ void main() {
         expect(result, isNotNull);
         // Check structure (no import since it's a part file)
         expect(result, contains('// GENERATED CODE - DO NOT MODIFY BY HAND'));
-        expect(result, isNot(contains("import 'package:app_intents/app_intents.dart'")));
+        expect(
+          result,
+          isNot(contains("import 'package:app_intents/app_intents.dart'")),
+        );
         // Check Params class
         expect(result, contains('class CreateTaskIntentParams'));
         expect(result, contains('fromMap'));
@@ -515,7 +524,10 @@ void main() {
         expect(result, isNotNull);
         expect(result, contains('class ScheduleTaskIntentParams'));
         // fromMap
-        expect(result, contains("DateTime.parse(map['scheduledDate'] as String)"));
+        expect(
+          result,
+          contains("DateTime.parse(map['scheduledDate'] as String)"),
+        );
         // fromQueryParameters
         expect(result, contains("DateTime.parse(params['scheduledDate']!)"));
       });
@@ -581,43 +593,45 @@ void main() {
         expect(result, isNot(contains('fromQueryParameters')));
       });
 
-      test('generates nullable IntentFile in Params class with fromQueryParameters',
-          () {
-        final intents = [
-          const IntentInfo(
-            className: 'CreatePostIntent',
-            identifier: 'com.example.createPost',
-            title: 'Create Post',
-            implementation: IntentImplementationType.dart,
-            parameters: [
-              IntentParamInfo(
-                fieldName: 'text',
-                dartType: 'String',
-                title: 'Text',
-                isOptional: false,
-              ),
-              IntentParamInfo(
-                fieldName: 'image',
-                dartType: 'IntentFile?',
-                title: 'Image',
-                isOptional: true,
-                fileType: 'public.image',
-              ),
-            ],
-          ),
-        ];
+      test(
+        'generates nullable IntentFile in Params class with fromQueryParameters',
+        () {
+          final intents = [
+            const IntentInfo(
+              className: 'CreatePostIntent',
+              identifier: 'com.example.createPost',
+              title: 'Create Post',
+              implementation: IntentImplementationType.dart,
+              parameters: [
+                IntentParamInfo(
+                  fieldName: 'text',
+                  dartType: 'String',
+                  title: 'Text',
+                  isOptional: false,
+                ),
+                IntentParamInfo(
+                  fieldName: 'image',
+                  dartType: 'IntentFile?',
+                  title: 'Image',
+                  isOptional: true,
+                  fileType: 'public.image',
+                ),
+              ],
+            ),
+          ];
 
-        final result = generator.generate(intents, []);
+          final result = generator.generate(intents, []);
 
-        expect(result, isNotNull);
-        // fromMap should have IntentFile.fromMap with null check
-        expect(result, contains('IntentFile.fromMap'));
-        expect(result, contains("map['image'] != null"));
-        // fromQueryParameters should exist (no required IntentFile)
-        expect(result, contains('fromQueryParameters'));
-        // IntentFile in fromQueryParameters should be null
-        expect(result, contains('image: null'));
-      });
+          expect(result, isNotNull);
+          // fromMap should have IntentFile.fromMap with null check
+          expect(result, contains('IntentFile.fromMap'));
+          expect(result, contains("map['image'] != null"));
+          // fromQueryParameters should exist (no required IntentFile)
+          expect(result, contains('fromQueryParameters'));
+          // IntentFile in fromQueryParameters should be null
+          expect(result, contains('image: null'));
+        },
+      );
     });
 
     group('double and bool handling in Params class', () {

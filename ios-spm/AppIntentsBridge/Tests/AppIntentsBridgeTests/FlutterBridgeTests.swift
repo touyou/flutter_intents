@@ -33,18 +33,24 @@ struct FlutterBridgeTests {
         #expect(resultValue == 20)
     }
 
-    @Test("Invoke unregistered intent throws error")
+    @Test("Invoke unregistered intent without executor times out")
     func invokeUnregisteredIntentThrowsError() async {
+        // With no local handler and no Flutter executor set, `invoke` waits
+        // up to `executorWaitTimeout` (5s) for an executor to appear and then
+        // surfaces an EXECUTOR_NOT_SET custom error. This documents that
+        // contract — it's important for callers (and the iOS App Intent
+        // extension process) to know that "not yet ready" is distinguishable
+        // from a permanent "intent doesn't exist".
         let bridge = FlutterBridge.shared
 
         do {
             _ = try await bridge.invoke(intent: "NonExistentIntent", params: [:])
-            Issue.record("Expected intentNotFound error")
+            Issue.record("Expected EXECUTOR_NOT_SET error")
         } catch let error as AppIntentError {
-            if case .intentNotFound(let name) = error {
-                #expect(name == "NonExistentIntent")
+            if case .custom(let code, _) = error {
+                #expect(code == "EXECUTOR_NOT_SET")
             } else {
-                Issue.record("Expected intentNotFound error, got: \(error)")
+                Issue.record("Expected custom(EXECUTOR_NOT_SET) error, got: \(error)")
             }
         } catch {
             Issue.record("Expected AppIntentError, got: \(error)")

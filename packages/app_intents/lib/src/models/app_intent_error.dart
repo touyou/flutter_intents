@@ -39,11 +39,7 @@ class AppIntentError implements Exception {
   /// Creates a new [AppIntentError].
   ///
   /// Both [code] and [message] are required.
-  AppIntentError({
-    required this.code,
-    required this.message,
-    this.details,
-  });
+  AppIntentError({required this.code, required this.message, this.details});
 
   /// Creates an [AppIntentError] from a predefined error code.
   factory AppIntentError.fromCode(

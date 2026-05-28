@@ -1,5 +1,4 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
-import 'package:analyzer/dart/element/element.dart';
+// ignore_for_file: unnecessary_non_null_assertion
 import 'package:app_intents_codegen/src/analyzer/entity_analyzer.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:test/test.dart';
@@ -15,9 +14,10 @@ void main() {
     });
 
     group('analyze', () {
-      test('extracts basic entity information from @EntitySpec annotation',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'extracts basic entity information from @EntitySpec annotation',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @EntitySpec(
@@ -34,17 +34,18 @@ void main() {
           }
         ''');
 
-        final classElement = findClass(library, 'TaskEntity');
+          final classElement = findClass(library, 'TaskEntity');
 
-        final result = analyzer.analyze(classElement);
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isNotNull);
-        expect(result!.className, equals('TaskEntity'));
-        expect(result.identifier, equals('com.example.task'));
-        expect(result.title, equals('Task'));
-        expect(result.pluralTitle, equals('Tasks'));
-        expect(result.description, isNull);
-      });
+          expect(result, isNotNull);
+          expect(result!.className, equals('TaskEntity'));
+          expect(result.identifier, equals('com.example.task'));
+          expect(result.title, equals('Task'));
+          expect(result.pluralTitle, equals('Tasks'));
+          expect(result.description, isNull);
+        },
+      );
 
       test('extracts description when provided', () async {
         final library = await resolveSource('''
@@ -138,23 +139,25 @@ void main() {
         expect(result, isNotNull);
         expect(result!.properties, hasLength(4));
 
-        final idProp =
-            result.properties.firstWhere((p) => p.fieldName == 'id');
+        final idProp = result.properties.firstWhere((p) => p.fieldName == 'id');
         expect(idProp.role, equals(EntityPropertyRole.id));
         expect(idProp.dartType, equals('String'));
 
-        final nameProp =
-            result.properties.firstWhere((p) => p.fieldName == 'name');
+        final nameProp = result.properties.firstWhere(
+          (p) => p.fieldName == 'name',
+        );
         expect(nameProp.role, equals(EntityPropertyRole.title));
         expect(nameProp.dartType, equals('String'));
 
-        final subtitleProp =
-            result.properties.firstWhere((p) => p.fieldName == 'subtitle');
+        final subtitleProp = result.properties.firstWhere(
+          (p) => p.fieldName == 'subtitle',
+        );
         expect(subtitleProp.role, equals(EntityPropertyRole.subtitle));
         expect(subtitleProp.dartType, equals('String?'));
 
-        final imageProp =
-            result.properties.firstWhere((p) => p.fieldName == 'imageUrl');
+        final imageProp = result.properties.firstWhere(
+          (p) => p.fieldName == 'imageUrl',
+        );
         expect(imageProp.role, equals(EntityPropertyRole.image));
         expect(imageProp.dartType, equals('String?'));
       });
@@ -285,9 +288,9 @@ void main() {
       });
 
       test(
-          'effectiveCacheKey falls back to default identifier-based key when indexed',
-          () async {
-        final library = await resolveSource('''
+        'effectiveCacheKey falls back to default identifier-based key when indexed',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @EntitySpec(
@@ -301,19 +304,22 @@ void main() {
           class Team {}
         ''');
 
-        final classElement = findClass(library, 'TeamEntity');
-        final result = analyzer.analyze(classElement);
+          final classElement = findClass(library, 'TeamEntity');
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isNotNull);
-        expect(result!.persistedCacheKey, isNull);
-        expect(result.effectiveCacheKey,
-            equals('app_intents.entities.com.example.team'));
-      });
+          expect(result, isNotNull);
+          expect(result!.persistedCacheKey, isNull);
+          expect(
+            result.effectiveCacheKey,
+            equals('app_intents.entities.com.example.team'),
+          );
+        },
+      );
 
       test(
-          'effectiveCacheKey falls back to default identifier-based key when enumerable',
-          () async {
-        final library = await resolveSource('''
+        'effectiveCacheKey falls back to default identifier-based key when enumerable',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @EntitySpec(
@@ -327,18 +333,22 @@ void main() {
           class Team {}
         ''');
 
-        final classElement = findClass(library, 'TeamEntity');
-        final result = analyzer.analyze(classElement);
+          final classElement = findClass(library, 'TeamEntity');
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isNotNull);
-        expect(result!.persistedCacheKey, isNull);
-        expect(result.effectiveCacheKey,
-            equals('app_intents.entities.com.example.team'));
-      });
+          expect(result, isNotNull);
+          expect(result!.persistedCacheKey, isNull);
+          expect(
+            result.effectiveCacheKey,
+            equals('app_intents.entities.com.example.team'),
+          );
+        },
+      );
 
-      test('effectiveCacheKey is null when no cache hint is provided',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'effectiveCacheKey is null when no cache hint is provided',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @EntitySpec(
@@ -351,12 +361,13 @@ void main() {
           class Team {}
         ''');
 
-        final classElement = findClass(library, 'TeamEntity');
-        final result = analyzer.analyze(classElement);
+          final classElement = findClass(library, 'TeamEntity');
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isNotNull);
-        expect(result!.effectiveCacheKey, isNull);
-      });
+          expect(result, isNotNull);
+          expect(result!.effectiveCacheKey, isNull);
+        },
+      );
     });
 
     group('hasEntitySpecAnnotation', () {

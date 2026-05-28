@@ -26,8 +26,9 @@ class KotlinGenerator {
   /// Unknown types are returned as-is.
   String dartTypeToKotlinType(String dartType) {
     final isNullable = dartType.endsWith('?');
-    final baseType =
-        isNullable ? dartType.substring(0, dartType.length - 1) : dartType;
+    final baseType = isNullable
+        ? dartType.substring(0, dartType.length - 1)
+        : dartType;
     final kotlinBaseType = _typeMapping[baseType] ?? baseType;
     return isNullable ? '$kotlinBaseType?' : kotlinBaseType;
   }
@@ -42,10 +43,12 @@ class KotlinGenerator {
 
   /// Converts a camelCase name to UPPER_SNAKE_CASE for Kotlin.
   String _toUpperSnakeCase(String name) {
-    return name.replaceAllMapped(
-      RegExp(r'(?<=[a-z0-9])([A-Z])'),
-      (match) => '_${match.group(1)}',
-    ).toUpperCase();
+    return name
+        .replaceAllMapped(
+          RegExp(r'(?<=[a-z0-9])([A-Z])'),
+          (match) => '_${match.group(1)}',
+        )
+        .toUpperCase();
   }
 
   /// Generates a Kotlin @AppFunction method from an [IntentInfo].
@@ -150,14 +153,21 @@ class KotlinGenerator {
   }
 
   /// Generates the AppFunctions class containing all intent methods.
-  void _generateAppFunctionsClass(StringBuffer buffer, List<IntentInfo> intents) {
+  void _generateAppFunctionsClass(
+    StringBuffer buffer,
+    List<IntentInfo> intents,
+  ) {
     buffer.writeln('/**');
-    buffer.writeln(' * Generated AppFunctions from Flutter Intents annotations.');
+    buffer.writeln(
+      ' * Generated AppFunctions from Flutter Intents annotations.',
+    );
     buffer.writeln(' * DO NOT MODIFY BY HAND.');
     buffer.writeln(' */');
     buffer.writeln('class GeneratedAppFunctions {');
     buffer.writeln('${_indent}private val bridge: AppFunctionsBridge');
-    buffer.writeln('$_indent${_indent}get() = AppFunctionsBridge.getInstance()');
+    buffer.writeln(
+      '$_indent${_indent}get() = AppFunctionsBridge.getInstance()',
+    );
 
     for (var i = 0; i < intents.length; i++) {
       buffer.writeln();
@@ -168,8 +178,11 @@ class KotlinGenerator {
   }
 
   /// Generates a single @AppFunction method.
-  void _generateIntentMethod(StringBuffer buffer, IntentInfo info,
-      {int indentLevel = 0}) {
+  void _generateIntentMethod(
+    StringBuffer buffer,
+    IntentInfo info, {
+    int indentLevel = 0,
+  }) {
     final prefix = _indent * indentLevel;
     final funcName = _functionName(info.identifier);
 
@@ -179,15 +192,18 @@ class KotlinGenerator {
     buffer.writeln(_formatKdocLines(descText, prefix));
     buffer.writeln('$prefix *');
     buffer.writeln(
-        '$prefix * @param appFunctionContext The context for this app function execution.');
+      '$prefix * @param appFunctionContext The context for this app function execution.',
+    );
     for (final param in info.parameters) {
       final optionalTag = param.isOptional ? ' (optional)' : '';
       if (param.description != null) {
         buffer.writeln(
-            '$prefix * @param ${param.fieldName} ${param.description}$optionalTag');
+          '$prefix * @param ${param.fieldName} ${param.description}$optionalTag',
+        );
       } else {
         buffer.writeln(
-            '$prefix * @param ${param.fieldName} ${param.title}$optionalTag');
+          '$prefix * @param ${param.fieldName} ${param.title}$optionalTag',
+        );
       }
     }
     buffer.writeln('$prefix */');
@@ -196,9 +212,7 @@ class KotlinGenerator {
     buffer.writeln('$prefix@AppFunction(isDescribedByKDoc = true)');
 
     // Function signature
-    final paramStrings = <String>[
-      'appFunctionContext: AppFunctionContext',
-    ];
+    final paramStrings = <String>['appFunctionContext: AppFunctionContext'];
     for (final param in info.parameters) {
       final kotlinType = _kotlinParamType(param);
       if (param.isOptional || param.dartType.endsWith('?')) {
@@ -216,19 +230,24 @@ class KotlinGenerator {
     buffer.writeln('$prefix): String {');
 
     // Function body: build params map and delegate to bridge
-    buffer.writeln('$prefix${_indent}val params = mutableMapOf<String, Any?>()');
+    buffer.writeln(
+      '$prefix${_indent}val params = mutableMapOf<String, Any?>()',
+    );
     for (final param in info.parameters) {
       final value = _paramValueExpression(param);
       if (param.isOptional || param.dartType.endsWith('?')) {
         buffer.writeln(
-            '$prefix${_indent}if (${param.fieldName} != null) params["${param.fieldName}"] = $value');
+          '$prefix${_indent}if (${param.fieldName} != null) params["${param.fieldName}"] = $value',
+        );
       } else {
         buffer.writeln(
-            '$prefix${_indent}params["${param.fieldName}"] = $value');
+          '$prefix${_indent}params["${param.fieldName}"] = $value',
+        );
       }
     }
     buffer.writeln(
-        '$prefix${_indent}return bridge.executeIntent("${info.identifier}", params)');
+      '$prefix${_indent}return bridge.executeIntent("${info.identifier}", params)',
+    );
     buffer.writeln('$prefix}');
   }
 
@@ -264,14 +283,18 @@ class KotlinGenerator {
 
     // Filter to properties that map to data class fields
     final dataProps = info.properties
-        .where((p) =>
-            p.role == EntityPropertyRole.id ||
-            p.role == EntityPropertyRole.title ||
-            p.role == EntityPropertyRole.subtitle)
+        .where(
+          (p) =>
+              p.role == EntityPropertyRole.id ||
+              p.role == EntityPropertyRole.title ||
+              p.role == EntityPropertyRole.subtitle,
+        )
         .toList();
 
     for (final prop in dataProps) {
-      buffer.writeln(' * @param ${prop.fieldName} ${_propertyDescription(prop)}');
+      buffer.writeln(
+        ' * @param ${prop.fieldName} ${_propertyDescription(prop)}',
+      );
     }
     buffer.writeln(' */');
 
@@ -285,7 +308,9 @@ class KotlinGenerator {
       final kotlinType = dartTypeToKotlinType(prop.dartType);
       final comma = i < dataProps.length - 1 ? ',' : '';
       if (prop.dartType.endsWith('?')) {
-        buffer.writeln('${_indent}val ${prop.fieldName}: $kotlinType = null$comma');
+        buffer.writeln(
+          '${_indent}val ${prop.fieldName}: $kotlinType = null$comma',
+        );
       } else {
         buffer.writeln('${_indent}val ${prop.fieldName}: $kotlinType$comma');
       }
@@ -330,8 +355,11 @@ class KotlinGenerator {
     buffer.writeln();
     buffer.writeln('${_indent}companion object {');
     buffer.writeln(
-        '$_indent${_indent}fun fromValue(value: String): ${info.className}? =');
-    buffer.writeln('$_indent$_indent${_indent}entries.find { it.value == value }');
+      '$_indent${_indent}fun fromValue(value: String): ${info.className}? =',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}entries.find { it.value == value }',
+    );
     buffer.writeln('$_indent}');
 
     buffer.write('}');
@@ -341,30 +369,37 @@ class KotlinGenerator {
   void _generateBridgeBody(StringBuffer buffer) {
     buffer.writeln('/**');
     buffer.writeln(
-        ' * Bridge between Android AppFunctions and Flutter MethodChannel.');
+      ' * Bridge between Android AppFunctions and Flutter MethodChannel.',
+    );
     buffer.writeln(
-        ' * Call [initialize] with the MethodChannel from AppIntentsPlugin');
+      ' * Call [initialize] with the MethodChannel from AppIntentsPlugin',
+    );
     buffer.writeln(' * before any AppFunction methods are invoked.');
     buffer.writeln(' */');
     buffer.writeln(
-        'class AppFunctionsBridge private constructor(private val channel: MethodChannel) {');
+      'class AppFunctionsBridge private constructor(private val channel: MethodChannel) {',
+    );
     buffer.writeln();
     buffer.writeln('${_indent}companion object {');
     buffer.writeln(
-        '$_indent${_indent}private var instance: AppFunctionsBridge? = null');
+      '$_indent${_indent}private var instance: AppFunctionsBridge? = null',
+    );
     buffer.writeln();
     buffer.writeln(
-        '$_indent${_indent}fun initialize(channel: MethodChannel) {');
+      '$_indent${_indent}fun initialize(channel: MethodChannel) {',
+    );
     buffer.writeln(
-        '$_indent$_indent${_indent}instance = AppFunctionsBridge(channel)');
+      '$_indent$_indent${_indent}instance = AppFunctionsBridge(channel)',
+    );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln();
+    buffer.writeln('$_indent${_indent}fun getInstance(): AppFunctionsBridge =');
     buffer.writeln(
-        '$_indent${_indent}fun getInstance(): AppFunctionsBridge =');
+      '$_indent$_indent${_indent}instance ?: throw IllegalStateException(',
+    );
     buffer.writeln(
-        '$_indent$_indent${_indent}instance ?: throw IllegalStateException(');
-    buffer.writeln(
-        '$_indent$_indent$_indent$_indent"AppFunctionsBridge not initialized. Call initialize() first."');
+      '$_indent$_indent$_indent$_indent"AppFunctionsBridge not initialized. Call initialize() first."',
+    );
     buffer.writeln('$_indent$_indent$_indent)');
     buffer.writeln('$_indent}');
     buffer.writeln();
@@ -376,25 +411,33 @@ class KotlinGenerator {
     buffer.writeln('$_indent$_indent${_indent}channel.invokeMethod(');
     buffer.writeln('$_indent$_indent$_indent$_indent"executeIntent",');
     buffer.writeln(
-        '$_indent$_indent$_indent${_indent}mapOf("identifier" to identifier, "params" to params),');
+      '$_indent$_indent$_indent${_indent}mapOf("identifier" to identifier, "params" to params),',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent${_indent}object : MethodChannel.Result {');
+      '$_indent$_indent$_indent${_indent}object : MethodChannel.Result {',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent${_indent}override fun success(result: Any?) {');
+      '$_indent$_indent$_indent$_indent${_indent}override fun success(result: Any?) {',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")');
+      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")',
+    );
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln();
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent${_indent}override fun error(code: String, message: String?, details: Any?) {');
+      '$_indent$_indent$_indent$_indent${_indent}override fun error(code: String, message: String?, details: Any?) {',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("\$code: \$message"))');
+      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("\$code: \$message"))',
+    );
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln();
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent${_indent}override fun notImplemented() {');
+      '$_indent$_indent$_indent$_indent${_indent}override fun notImplemented() {',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("Not implemented"))');
+      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("Not implemented"))',
+    );
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent)');
@@ -405,9 +448,6 @@ class KotlinGenerator {
 
   /// Formats text for KDoc comments, handling multiline descriptions.
   String _formatKdocLines(String text, String prefix) {
-    return text
-        .split('\n')
-        .map((line) => '$prefix * $line')
-        .join('\n');
+    return text.split('\n').map((line) => '$prefix * $line').join('\n');
   }
 }

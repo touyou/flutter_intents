@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
-import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/enum_analyzer.dart';
 import 'package:test/test.dart';
 
@@ -14,9 +12,10 @@ void main() {
     });
 
     group('analyze', () {
-      test('extracts basic enum information from @EnumSpec annotation',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'extracts basic enum information from @EnumSpec annotation',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @EnumSpec(
@@ -30,22 +29,23 @@ void main() {
           }
         ''');
 
-        final enumElement = findEnum(library, 'TaskPriority');
+          final enumElement = findEnum(library, 'TaskPriority');
 
-        final result = analyzer.analyze(enumElement);
+          final result = analyzer.analyze(enumElement);
 
-        expect(result, isNotNull);
-        expect(result!.className, equals('TaskPriority'));
-        expect(result.identifier, equals('com.example.priority'));
-        expect(result.title, equals('Priority'));
-        expect(result.cases, hasLength(3));
-        expect(result.cases[0].name, equals('high'));
-        expect(result.cases[0].displayTitle, equals('High'));
-        expect(result.cases[1].name, equals('medium'));
-        expect(result.cases[1].displayTitle, equals('Medium'));
-        expect(result.cases[2].name, equals('low'));
-        expect(result.cases[2].displayTitle, equals('Low'));
-      });
+          expect(result, isNotNull);
+          expect(result!.className, equals('TaskPriority'));
+          expect(result.identifier, equals('com.example.priority'));
+          expect(result.title, equals('Priority'));
+          expect(result.cases, hasLength(3));
+          expect(result.cases[0].name, equals('high'));
+          expect(result.cases[0].displayTitle, equals('High'));
+          expect(result.cases[1].name, equals('medium'));
+          expect(result.cases[1].displayTitle, equals('Medium'));
+          expect(result.cases[2].name, equals('low'));
+          expect(result.cases[2].displayTitle, equals('Low'));
+        },
+      );
 
       test('extracts custom display titles from @EnumCaseDisplay', () async {
         final library = await resolveSource('''

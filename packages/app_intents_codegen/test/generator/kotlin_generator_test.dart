@@ -42,7 +42,9 @@ void main() {
 
       test('returns original type for unknown types', () {
         expect(
-            generator.dartTypeToKotlinType('CustomType'), equals('CustomType'));
+          generator.dartTypeToKotlinType('CustomType'),
+          equals('CustomType'),
+        );
       });
 
       test('maps IntentFile to String', () {
@@ -50,7 +52,10 @@ void main() {
       });
 
       test('maps IntentFile? to String?', () {
-        expect(generator.dartTypeToKotlinType('IntentFile?'), equals('String?'));
+        expect(
+          generator.dartTypeToKotlinType('IntentFile?'),
+          equals('String?'),
+        );
       });
     });
 
@@ -66,9 +71,14 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('import androidx.appfunctions.service.AppFunction'));
         expect(
-            result, contains('import androidx.appfunctions.AppFunctionContext'));
+          result,
+          contains('import androidx.appfunctions.service.AppFunction'),
+        );
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionContext'),
+        );
         expect(result, contains('@AppFunction(isDescribedByKDoc = true)'));
         expect(result, contains('suspend fun greet('));
         expect(result, contains('appFunctionContext: AppFunctionContext'));
@@ -120,10 +130,12 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(
-            result,
-            contains(
-                " * Create posts in specific teams you're part of on Habee.\n"
-                " * It will be available after you open the team list once."));
+          result,
+          contains(
+            " * Create posts in specific teams you're part of on Habee.\n"
+            " * It will be available after you open the team list once.",
+          ),
+        );
       });
 
       test('generates intent with String parameter', () {
@@ -167,8 +179,10 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(result, contains('dueDate: String? = null'));
-        expect(result,
-            contains('if (dueDate != null) params["dueDate"] = dueDate'));
+        expect(
+          result,
+          contains('if (dueDate != null) params["dueDate"] = dueDate'),
+        );
       });
 
       test('generates intent with parameter description in KDoc', () {
@@ -190,8 +204,10 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result,
-            contains('@param title The title of the task to create'));
+        expect(
+          result,
+          contains('@param title The title of the task to create'),
+        );
       });
 
       test('generates intent with multiple type mappings', () {
@@ -261,8 +277,12 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains(
-            'bridge.executeIntent("com.example.taskapp.createTask", params)'));
+        expect(
+          result,
+          contains(
+            'bridge.executeIntent("com.example.taskapp.createTask", params)',
+          ),
+        );
       });
 
       test('ignores iOS-specific urlScheme field', () {
@@ -359,7 +379,12 @@ void main() {
         expect(result, isNot(contains('IntentFile')));
         // File params should be wrapped in a map with path, mimeType, filename
         expect(result, contains('"path" to image'));
-        expect(result, contains('"mimeType" to java.net.URLConnection.guessContentTypeFromName(image)'));
+        expect(
+          result,
+          contains(
+            '"mimeType" to java.net.URLConnection.guessContentTypeFromName(image)',
+          ),
+        );
         expect(result, contains('"filename" to java.io.File(image).name'));
       });
 
@@ -387,7 +412,12 @@ void main() {
         expect(result, isNot(contains('IntentFile')));
         // Required file param should also include mimeType and filename
         expect(result, contains('"path" to file'));
-        expect(result, contains('"mimeType" to java.net.URLConnection.guessContentTypeFromName(file)'));
+        expect(
+          result,
+          contains(
+            '"mimeType" to java.net.URLConnection.guessContentTypeFromName(file)',
+          ),
+        );
         expect(result, contains('"filename" to java.io.File(file).name'));
       });
 
@@ -443,10 +473,14 @@ void main() {
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result, contains(
-            'import androidx.appfunctions.AppFunctionSerializable'));
-        expect(result, contains(
-            '@AppFunctionSerializable(isDescribedByKDoc = true)'));
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionSerializable'),
+        );
+        expect(
+          result,
+          contains('@AppFunctionSerializable(isDescribedByKDoc = true)'),
+        );
         expect(result, contains('data class TaskEntity('));
         expect(result, contains('val id: String'));
         expect(result, contains('val title: String'));
@@ -512,9 +546,12 @@ void main() {
         final result = generator.generateEntity(entityInfo);
 
         expect(
-            result,
-            contains(' * A task in your task list.\n'
-                ' * Tasks can have subtasks.'));
+          result,
+          contains(
+            ' * A task in your task list.\n'
+            ' * Tasks can have subtasks.',
+          ),
+        );
       });
 
       test('generates nullable property with default null', () {
@@ -610,8 +647,10 @@ void main() {
 
         expect(result, contains('@param id The unique identifier.'));
         expect(result, contains('@param title The display title.'));
-        expect(result,
-            contains('@param subtitle The subtitle or description.'));
+        expect(
+          result,
+          contains('@param subtitle The subtitle or description.'),
+        );
       });
     });
 
@@ -633,8 +672,10 @@ void main() {
         expect(result, contains('/**'));
         expect(result, contains(' * Priority'));
         expect(result, contains(' */'));
-        expect(result,
-            contains('enum class TaskPriority(val value: String) {'));
+        expect(
+          result,
+          contains('enum class TaskPriority(val value: String) {'),
+        );
         expect(result, contains('/** High */'));
         expect(result, contains('HIGH("high"),'));
         expect(result, contains('/** Medium */'));
@@ -648,16 +689,13 @@ void main() {
           className: 'TaskPriority',
           identifier: 'com.example.taskPriority',
           title: 'Priority',
-          cases: [
-            EnumCaseInfo(name: 'high', displayTitle: 'High'),
-          ],
+          cases: [EnumCaseInfo(name: 'high', displayTitle: 'High')],
         );
 
         final result = generator.generateEnum(enumInfo);
 
         expect(result, contains('companion object {'));
-        expect(result, contains(
-            'fun fromValue(value: String): TaskPriority?'));
+        expect(result, contains('fun fromValue(value: String): TaskPriority?'));
         expect(result, contains('entries.find { it.value == value }'));
       });
 
@@ -683,7 +721,10 @@ void main() {
       test('generates AppFunctionsBridge singleton class', () {
         final result = generator.generateBridge();
 
-        expect(result, contains('class AppFunctionsBridge private constructor'));
+        expect(
+          result,
+          contains('class AppFunctionsBridge private constructor'),
+        );
         expect(result, contains('private val channel: MethodChannel'));
         expect(result, contains('companion object {'));
         expect(result, contains('fun initialize(channel: MethodChannel)'));
@@ -732,11 +773,18 @@ void main() {
           ],
         );
 
-        expect(result, contains('import androidx.appfunctions.service.AppFunction'));
-        expect(result,
-            contains('import androidx.appfunctions.AppFunctionContext'));
-        expect(result,
-            contains('import io.flutter.plugin.common.MethodChannel'));
+        expect(
+          result,
+          contains('import androidx.appfunctions.service.AppFunction'),
+        );
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionContext'),
+        );
+        expect(
+          result,
+          contains('import io.flutter.plugin.common.MethodChannel'),
+        );
         expect(result, contains('import kotlinx.coroutines.Dispatchers'));
       });
 
@@ -760,8 +808,10 @@ void main() {
           ],
         );
 
-        expect(result, contains(
-            'import androidx.appfunctions.AppFunctionSerializable'));
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionSerializable'),
+        );
       });
 
       test('generates enums before intents', () {
@@ -772,9 +822,7 @@ void main() {
               className: 'TaskPriority',
               identifier: 'com.example.taskPriority',
               title: 'Priority',
-              cases: [
-                EnumCaseInfo(name: 'high', displayTitle: 'High'),
-              ],
+              cases: [EnumCaseInfo(name: 'high', displayTitle: 'High')],
             ),
           ],
           intents: [
@@ -789,8 +837,7 @@ void main() {
         );
 
         final enumIndex = result.indexOf('enum class TaskPriority');
-        final intentIndex =
-            result.indexOf('class GeneratedAppFunctions');
+        final intentIndex = result.indexOf('class GeneratedAppFunctions');
         expect(enumIndex, lessThan(intentIndex));
       });
 

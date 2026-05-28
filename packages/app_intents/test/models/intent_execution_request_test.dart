@@ -37,10 +37,7 @@ void main() {
       });
 
       test('creates instance with empty params when params is null', () {
-        final map = {
-          'identifier': 'com.example.testIntent',
-          'params': null,
-        };
+        final map = {'identifier': 'com.example.testIntent', 'params': null};
 
         final request = IntentExecutionRequest.fromMap(map);
 
@@ -49,9 +46,7 @@ void main() {
       });
 
       test('creates instance with empty params when params is missing', () {
-        final map = {
-          'identifier': 'com.example.testIntent',
-        };
+        final map = {'identifier': 'com.example.testIntent'};
 
         final request = IntentExecutionRequest.fromMap(map);
 

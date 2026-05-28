@@ -120,8 +120,7 @@ class XcstringsGenerator {
     if (existingXcstringsPath != null) {
       final file = File(existingXcstringsPath);
       if (file.existsSync()) {
-        existing =
-            jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        existing = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       }
     }
 
@@ -159,8 +158,7 @@ class XcstringsGenerator {
       }
 
       // Merge with existing translations (preserve languages not in YAML)
-      final existingEntry =
-          existingStrings[key] as Map<String, dynamic>?;
+      final existingEntry = existingStrings[key] as Map<String, dynamic>?;
       if (existingEntry != null) {
         final existingLocalizations =
             existingEntry['localizations'] as Map<String, dynamic>?;
@@ -243,11 +241,7 @@ class XcstringsGenerator {
     var result = text;
     for (var i = matches.length - 1; i >= 0; i--) {
       final match = matches[i];
-      result = result.replaceRange(
-        match.start,
-        match.end,
-        '%${i + 1}\$@',
-      );
+      result = result.replaceRange(match.start, match.end, '%${i + 1}\$@');
     }
     return result;
   }

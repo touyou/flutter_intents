@@ -20,13 +20,17 @@ class MockAppIntentsPlatform
 
   @override
   void registerEntityQueryHandler(
-      String entityIdentifier, EntityQueryHandler handler) {
+    String entityIdentifier,
+    EntityQueryHandler handler,
+  ) {
     _entityQueryHandlers[entityIdentifier] = handler;
   }
 
   @override
   void registerSuggestedEntitiesHandler(
-      String entityIdentifier, SuggestedEntitiesHandler handler) {
+    String entityIdentifier,
+    SuggestedEntitiesHandler handler,
+  ) {
     _suggestedEntitiesHandlers[entityIdentifier] = handler;
   }
 
@@ -53,8 +57,7 @@ class MockAppIntentsPlatform
   Future<void> configureStorage({
     required String appGroupIdentifier,
     String? storageIdentifier,
-  }) =>
-      Future.value();
+  }) => Future.value();
 
   // Test helpers
   bool hasIntentHandler(String identifier) =>
@@ -115,7 +118,10 @@ void main() {
     });
 
     test('onIntentExecution returns stream from platform', () {
-      expect(appIntentsPlugin.onIntentExecution, isA<Stream<IntentExecutionRequest>>());
+      expect(
+        appIntentsPlugin.onIntentExecution,
+        isA<Stream<IntentExecutionRequest>>(),
+      );
     });
   });
 }

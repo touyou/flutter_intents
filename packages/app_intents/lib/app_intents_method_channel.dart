@@ -7,15 +7,16 @@ import 'app_intents_platform_interface.dart';
 import 'src/models/models.dart';
 
 /// Type definition for intent handler functions.
-typedef IntentHandler = Future<Map<String, dynamic>> Function(
-    Map<String, dynamic> params);
+typedef IntentHandler =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> params);
 
 /// Type definition for entity query handler functions.
-typedef EntityQueryHandler = Future<List<Map<String, dynamic>>> Function(
-    List<String> identifiers);
+typedef EntityQueryHandler =
+    Future<List<Map<String, dynamic>>> Function(List<String> identifiers);
 
 /// Type definition for suggested entities handler functions.
-typedef SuggestedEntitiesHandler = Future<List<Map<String, dynamic>>> Function();
+typedef SuggestedEntitiesHandler =
+    Future<List<Map<String, dynamic>>> Function();
 
 /// An implementation of [AppIntentsPlatform] that uses method channels.
 class MethodChannelAppIntents extends AppIntentsPlatform {
@@ -25,8 +26,9 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   /// The event channel for receiving pending action notifications.
   @visibleForTesting
-  final EventChannel pendingActionsChannel =
-      const EventChannel('app_intents/pending_actions');
+  final EventChannel pendingActionsChannel = const EventChannel(
+    'app_intents/pending_actions',
+  );
 
   /// Registered intent handlers, keyed by intent identifier.
   final Map<String, IntentHandler> _intentHandlers = {};
@@ -76,7 +78,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   /// Handles intent execution requests from iOS.
   Future<Map<String, dynamic>> _onExecuteIntent(
-      Map<Object?, Object?> arguments) async {
+    Map<Object?, Object?> arguments,
+  ) async {
     final identifier = arguments['identifier'] as String?;
     if (identifier == null) {
       throw PlatformException(
@@ -93,16 +96,16 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     String identifier,
     Map<String, dynamic> params,
   ) {
-    _intentExecutionController.add(IntentExecutionRequest(
-      identifier: identifier,
-      params: params,
-    ));
+    _intentExecutionController.add(
+      IntentExecutionRequest(identifier: identifier, params: params),
+    );
     return handleIntentExecution(identifier, params);
   }
 
   /// Handles entity query requests from iOS.
   Future<List<Map<String, dynamic>>> _onQueryEntities(
-      Map<Object?, Object?> arguments) async {
+    Map<Object?, Object?> arguments,
+  ) async {
     final entityIdentifier = arguments['entityIdentifier'] as String?;
     if (entityIdentifier == null) {
       throw PlatformException(
@@ -110,9 +113,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
         message: 'entityIdentifier is required',
       );
     }
-    final identifiers = (arguments['identifiers'] as List?)
-            ?.whereType<String>()
-            .toList() ??
+    final identifiers =
+        (arguments['identifiers'] as List?)?.whereType<String>().toList() ??
         <String>[];
 
     return handleEntityQuery(entityIdentifier, identifiers);
@@ -120,7 +122,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   /// Handles suggested entities requests from iOS.
   Future<List<Map<String, dynamic>>> _onGetSuggestedEntities(
-      Map<Object?, Object?> arguments) async {
+    Map<Object?, Object?> arguments,
+  ) async {
     final entityIdentifier = arguments['entityIdentifier'] as String?;
     if (entityIdentifier == null) {
       throw PlatformException(
@@ -144,16 +147,14 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   @override
   Future<String?> getPlatformVersion() async {
-    final version =
-        await methodChannel.invokeMethod<String>('getPlatformVersion');
+    final version = await methodChannel.invokeMethod<String>(
+      'getPlatformVersion',
+    );
     return version;
   }
 
   @override
-  void registerIntentHandler(
-    String identifier,
-    IntentHandler handler,
-  ) {
+  void registerIntentHandler(String identifier, IntentHandler handler) {
     _intentHandlers[identifier] = handler;
   }
 
@@ -203,7 +204,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     try {
       await methodChannel.invokeMethod('configureStorage', {
         'appGroupIdentifier': appGroupIdentifier,
-        if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
+        'storageIdentifier': ?storageIdentifier,
       });
     } on MissingPluginException {
       // No-op on platforms that don't implement this (e.g., Android).
@@ -223,8 +224,9 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   Future<bool> processPendingActions() async {
     var processed = false;
     while (true) {
-      final result =
-          await methodChannel.invokeMethod<Map>('processPendingActions');
+      final result = await methodChannel.invokeMethod<Map>(
+        'processPendingActions',
+      );
       if (result == null) break;
 
       final identifier = result['identifier'] as String?;

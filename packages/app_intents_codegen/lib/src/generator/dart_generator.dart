@@ -59,25 +59,31 @@ class DartGenerator {
     }
 
     // Generate functions
-    bodyElements.add(_buildInitializeFunction(
-      initFuncName,
-      dartIntents.isNotEmpty ? intentFuncName : null,
-      entities.isNotEmpty ? entityFuncName : null,
-    ));
+    bodyElements.add(
+      _buildInitializeFunction(
+        initFuncName,
+        dartIntents.isNotEmpty ? intentFuncName : null,
+        entities.isNotEmpty ? entityFuncName : null,
+      ),
+    );
 
     if (dartIntents.isNotEmpty) {
-      bodyElements
-          .add(_buildRegisterIntentHandlersFunction(dartIntents, intentFuncName));
+      bodyElements.add(
+        _buildRegisterIntentHandlersFunction(dartIntents, intentFuncName),
+      );
     }
 
     if (entities.isNotEmpty) {
-      bodyElements
-          .add(_buildRegisterEntityHandlersFunction(entities, entityFuncName));
+      bodyElements.add(
+        _buildRegisterEntityHandlersFunction(entities, entityFuncName),
+      );
     }
 
-    final library = Library((b) => b
-      ..comments.add('GENERATED CODE - DO NOT MODIFY BY HAND')
-      ..body.addAll(bodyElements));
+    final library = Library(
+      (b) => b
+        ..comments.add('GENERATED CODE - DO NOT MODIFY BY HAND')
+        ..body.addAll(bodyElements),
+    );
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
     final code = library.accept(emitter).toString();
@@ -123,7 +129,8 @@ class DartGenerator {
 
       // fromMap extraction
       fromMapParams.writeln(
-          '      ${param.fieldName}: ${_buildFromMapExtraction(param)},');
+        '      ${param.fieldName}: ${_buildFromMapExtraction(param)},',
+      );
 
       // Check for required IntentFile params
       if (param.fileType != null && !isNullable) {
@@ -132,7 +139,8 @@ class DartGenerator {
 
       // fromQueryParameters extraction
       fromQueryParams.writeln(
-          '      ${param.fieldName}: ${_buildFromQueryExtraction(param)},');
+        '      ${param.fieldName}: ${_buildFromQueryExtraction(param)},',
+      );
     }
 
     final fromQueryMethod = hasRequiredFileParam
@@ -258,11 +266,13 @@ $fromMapParams    );
       statements.add(Code('$entityFuncName();'));
     }
 
-    return Method((b) => b
-      ..name = funcName
-      ..returns = refer('void')
-      ..docs.add('/// Initialize all App Intents handlers.')
-      ..body = Block.of(statements));
+    return Method(
+      (b) => b
+        ..name = funcName
+        ..returns = refer('void')
+        ..docs.add('/// Initialize all App Intents handlers.')
+        ..body = Block.of(statements),
+    );
   }
 
   /// Builds the _registerIntentHandlers() function.
@@ -276,10 +286,12 @@ $fromMapParams    );
       statements.add(_buildIntentHandlerRegistration(intent));
     }
 
-    return Method((b) => b
-      ..name = funcName
-      ..returns = refer('void')
-      ..body = Block.of(statements));
+    return Method(
+      (b) => b
+        ..name = funcName
+        ..returns = refer('void')
+        ..body = Block.of(statements),
+    );
   }
 
   /// Builds a single intent handler registration.
@@ -328,10 +340,12 @@ AppIntents().registerIntentHandler(
       statements.add(_buildSuggestedEntitiesHandlerRegistration(entity));
     }
 
-    return Method((b) => b
-      ..name = funcName
-      ..returns = refer('void')
-      ..body = Block.of(statements));
+    return Method(
+      (b) => b
+        ..name = funcName
+        ..returns = refer('void')
+        ..body = Block.of(statements),
+    );
   }
 
   /// Builds an entity query handler registration.
@@ -353,8 +367,7 @@ AppIntents().registerEntityQueryHandler(
   /// Builds a suggested entities handler registration.
   Code _buildSuggestedEntitiesHandlerRegistration(EntityInfo entity) {
     final cleanName = _cleanClassName(entity.className);
-    final suggestedHandlerName =
-        '${_toCamelCase(cleanName)}SuggestedEntities';
+    final suggestedHandlerName = '${_toCamelCase(cleanName)}SuggestedEntities';
 
     return Code('''
 AppIntents().registerSuggestedEntitiesHandler(
@@ -384,8 +397,10 @@ AppIntents().registerSuggestedEntitiesHandler(
     if (name.contains('_')) {
       return name
           .split('_')
-          .map((part) =>
-              part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1))
+          .map(
+            (part) =>
+                part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1),
+          )
           .join();
     }
     // Handle camelCase - just capitalize first letter

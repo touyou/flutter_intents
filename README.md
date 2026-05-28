@@ -1,6 +1,13 @@
 # Flutter Intents
 
+[![CI](https://github.com/touyou/flutter_intents/actions/workflows/ci.yml/badge.svg)](https://github.com/touyou/flutter_intents/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+| Package | pub.dev |
+| --- | --- |
+| [`app_intents`](packages/app_intents/) | [![pub package](https://img.shields.io/pub/v/app_intents.svg)](https://pub.dev/packages/app_intents) |
+| [`app_intents_annotations`](packages/app_intents_annotations/) | [![pub package](https://img.shields.io/pub/v/app_intents_annotations.svg)](https://pub.dev/packages/app_intents_annotations) |
+| [`app_intents_codegen`](packages/app_intents_codegen/) | [![pub package](https://img.shields.io/pub/v/app_intents_codegen.svg)](https://pub.dev/packages/app_intents_codegen) |
 
 A collection of packages for integrating iOS App Intents and Android AppFunctions frameworks with Flutter applications.
 
@@ -122,6 +129,9 @@ dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotl
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
+All participants are expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+To report a security vulnerability, please follow the process in [SECURITY.md](SECURITY.md).
 
 ## License
 

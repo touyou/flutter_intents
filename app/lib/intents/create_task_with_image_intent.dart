@@ -33,10 +33,7 @@ class CreateTaskWithImageIntentSpec extends IntentSpecBase {
   )
   final IntentFile? image;
 
-  CreateTaskWithImageIntentSpec({
-    required this.title,
-    this.image,
-  });
+  CreateTaskWithImageIntentSpec({required this.title, this.image});
 }
 
 /// Input model for the intent.

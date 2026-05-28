@@ -28,21 +28,33 @@ void main() {
 
     group('fromCode', () {
       test('creates error with default message for handlerNotFound', () {
-        final error = AppIntentError.fromCode(AppIntentErrorCode.handlerNotFound);
+        final error = AppIntentError.fromCode(
+          AppIntentErrorCode.handlerNotFound,
+        );
 
         expect(error.code, 'handlerNotFound');
         expect(error.message, 'No handler registered for the specified intent');
       });
 
-      test('creates error with default message for entityQueryHandlerNotFound', () {
-        final error = AppIntentError.fromCode(AppIntentErrorCode.entityQueryHandlerNotFound);
+      test(
+        'creates error with default message for entityQueryHandlerNotFound',
+        () {
+          final error = AppIntentError.fromCode(
+            AppIntentErrorCode.entityQueryHandlerNotFound,
+          );
 
-        expect(error.code, 'entityQueryHandlerNotFound');
-        expect(error.message, 'No entity query handler registered for the specified entity type');
-      });
+          expect(error.code, 'entityQueryHandlerNotFound');
+          expect(
+            error.message,
+            'No entity query handler registered for the specified entity type',
+          );
+        },
+      );
 
       test('creates error with default message for invalidParameters', () {
-        final error = AppIntentError.fromCode(AppIntentErrorCode.invalidParameters);
+        final error = AppIntentError.fromCode(
+          AppIntentErrorCode.invalidParameters,
+        );
 
         expect(error.code, 'invalidParameters');
         expect(error.message, 'Invalid parameters provided to the intent');
@@ -136,10 +148,7 @@ void main() {
 
         final map = error.toMap();
 
-        expect(map, {
-          'code': 'test_error',
-          'message': 'Test message',
-        });
+        expect(map, {'code': 'test_error', 'message': 'Test message'});
         expect(map.containsKey('details'), isFalse);
       });
 
@@ -185,10 +194,7 @@ void main() {
     });
 
     test('implements Exception interface', () {
-      final error = AppIntentError(
-        code: 'test_error',
-        message: 'Test message',
-      );
+      final error = AppIntentError(code: 'test_error', message: 'Test message');
 
       expect(error, isA<Exception>());
     });

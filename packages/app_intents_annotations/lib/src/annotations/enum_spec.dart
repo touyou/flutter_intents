@@ -20,10 +20,7 @@ class EnumSpec {
   /// A human-readable title for the enum type.
   final String title;
 
-  const EnumSpec({
-    required this.identifier,
-    required this.title,
-  });
+  const EnumSpec({required this.identifier, required this.title});
 }
 
 /// Annotation to customize the display title of an enum case.

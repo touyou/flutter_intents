@@ -70,18 +70,18 @@ class IntentInfo {
 
   @override
   int get hashCode => Object.hash(
-        className,
-        identifier,
-        title,
-        description,
-        implementation,
-        Object.hashAll(parameters),
-        urlScheme,
-        urlAction,
-        resultDialogTemplate,
-        parameterSummary,
-        supportedModes,
-      );
+    className,
+    identifier,
+    title,
+    description,
+    implementation,
+    Object.hashAll(parameters),
+    urlScheme,
+    urlAction,
+    resultDialogTemplate,
+    parameterSummary,
+    supportedModes,
+  );
 
   @override
   String toString() =>
@@ -94,17 +94,10 @@ class IntentInfo {
 }
 
 /// The implementation language for the intent.
-enum IntentImplementationType {
-  dart,
-  swift,
-  kotlin,
-}
+enum IntentImplementationType { dart, swift, kotlin }
 
 /// The execution mode for the intent.
-enum IntentModeType {
-  background,
-  foreground,
-}
+enum IntentModeType { background, foreground }
 
 /// Represents analyzed information about an intent parameter.
 class IntentParamInfo {
@@ -162,15 +155,15 @@ class IntentParamInfo {
 
   @override
   int get hashCode => Object.hash(
-        fieldName,
-        dartType,
-        title,
-        description,
-        isOptional,
-        entityType,
-        enumType,
-        fileType,
-      );
+    fieldName,
+    dartType,
+    title,
+    description,
+    isOptional,
+    entityType,
+    enumType,
+    fileType,
+  );
 
   @override
   String toString() =>

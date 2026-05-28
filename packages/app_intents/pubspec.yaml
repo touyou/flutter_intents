@@ -3,6 +3,13 @@ description: Flutter plugin for iOS App Intents and Android AppFunctions integra
 version: 0.10.0
 homepage: https://github.com/touyou/flutter_intents
 repository: https://github.com/touyou/flutter_intents
+issue_tracker: https://github.com/touyou/flutter_intents/issues
+topics:
+  - siri
+  - shortcuts
+  - app-intents
+  - appfunctions
+  - assistant
 
 environment:
   sdk: ^3.10.0

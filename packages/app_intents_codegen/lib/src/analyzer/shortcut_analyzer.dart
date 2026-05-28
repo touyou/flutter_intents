@@ -7,11 +7,13 @@ import '../generator/swift_generator.dart';
 
 /// Type checker for AppShortcut annotation.
 const _appShortcutChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcut');
+  'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcut',
+);
 
 /// Type checker for AppShortcutsProvider annotation.
 const _appShortcutsProviderChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcutsProvider');
+  'package:app_intents_annotations/src/annotations/app_shortcut.dart#AppShortcutsProvider',
+);
 
 /// Analyzer for extracting shortcut information from annotated classes.
 class ShortcutAnalyzer {
@@ -37,24 +39,28 @@ class ShortcutAnalyzer {
       final annotation = _appShortcutChecker.firstAnnotationOfExact(field);
       if (annotation == null) continue;
 
-      final intentIdentifier =
-          annotation.getField('intentIdentifier')?.toStringValue();
+      final intentIdentifier = annotation
+          .getField('intentIdentifier')
+          ?.toStringValue();
       final phrasesField = annotation.getField('phrases');
       final shortTitle = annotation.getField('shortTitle')?.toStringValue();
-      final systemImageName =
-          annotation.getField('systemImageName')?.toStringValue();
+      final systemImageName = annotation
+          .getField('systemImageName')
+          ?.toStringValue();
 
       if (intentIdentifier == null || shortTitle == null) continue;
 
       final phrases = _extractPhrases(phrasesField);
       if (phrases.isEmpty) continue;
 
-      shortcuts.add(AppShortcutInfo(
-        intentClassName: intentIdentifier,
-        phrases: phrases,
-        shortTitle: shortTitle,
-        systemImageName: systemImageName ?? 'star.fill',
-      ));
+      shortcuts.add(
+        AppShortcutInfo(
+          intentClassName: intentIdentifier,
+          phrases: phrases,
+          shortTitle: shortTitle,
+          systemImageName: systemImageName ?? 'star.fill',
+        ),
+      );
     }
 
     return shortcuts;
@@ -66,9 +72,6 @@ class ShortcutAnalyzer {
     final list = phrasesField.toListValue();
     if (list == null) return [];
 
-    return list
-        .map((e) => e.toStringValue())
-        .whereType<String>()
-        .toList();
+    return list.map((e) => e.toStringValue()).whereType<String>().toList();
   }
 }

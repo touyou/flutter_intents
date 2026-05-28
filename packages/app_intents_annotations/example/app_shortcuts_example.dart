@@ -40,10 +40,7 @@ class TaskAppShortcuts {
   /// Shortcut for completing a task
   @AppShortcut(
     intentIdentifier: 'CompleteTaskIntent',
-    phrases: [
-      'Complete task in {applicationName}',
-      'Mark task as done',
-    ],
+    phrases: ['Complete task in {applicationName}', 'Mark task as done'],
     shortTitle: 'Complete Task',
     systemImageName: 'checkmark.circle.fill',
   )

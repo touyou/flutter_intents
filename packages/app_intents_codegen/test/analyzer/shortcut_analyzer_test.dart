@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
-import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/shortcut_analyzer.dart';
 import 'package:test/test.dart';
 
@@ -24,7 +22,10 @@ void main() {
 
         final classElement = findClass(library, 'MyAppShortcuts');
 
-        expect(analyzer.hasAppShortcutsProviderAnnotation(classElement), isTrue);
+        expect(
+          analyzer.hasAppShortcutsProviderAnnotation(classElement),
+          isTrue,
+        );
       });
 
       test('returns false for class without @AppShortcutsProvider', () async {
@@ -36,14 +37,18 @@ void main() {
 
         final classElement = findClass(library, 'MyAppShortcuts');
 
-        expect(analyzer.hasAppShortcutsProviderAnnotation(classElement), isFalse);
+        expect(
+          analyzer.hasAppShortcutsProviderAnnotation(classElement),
+          isFalse,
+        );
       });
     });
 
     group('analyze', () {
-      test('extracts shortcut information from @AppShortcut annotations',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'extracts shortcut information from @AppShortcut annotations',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @AppShortcutsProvider()
@@ -58,16 +63,17 @@ void main() {
           }
         ''');
 
-        final classElement = findClass(library, 'MyAppShortcuts');
+          final classElement = findClass(library, 'MyAppShortcuts');
 
-        final result = analyzer.analyze(classElement);
+          final result = analyzer.analyze(classElement);
 
-        expect(result, hasLength(1));
-        expect(result[0].intentClassName, equals('CreateTaskIntent'));
-        expect(result[0].phrases, equals(['Create a task', 'Add task']));
-        expect(result[0].shortTitle, equals('Create Task'));
-        expect(result[0].systemImageName, equals('plus.circle'));
-      });
+          expect(result, hasLength(1));
+          expect(result[0].intentClassName, equals('CreateTaskIntent'));
+          expect(result[0].phrases, equals(['Create a task', 'Add task']));
+          expect(result[0].shortTitle, equals('Create Task'));
+          expect(result[0].systemImageName, equals('plus.circle'));
+        },
+      );
 
       test('extracts multiple shortcuts from provider class', () async {
         final library = await resolveSource('''
@@ -125,9 +131,10 @@ void main() {
         expect(result[0].systemImageName, equals('star.fill'));
       });
 
-      test('returns empty list for class without @AppShortcutsProvider',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'returns empty list for class without @AppShortcutsProvider',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           class MyAppShortcuts {
@@ -140,12 +147,13 @@ void main() {
           }
         ''');
 
-        final classElement = findClass(library, 'MyAppShortcuts');
+          final classElement = findClass(library, 'MyAppShortcuts');
 
-        final result = analyzer.analyze(classElement);
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isEmpty);
-      });
+          expect(result, isEmpty);
+        },
+      );
     });
   });
 }

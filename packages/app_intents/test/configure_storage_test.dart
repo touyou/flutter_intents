@@ -2,7 +2,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_intents/app_intents.dart';
 import 'package:app_intents/app_intents_method_channel.dart';
-import 'package:app_intents/app_intents_platform_interface.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,13 +27,10 @@ void main() {
       methodCalls.clear();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) async {
-          methodCalls.add(methodCall);
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+            methodCalls.add(methodCall);
+            return null;
+          });
     });
 
     tearDown(() {
@@ -49,10 +45,9 @@ void main() {
 
       expect(methodCalls, hasLength(1));
       expect(methodCalls[0].method, 'configureStorage');
-      expect(
-        methodCalls[0].arguments,
-        {'appGroupIdentifier': 'group.com.example.app'},
-      );
+      expect(methodCalls[0].arguments, {
+        'appGroupIdentifier': 'group.com.example.app',
+      });
     });
 
     test('sends both appGroupIdentifier and storageIdentifier', () async {
@@ -63,13 +58,10 @@ void main() {
 
       expect(methodCalls, hasLength(1));
       expect(methodCalls[0].method, 'configureStorage');
-      expect(
-        methodCalls[0].arguments,
-        {
-          'appGroupIdentifier': 'group.com.example.app',
-          'storageIdentifier': 'com.example.app',
-        },
-      );
+      expect(methodCalls[0].arguments, {
+        'appGroupIdentifier': 'group.com.example.app',
+        'storageIdentifier': 'com.example.app',
+      });
     });
 
     test('omits storageIdentifier when null', () async {
@@ -92,13 +84,10 @@ void main() {
       methodCalls.clear();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) async {
-          methodCalls.add(methodCall);
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+            methodCalls.add(methodCall);
+            return null;
+          });
 
       AppIntentsPlatform.instance = mockPlatform;
     });
@@ -129,26 +118,23 @@ void main() {
       methodCalls.clear();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) async {
-          methodCalls.add(methodCall);
-          switch (methodCall.method) {
-            case 'configureStorage':
-              return null;
-            case 'setCachedValue':
-              return null;
-            case 'getCachedValue':
-              return 'cached_value';
-            case 'clearCachedValue':
-              return null;
-            case 'processPendingActions':
-              return null;
-            default:
-              return null;
-          }
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+            methodCalls.add(methodCall);
+            switch (methodCall.method) {
+              case 'configureStorage':
+                return null;
+              case 'setCachedValue':
+                return null;
+              case 'getCachedValue':
+                return 'cached_value';
+              case 'clearCachedValue':
+                return null;
+              case 'processPendingActions':
+                return null;
+              default:
+                return null;
+            }
+          });
     });
 
     tearDown(() {

@@ -14,7 +14,7 @@ help:
 	@echo "  make codegen        Run Dart code generation (build_runner)"
 	@echo "  make swift-gen      Generate Swift code from annotations"
 	@echo "  make kotlin-gen     Generate Kotlin code for Android AppFunctions"
-	@echo "  make test           Run all tests"
+	@echo "  make test           Run all Dart / Flutter tests (Swift package test omitted; see RELEASING.md)"
 	@echo "  make clean          Clean build artifacts"
 	@echo ""
 
