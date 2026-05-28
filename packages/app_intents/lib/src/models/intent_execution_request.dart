@@ -18,10 +18,7 @@ class IntentExecutionRequest {
   /// Creates a new [IntentExecutionRequest].
   ///
   /// Both [identifier] and [params] are required.
-  IntentExecutionRequest({
-    required this.identifier,
-    required this.params,
-  });
+  IntentExecutionRequest({required this.identifier, required this.params});
 
   /// Creates an [IntentExecutionRequest] from a map.
   ///
@@ -38,10 +35,7 @@ class IntentExecutionRequest {
   ///
   /// This is useful for serialization or debugging purposes.
   Map<String, dynamic> toMap() {
-    return {
-      'identifier': identifier,
-      'params': params,
-    };
+    return {'identifier': identifier, 'params': params};
   }
 
   @override

@@ -240,16 +240,14 @@ void main() {
 
     test(r'preserves system variable ${} placeholders', () {
       expect(
-        generator.convertPlaceholders(
-            r'Create task with ${applicationName}'),
+        generator.convertPlaceholders(r'Create task with ${applicationName}'),
         r'Create task with ${applicationName}',
       );
     });
 
     test(r'converts {param} but preserves ${system} in same string', () {
       expect(
-        generator.convertPlaceholders(
-            r'Create {title} in ${applicationName}'),
+        generator.convertPlaceholders(r'Create {title} in ${applicationName}'),
         r'Create %@ in ${applicationName}',
       );
     });
@@ -286,8 +284,7 @@ void main() {
       final createTask = strings['Create Task'] as Map<String, dynamic>;
       expect(createTask['extractionState'], 'manual');
 
-      final localizations =
-          createTask['localizations'] as Map<String, dynamic>;
+      final localizations = createTask['localizations'] as Map<String, dynamic>;
       final en = localizations['en'] as Map<String, dynamic>;
       final stringUnit = en['stringUnit'] as Map<String, dynamic>;
       expect(stringUnit['state'], 'translated');
@@ -323,24 +320,17 @@ void main() {
 
       final strings = parsed['strings'] as Map<String, dynamic>;
       final createTask = strings['Create Task'] as Map<String, dynamic>;
-      final localizations =
-          createTask['localizations'] as Map<String, dynamic>;
+      final localizations = createTask['localizations'] as Map<String, dynamic>;
 
       expect(localizations, contains('en'));
       expect(localizations, contains('ja'));
       expect(localizations, contains('zh-Hans'));
 
       final ja = localizations['ja'] as Map<String, dynamic>;
-      expect(
-        (ja['stringUnit'] as Map<String, dynamic>)['value'],
-        'タスクを作成',
-      );
+      expect((ja['stringUnit'] as Map<String, dynamic>)['value'], 'タスクを作成');
 
       final zh = localizations['zh-Hans'] as Map<String, dynamic>;
-      expect(
-        (zh['stringUnit'] as Map<String, dynamic>)['value'],
-        '创建任务',
-      );
+      expect((zh['stringUnit'] as Map<String, dynamic>)['value'], '创建任务');
     });
 
     test('converts placeholders in both source and translations', () {
@@ -381,18 +371,18 @@ void main() {
       // Key keeps original placeholders
       expect(strings, contains('Created task "{title}"'));
 
-      final entry =
-          strings['Created task "{title}"'] as Map<String, dynamic>;
-      final localizations =
-          entry['localizations'] as Map<String, dynamic>;
+      final entry = strings['Created task "{title}"'] as Map<String, dynamic>;
+      final localizations = entry['localizations'] as Map<String, dynamic>;
 
       // Values have %@ placeholders
-      final enValue = ((localizations['en']
-          as Map<String, dynamic>)['stringUnit'] as Map<String, dynamic>)['value'];
+      final enValue =
+          ((localizations['en'] as Map<String, dynamic>)['stringUnit']
+              as Map<String, dynamic>)['value'];
       expect(enValue, 'Created task "%@"');
 
-      final jaValue = ((localizations['ja']
-          as Map<String, dynamic>)['stringUnit'] as Map<String, dynamic>)['value'];
+      final jaValue =
+          ((localizations['ja'] as Map<String, dynamic>)['stringUnit']
+              as Map<String, dynamic>)['value'];
       expect(jaValue, 'タスク「%@」を作成しました');
     });
 
@@ -418,8 +408,7 @@ void main() {
                 isOptional: false,
               ),
             ],
-            parameterSummary:
-                'Create a post on {target} with {text}',
+            parameterSummary: 'Create a post on {target} with {text}',
           ),
         ],
         entities: [],
@@ -429,8 +418,7 @@ void main() {
 
       final translations = {
         'ja': {
-          r'Create a post on ${target} with ${text}':
-              r'${target}で${text}を投稿する',
+          r'Create a post on ${target} with ${text}': r'${target}で${text}を投稿する',
         },
       };
 
@@ -444,18 +432,20 @@ void main() {
       // Key uses ${param} format
       expect(strings, contains(r'Create a post on ${target} with ${text}'));
 
-      final entry = strings[r'Create a post on ${target} with ${text}']
-          as Map<String, dynamic>;
-      final localizations =
-          entry['localizations'] as Map<String, dynamic>;
+      final entry =
+          strings[r'Create a post on ${target} with ${text}']
+              as Map<String, dynamic>;
+      final localizations = entry['localizations'] as Map<String, dynamic>;
 
       // Values preserve ${param} (not converted to %@)
-      final enValue = ((localizations['en'] as Map<String, dynamic>)[
-          'stringUnit'] as Map<String, dynamic>)['value'];
+      final enValue =
+          ((localizations['en'] as Map<String, dynamic>)['stringUnit']
+              as Map<String, dynamic>)['value'];
       expect(enValue, r'Create a post on ${target} with ${text}');
 
-      final jaValue = ((localizations['ja'] as Map<String, dynamic>)[
-          'stringUnit'] as Map<String, dynamic>)['value'];
+      final jaValue =
+          ((localizations['ja'] as Map<String, dynamic>)['stringUnit']
+              as Map<String, dynamic>)['value'];
       expect(jaValue, r'${target}で${text}を投稿する');
     });
 
@@ -495,15 +485,14 @@ void main() {
       final parsed = jsonDecode(json) as Map<String, dynamic>;
       final strings = parsed['strings'] as Map<String, dynamic>;
 
-      final entry =
-          strings[r'Create post ${title}'] as Map<String, dynamic>;
-      final localizations =
-          entry['localizations'] as Map<String, dynamic>;
+      final entry = strings[r'Create post ${title}'] as Map<String, dynamic>;
+      final localizations = entry['localizations'] as Map<String, dynamic>;
 
       // ja translation found via {param} fallback
       expect(localizations, contains('ja'));
-      final jaValue = ((localizations['ja'] as Map<String, dynamic>)[
-          'stringUnit'] as Map<String, dynamic>)['value'];
+      final jaValue =
+          ((localizations['ja'] as Map<String, dynamic>)['stringUnit']
+              as Map<String, dynamic>)['value'];
       // {title} in YAML value gets preserved since convertPlaceholders
       // treats single {param} → %@
       expect(jaValue, '投稿を作成 %@');
@@ -533,8 +522,7 @@ void main() {
 
       final strings = parsed['strings'] as Map<String, dynamic>;
       final entry = strings['タスクを作成'] as Map<String, dynamic>;
-      final localizations =
-          entry['localizations'] as Map<String, dynamic>;
+      final localizations = entry['localizations'] as Map<String, dynamic>;
       expect(localizations, contains('ja'));
       expect(localizations, isNot(contains('en')));
     });
@@ -607,23 +595,16 @@ void main() {
               'extractionState': 'manual',
               'localizations': {
                 'en': {
-                  'stringUnit': {
-                    'state': 'translated',
-                    'value': 'Create Task',
-                  },
+                  'stringUnit': {'state': 'translated', 'value': 'Create Task'},
                 },
                 'ko': {
-                  'stringUnit': {
-                    'state': 'translated',
-                    'value': '작업 만들기',
-                  },
+                  'stringUnit': {'state': 'translated', 'value': '작업 만들기'},
                 },
               },
             },
           },
         };
-        File(existingPath)
-            .writeAsStringSync(jsonEncode(existing));
+        File(existingPath).writeAsStringSync(jsonEncode(existing));
 
         final result = AnalyzeResult(
           intents: [
@@ -661,10 +642,7 @@ void main() {
         expect(localizations, contains('ko'));
 
         final ko = localizations['ko'] as Map<String, dynamic>;
-        expect(
-          (ko['stringUnit'] as Map<String, dynamic>)['value'],
-          '작업 만들기',
-        );
+        expect((ko['stringUnit'] as Map<String, dynamic>)['value'], '작업 만들기');
       });
 
       test('removes keys no longer in annotations', () {
@@ -677,10 +655,7 @@ void main() {
               'extractionState': 'manual',
               'localizations': {
                 'en': {
-                  'stringUnit': {
-                    'state': 'translated',
-                    'value': 'Create Task',
-                  },
+                  'stringUnit': {'state': 'translated', 'value': 'Create Task'},
                 },
               },
             },
@@ -697,8 +672,7 @@ void main() {
             },
           },
         };
-        File(existingPath)
-            .writeAsStringSync(jsonEncode(existing));
+        File(existingPath).writeAsStringSync(jsonEncode(existing));
 
         final result = AnalyzeResult(
           intents: [
@@ -736,23 +710,16 @@ void main() {
               'extractionState': 'manual',
               'localizations': {
                 'en': {
-                  'stringUnit': {
-                    'state': 'translated',
-                    'value': 'Create Task',
-                  },
+                  'stringUnit': {'state': 'translated', 'value': 'Create Task'},
                 },
                 'ja': {
-                  'stringUnit': {
-                    'state': 'translated',
-                    'value': '古い翻訳',
-                  },
+                  'stringUnit': {'state': 'translated', 'value': '古い翻訳'},
                 },
               },
             },
           },
         };
-        File(existingPath)
-            .writeAsStringSync(jsonEncode(existing));
+        File(existingPath).writeAsStringSync(jsonEncode(existing));
 
         final result = AnalyzeResult(
           intents: [
@@ -785,10 +752,7 @@ void main() {
             createTask['localizations'] as Map<String, dynamic>;
         final ja = localizations['ja'] as Map<String, dynamic>;
 
-        expect(
-          (ja['stringUnit'] as Map<String, dynamic>)['value'],
-          '新しい翻訳',
-        );
+        expect((ja['stringUnit'] as Map<String, dynamic>)['value'], '新しい翻訳');
       });
     });
   });
@@ -824,8 +788,9 @@ zh-Hans:
     });
 
     test('returns empty map for non-existent file', () {
-      final translations =
-          generator.loadTranslations('${tempDir.path}/nonexistent.yaml');
+      final translations = generator.loadTranslations(
+        '${tempDir.path}/nonexistent.yaml',
+      );
       expect(translations, isEmpty);
     });
 

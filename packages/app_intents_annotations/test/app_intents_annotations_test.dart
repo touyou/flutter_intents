@@ -12,8 +12,14 @@ void main() {
   group('IntentImplementation', () {
     test('has dart, swift, and kotlin values', () {
       expect(IntentImplementation.values, hasLength(3));
-      expect(IntentImplementation.values,
-          containsAll([IntentImplementation.dart, IntentImplementation.swift, IntentImplementation.kotlin]));
+      expect(
+        IntentImplementation.values,
+        containsAll([
+          IntentImplementation.dart,
+          IntentImplementation.swift,
+          IntentImplementation.kotlin,
+        ]),
+      );
     });
   });
 

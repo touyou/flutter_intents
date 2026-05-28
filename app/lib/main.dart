@@ -143,9 +143,9 @@ class _TaskListPageState extends State<TaskListPage> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _loadTasks() {
@@ -295,9 +295,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(
-          hintText: 'Enter task title',
-        ),
+        decoration: const InputDecoration(hintText: 'Enter task title'),
         onSubmitted: (value) => Navigator.of(context).pop(value),
       ),
       actions: [

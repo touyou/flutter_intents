@@ -71,11 +71,9 @@ class TaskRepository {
 
     final entityJson = jsonEncode(
       _tasks.values
-          .map((t) => {
-                'id': t.id,
-                'title': t.title,
-                'description': t.description,
-              })
+          .map(
+            (t) => {'id': t.id, 'title': t.title, 'description': t.description},
+          )
           .toList(),
     );
     await AppIntents().setCachedValue(_entityCacheKey, entityJson);
@@ -89,10 +87,7 @@ class TaskRepository {
 
   /// Gets tasks by their IDs.
   Future<List<Task>> getTasksByIds(List<String> ids) async {
-    return ids
-        .map((id) => _tasks[id])
-        .whereType<Task>()
-        .toList();
+    return ids.map((id) => _tasks[id]).whereType<Task>().toList();
   }
 
   /// Gets recent tasks for suggestions.

@@ -28,7 +28,9 @@ void main() {
         expect(result, contains('@available(iOS 17.0, *)'));
         expect(result, contains('struct GreetIntent: AppIntent'));
         expect(
-            result, contains('static var title: LocalizedStringResource = "Greet User"'));
+          result,
+          contains('static var title: LocalizedStringResource = "Greet User"'),
+        );
       });
 
       test('generates intent with description', () {
@@ -45,7 +47,11 @@ void main() {
 
         expect(result, contains('static var description: IntentDescription'));
         expect(
-            result, contains('IntentDescription("Greets the user with a friendly message")'));
+          result,
+          contains(
+            'IntentDescription("Greets the user with a friendly message")',
+          ),
+        );
       });
 
       test('escapes newlines in IntentDescription string literal', () {
@@ -62,9 +68,11 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(
-            result,
-            contains(
-                r'IntentDescription("Create posts in specific teams.\nIt will be available after you open the team list once.")'));
+          result,
+          contains(
+            r'IntentDescription("Create posts in specific teams.\nIt will be available after you open the team list once.")',
+          ),
+        );
       });
 
       test('generates intent with String parameter', () {
@@ -131,9 +139,11 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(
-            result,
-            contains(
-                '@Parameter(title: "Task Title", description: "The title of the task to create")'));
+          result,
+          contains(
+            '@Parameter(title: "Task Title", description: "The title of the task to create")',
+          ),
+        );
       });
 
       test('generates perform method with FlutterBridge invocation', () {
@@ -161,7 +171,10 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(result, contains('@MainActor'));
-        expect(result, contains('func perform() async throws -> some IntentResult'));
+        expect(
+          result,
+          contains('func perform() async throws -> some IntentResult'),
+        );
         expect(result, contains('FlutterBridge.shared.invoke'));
         expect(result, contains('intent: "CreateTaskIntent"'));
         expect(result, contains('"title": title'));
@@ -293,7 +306,12 @@ void main() {
         expect(result, contains('var components = URLComponents()'));
         expect(result, contains('components.scheme = "taskapp"'));
         expect(result, contains('components.host = "create"'));
-        expect(result, contains('URLQueryItem(name: "title", value: String(describing: title))'));
+        expect(
+          result,
+          contains(
+            'URLQueryItem(name: "title", value: String(describing: title))',
+          ),
+        );
         expect(result, contains('UIApplication.shared.open(url)'));
       });
 
@@ -324,7 +342,10 @@ void main() {
         final result = generator.generateIntent(intentInfo);
 
         expect(result, contains('if let dueDate'));
-        expect(result, contains('ISO8601DateFormatter().string(from: dueDate)'));
+        expect(
+          result,
+          contains('ISO8601DateFormatter().string(from: dueDate)'),
+        );
       });
 
       test('derives urlAction from identifier when not provided', () {
@@ -468,8 +489,16 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('func perform() async throws -> some IntentResult & ProvidesDialog'));
-        expect(result, contains(r'return .result(dialog: .init("Created task \"'));
+        expect(
+          result,
+          contains(
+            'func perform() async throws -> some IntentResult & ProvidesDialog',
+          ),
+        );
+        expect(
+          result,
+          contains(r'return .result(dialog: .init("Created task \"'),
+        );
         expect(result, contains(r'\(title)'));
       });
 
@@ -494,8 +523,16 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('func perform() async throws -> some IntentResult & ProvidesDialog'));
-        expect(result, contains(r'return .result(dialog: .init("Created task \"'));
+        expect(
+          result,
+          contains(
+            'func perform() async throws -> some IntentResult & ProvidesDialog',
+          ),
+        );
+        expect(
+          result,
+          contains(r'return .result(dialog: .init("Created task \"'),
+        );
       });
 
       test('without dialog returns plain IntentResult', () {
@@ -509,7 +546,10 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('func perform() async throws -> some IntentResult'));
+        expect(
+          result,
+          contains('func perform() async throws -> some IntentResult'),
+        );
         expect(result, isNot(contains('ProvidesDialog')));
         expect(result, contains('return .result()'));
       });
@@ -535,7 +575,10 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('static var parameterSummary: some ParameterSummary'));
+        expect(
+          result,
+          contains('static var parameterSummary: some ParameterSummary'),
+        );
         expect(result, contains(r'Summary("Create \(\.$title)")'));
       });
 
@@ -570,28 +613,29 @@ void main() {
 
         expect(result, contains('@available(iOS 26.0, *)'));
         expect(
-            result,
-            contains(
-                'static var supportedModes: IntentModes { .foreground }'));
-        expect(
-            result, contains('static var openAppWhenRun: Bool { true }'));
-      });
-
-      test('does not generate supportedModes when not set and no urlScheme',
-          () {
-        final intentInfo = IntentInfo(
-          className: 'GreetIntent',
-          identifier: 'com.example.greet',
-          title: 'Greet',
-          implementation: IntentImplementationType.dart,
-          parameters: [],
+          result,
+          contains('static var supportedModes: IntentModes { .foreground }'),
         );
-
-        final result = generator.generateIntent(intentInfo);
-
-        expect(result, isNot(contains('supportedModes')));
-        expect(result, isNot(contains('openAppWhenRun')));
+        expect(result, contains('static var openAppWhenRun: Bool { true }'));
       });
+
+      test(
+        'does not generate supportedModes when not set and no urlScheme',
+        () {
+          final intentInfo = IntentInfo(
+            className: 'GreetIntent',
+            identifier: 'com.example.greet',
+            title: 'Greet',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+          );
+
+          final result = generator.generateIntent(intentInfo);
+
+          expect(result, isNot(contains('supportedModes')));
+          expect(result, isNot(contains('openAppWhenRun')));
+        },
+      );
 
       test('does not generate supportedModes when background', () {
         final intentInfo = IntentInfo(
@@ -609,59 +653,60 @@ void main() {
         expect(result, isNot(contains('openAppWhenRun')));
       });
 
-      test('urlScheme implies foreground even without explicit supportedModes',
-          () {
-        final intentInfo = IntentInfo(
-          className: 'OpenIntent',
-          identifier: 'com.example.open',
-          title: 'Open',
-          implementation: IntentImplementationType.dart,
-          parameters: [],
-          urlScheme: 'myapp',
-          urlAction: 'open',
-        );
+      test(
+        'urlScheme implies foreground even without explicit supportedModes',
+        () {
+          final intentInfo = IntentInfo(
+            className: 'OpenIntent',
+            identifier: 'com.example.open',
+            title: 'Open',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            urlScheme: 'myapp',
+            urlAction: 'open',
+          );
 
-        final result = generator.generateIntent(intentInfo);
+          final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('@available(iOS 26.0, *)'));
-        expect(
+          expect(result, contains('@available(iOS 26.0, *)'));
+          expect(
             result,
-            contains(
-                'static var supportedModes: IntentModes { .foreground }'));
-        expect(
-            result, contains('static var openAppWhenRun: Bool { true }'));
-      });
+            contains('static var supportedModes: IntentModes { .foreground }'),
+          );
+          expect(result, contains('static var openAppWhenRun: Bool { true }'));
+        },
+      );
 
       test(
-          'foreground with parameters generates both supportedModes and openAppWhenRun',
-          () {
-        final intentInfo = IntentInfo(
-          className: 'CreatePostIntent',
-          identifier: 'com.example.createPost',
-          title: 'Create Post',
-          implementation: IntentImplementationType.dart,
-          parameters: [
-            IntentParamInfo(
-              fieldName: 'title',
-              dartType: 'String',
-              title: 'Post Title',
-              isOptional: false,
-            ),
-          ],
-          supportedModes: IntentModeType.foreground,
-        );
+        'foreground with parameters generates both supportedModes and openAppWhenRun',
+        () {
+          final intentInfo = IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'title',
+                dartType: 'String',
+                title: 'Post Title',
+                isOptional: false,
+              ),
+            ],
+            supportedModes: IntentModeType.foreground,
+          );
 
-        final result = generator.generateIntent(intentInfo);
+          final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('@available(iOS 26.0, *)'));
-        expect(
+          expect(result, contains('@available(iOS 26.0, *)'));
+          expect(
             result,
-            contains(
-                'static var supportedModes: IntentModes { .foreground }'));
-        expect(
-            result, contains('static var openAppWhenRun: Bool { true }'));
-        expect(result, contains('@Parameter(title: "Post Title")'));
-      });
+            contains('static var supportedModes: IntentModes { .foreground }'),
+          );
+          expect(result, contains('static var openAppWhenRun: Bool { true }'));
+          expect(result, contains('@Parameter(title: "Post Title")'));
+        },
+      );
     });
 
     group('generateIntent with enum parameter', () {
@@ -734,8 +779,12 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result,
-            contains('@Parameter(title: "Image", supportedTypeIdentifiers: ["public.image"])'));
+        expect(
+          result,
+          contains(
+            '@Parameter(title: "Image", supportedTypeIdentifiers: ["public.image"])',
+          ),
+        );
         expect(result, contains('var image: IntentFile?'));
       });
 
@@ -758,8 +807,12 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result,
-            contains('@Parameter(title: "Document", supportedTypeIdentifiers: ["public.data"])'));
+        expect(
+          result,
+          contains(
+            '@Parameter(title: "Document", supportedTypeIdentifiers: ["public.data"])',
+          ),
+        );
         expect(result, contains('var document: IntentFile'));
         expect(result, isNot(contains('var document: IntentFile?')));
       });
@@ -872,33 +925,35 @@ void main() {
     });
 
     group('generateIntent with cache mode', () {
-      test('generates cache perform method for foreground without urlScheme',
-          () {
-        final intentInfo = IntentInfo(
-          className: 'CreatePostIntent',
-          identifier: 'com.example.createPost',
-          title: 'Create Post',
-          implementation: IntentImplementationType.dart,
-          parameters: [
-            IntentParamInfo(
-              fieldName: 'title',
-              dartType: 'String',
-              title: 'Title',
-              isOptional: false,
-            ),
-          ],
-          supportedModes: IntentModeType.foreground,
-        );
+      test(
+        'generates cache perform method for foreground without urlScheme',
+        () {
+          final intentInfo = IntentInfo(
+            className: 'CreatePostIntent',
+            identifier: 'com.example.createPost',
+            title: 'Create Post',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'title',
+                dartType: 'String',
+                title: 'Title',
+                isOptional: false,
+              ),
+            ],
+            supportedModes: IntentModeType.foreground,
+          );
 
-        final result = generator.generateIntent(intentInfo);
+          final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('AppIntentsPlugin.setPendingAction'));
-        expect(result, contains('identifier: "com.example.createPost"'));
-        expect(result, contains('params["title"] = title'));
-        expect(result, contains('return .result()'));
-        expect(result, isNot(contains('FlutterBridge')));
-        expect(result, isNot(contains('UIApplication')));
-      });
+          expect(result, contains('AppIntentsPlugin.setPendingAction'));
+          expect(result, contains('identifier: "com.example.createPost"'));
+          expect(result, contains('params["title"] = title'));
+          expect(result, contains('return .result()'));
+          expect(result, isNot(contains('FlutterBridge')));
+          expect(result, isNot(contains('UIApplication')));
+        },
+      );
 
       test('generates import app_intents for cache mode', () {
         final intentInfo = IntentInfo(
@@ -1022,8 +1077,7 @@ void main() {
     });
 
     group('generateAll with file parameters', () {
-      test('includes UniformTypeIdentifiers import when file params exist',
-          () {
+      test('includes UniformTypeIdentifiers import when file params exist', () {
         final intents = [
           IntentInfo(
             className: 'CreatePostIntent',
@@ -1185,7 +1239,12 @@ void main() {
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result, contains('static var typeDisplayRepresentation: TypeDisplayRepresentation'));
+        expect(
+          result,
+          contains(
+            'static var typeDisplayRepresentation: TypeDisplayRepresentation',
+          ),
+        );
         expect(result, contains('TypeDisplayRepresentation(name: "Task")'));
       });
 
@@ -1231,7 +1290,10 @@ void main() {
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result, contains('var displayRepresentation: DisplayRepresentation'));
+        expect(
+          result,
+          contains('var displayRepresentation: DisplayRepresentation'),
+        );
         expect(result, contains('DisplayRepresentation(title: "\\(name)")'));
       });
 
@@ -1263,9 +1325,11 @@ void main() {
         final result = generator.generateEntity(entityInfo);
 
         expect(
-            result,
-            contains(
-                'DisplayRepresentation(title: "\\(name)", subtitle: "\\(description ?? "")")'));
+          result,
+          contains(
+            'DisplayRepresentation(title: "\\(name)", subtitle: "\\(description ?? "")")',
+          ),
+        );
       });
 
       test('generates entity properties', () {
@@ -1413,32 +1477,38 @@ void main() {
         expect(result, contains('iconName: iconName'));
       });
 
-      test('uses entity identifier (not className) for FlutterBridge entityIdentifier', () {
-        final entityInfo = EntityInfo(
-          className: 'TaskEntitySpec',
-          identifier: 'com.example.taskapp.TaskEntity',
-          title: 'Task',
-          pluralTitle: 'Tasks',
-          properties: [
-            EntityPropertyInfo(
-              fieldName: 'id',
-              dartType: 'String',
-              role: EntityPropertyRole.id,
-            ),
-            EntityPropertyInfo(
-              fieldName: 'title',
-              dartType: 'String',
-              role: EntityPropertyRole.title,
-            ),
-          ],
-        );
+      test(
+        'uses entity identifier (not className) for FlutterBridge entityIdentifier',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TaskEntitySpec',
+            identifier: 'com.example.taskapp.TaskEntity',
+            title: 'Task',
+            pluralTitle: 'Tasks',
+            properties: [
+              EntityPropertyInfo(
+                fieldName: 'id',
+                dartType: 'String',
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
+                fieldName: 'title',
+                dartType: 'String',
+                role: EntityPropertyRole.title,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        // Should use identifier, not className
-        expect(result, contains('entityIdentifier: "com.example.taskapp.TaskEntity"'));
-        expect(result, isNot(contains('entityIdentifier: "TaskEntitySpec"')));
-      });
+          // Should use identifier, not className
+          expect(
+            result,
+            contains('entityIdentifier: "com.example.taskapp.TaskEntity"'),
+          );
+          expect(result, isNot(contains('entityIdentifier: "TaskEntitySpec"')));
+        },
+      );
 
       test('generates displayRepresentation with displayImageName', () {
         final entityInfo = EntityInfo(
@@ -1449,56 +1519,66 @@ void main() {
           displayImageName: 'team',
           properties: [
             EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
             EntityPropertyInfo(
-                fieldName: 'name',
-                dartType: 'String',
-                role: EntityPropertyRole.title),
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
           ],
         );
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result,
-            contains('image: .init(named: "team", isTemplate: true)'));
+        expect(
+          result,
+          contains('image: .init(named: "team", isTemplate: true)'),
+        );
       });
 
       test(
-          'displayImageName is fallback when @EntityImage property is nullable',
-          () {
-        final entityInfo = EntityInfo(
-          className: 'TeamEntity',
-          identifier: 'com.example.team',
-          title: 'Team',
-          pluralTitle: 'Teams',
-          displayImageName: 'team',
-          properties: [
-            EntityPropertyInfo(
+        'displayImageName is fallback when @EntityImage property is nullable',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TeamEntity',
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            displayImageName: 'team',
+            properties: [
+              EntityPropertyInfo(
                 fieldName: 'id',
                 dartType: 'String',
-                role: EntityPropertyRole.id),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'name',
                 dartType: 'String',
-                role: EntityPropertyRole.title),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.title,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'iconName',
                 dartType: 'String?',
-                role: EntityPropertyRole.image),
-          ],
-        );
+                role: EntityPropertyRole.image,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        // Per-instance image takes priority
-        expect(result, contains('if let iconName'));
-        expect(result, contains('image: .init(systemName: iconName)'));
-        // Fallback to displayImageName
-        expect(result,
-            contains('image: .init(named: "team", isTemplate: true)'));
-      });
+          // Per-instance image takes priority
+          expect(result, contains('if let iconName'));
+          expect(result, contains('image: .init(systemName: iconName)'));
+          // Fallback to displayImageName
+          expect(
+            result,
+            contains('image: .init(named: "team", isTemplate: true)'),
+          );
+        },
+      );
 
       test('generates EnumerableEntityQuery extension when enumerable', () {
         final entityInfo = EntityInfo(
@@ -1509,20 +1589,24 @@ void main() {
           enumerable: true,
           properties: [
             EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
             EntityPropertyInfo(
-                fieldName: 'name',
-                dartType: 'String',
-                role: EntityPropertyRole.title),
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
           ],
         );
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result,
-            contains('extension TeamEntityQuery: EnumerableEntityQuery'));
+        expect(
+          result,
+          contains('extension TeamEntityQuery: EnumerableEntityQuery'),
+        );
         expect(result, contains('func allEntities()'));
         expect(result, contains('try await suggestedEntities()'));
       });
@@ -1535,9 +1619,10 @@ void main() {
           pluralTitle: 'Teams',
           properties: [
             EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
           ],
         );
 
@@ -1555,13 +1640,15 @@ void main() {
           indexed: true,
           properties: [
             EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
             EntityPropertyInfo(
-                fieldName: 'name',
-                dartType: 'String',
-                role: EntityPropertyRole.title),
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
           ],
         );
 
@@ -1570,8 +1657,10 @@ void main() {
         expect(result, contains('import CoreSpotlight'));
         expect(result, contains('@available(iOS 26.0, *)'));
         expect(result, contains('extension TeamEntity: IndexedEntity'));
-        expect(result,
-            contains('var attributeSet: CSSearchableItemAttributeSet'));
+        expect(
+          result,
+          contains('var attributeSet: CSSearchableItemAttributeSet'),
+        );
         expect(result, contains('attributes.displayName = name'));
       });
 
@@ -1583,9 +1672,10 @@ void main() {
           pluralTitle: 'Teams',
           properties: [
             EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
           ],
         );
 
@@ -1596,125 +1686,147 @@ void main() {
       });
 
       test(
-          'generates App Group cache fallback in EntityQuery when persistedCacheKey is set',
-          () {
-        final entityInfo = EntityInfo(
-          className: 'TeamEntity',
-          identifier: 'com.example.team',
-          title: 'Team',
-          pluralTitle: 'Teams',
-          persistedCacheKey: 'com.example.cache.teams',
-          properties: [
-            EntityPropertyInfo(
+        'generates App Group cache fallback in EntityQuery when persistedCacheKey is set',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TeamEntity',
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            persistedCacheKey: 'com.example.cache.teams',
+            properties: [
+              EntityPropertyInfo(
                 fieldName: 'id',
                 dartType: 'String',
-                role: EntityPropertyRole.id),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'name',
                 dartType: 'String',
-                role: EntityPropertyRole.title),
-          ],
-        );
+                role: EntityPropertyRole.title,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        expect(result, contains('import app_intents'));
-        expect(result,
-            contains('static let cacheKey = "com.example.cache.teams"'));
-        expect(result, contains('Self._readCachedEntities()'));
-        expect(result,
-            contains(r'cached.filter { identifiers.contains($0.id) }'));
-        expect(result,
-            contains('AppIntentsPlugin.getCached(forKey: cacheKey)'));
-        expect(result, contains('private static func _readCachedEntities()'));
-      });
+          expect(result, contains('import app_intents'));
+          expect(
+            result,
+            contains('static let cacheKey = "com.example.cache.teams"'),
+          );
+          expect(result, contains('Self._readCachedEntities()'));
+          expect(
+            result,
+            contains(r'cached.filter { identifiers.contains($0.id) }'),
+          );
+          expect(
+            result,
+            contains('AppIntentsPlugin.getCached(forKey: cacheKey)'),
+          );
+          expect(result, contains('private static func _readCachedEntities()'));
+        },
+      );
 
       test(
-          'uses default cache key when persistedCacheKey is null but indexed is true',
-          () {
-        final entityInfo = EntityInfo(
-          className: 'TeamEntity',
-          identifier: 'com.example.team',
-          title: 'Team',
-          pluralTitle: 'Teams',
-          indexed: true,
-          properties: [
-            EntityPropertyInfo(
+        'uses default cache key when persistedCacheKey is null but indexed is true',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TeamEntity',
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            indexed: true,
+            properties: [
+              EntityPropertyInfo(
                 fieldName: 'id',
                 dartType: 'String',
-                role: EntityPropertyRole.id),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'name',
                 dartType: 'String',
-                role: EntityPropertyRole.title),
-          ],
-        );
+                role: EntityPropertyRole.title,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        expect(
+          expect(
             result,
             contains(
-                'static let cacheKey = "app_intents.entities.com.example.team"'));
-        expect(result, contains('Self._readCachedEntities()'));
-      });
+              'static let cacheKey = "app_intents.entities.com.example.team"',
+            ),
+          );
+          expect(result, contains('Self._readCachedEntities()'));
+        },
+      );
 
       test(
-          'uses default cache key when persistedCacheKey is null but enumerable is true',
-          () {
-        final entityInfo = EntityInfo(
-          className: 'TeamEntity',
-          identifier: 'com.example.team',
-          title: 'Team',
-          pluralTitle: 'Teams',
-          enumerable: true,
-          properties: [
-            EntityPropertyInfo(
+        'uses default cache key when persistedCacheKey is null but enumerable is true',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TeamEntity',
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            enumerable: true,
+            properties: [
+              EntityPropertyInfo(
                 fieldName: 'id',
                 dartType: 'String',
-                role: EntityPropertyRole.id),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'name',
                 dartType: 'String',
-                role: EntityPropertyRole.title),
-          ],
-        );
+                role: EntityPropertyRole.title,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        expect(
+          expect(
             result,
             contains(
-                'static let cacheKey = "app_intents.entities.com.example.team"'));
-        expect(result, contains('Self._readCachedEntities()'));
-      });
+              'static let cacheKey = "app_intents.entities.com.example.team"',
+            ),
+          );
+          expect(result, contains('Self._readCachedEntities()'));
+        },
+      );
 
       test(
-          'does not generate cache fallback when persistedCacheKey is null and not enumerable/indexed',
-          () {
-        final entityInfo = EntityInfo(
-          className: 'TeamEntity',
-          identifier: 'com.example.team',
-          title: 'Team',
-          pluralTitle: 'Teams',
-          properties: [
-            EntityPropertyInfo(
+        'does not generate cache fallback when persistedCacheKey is null and not enumerable/indexed',
+        () {
+          final entityInfo = EntityInfo(
+            className: 'TeamEntity',
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            properties: [
+              EntityPropertyInfo(
                 fieldName: 'id',
                 dartType: 'String',
-                role: EntityPropertyRole.id),
-            EntityPropertyInfo(
+                role: EntityPropertyRole.id,
+              ),
+              EntityPropertyInfo(
                 fieldName: 'name',
                 dartType: 'String',
-                role: EntityPropertyRole.title),
-          ],
-        );
+                role: EntityPropertyRole.title,
+              ),
+            ],
+          );
 
-        final result = generator.generateEntity(entityInfo);
+          final result = generator.generateEntity(entityInfo);
 
-        expect(result, isNot(contains('cacheKey')));
-        expect(result, isNot(contains('_readCachedEntities')));
-        expect(result, isNot(contains('import app_intents')));
-      });
+          expect(result, isNot(contains('cacheKey')));
+          expect(result, isNot(contains('_readCachedEntities')));
+          expect(result, isNot(contains('import app_intents')));
+        },
+      );
 
       test('uses the entity\'s id field name for the cache filter', () {
         final entityInfo = EntityInfo(
@@ -1725,20 +1837,24 @@ void main() {
           persistedCacheKey: 'com.example.cache.tasks',
           properties: [
             EntityPropertyInfo(
-                fieldName: 'taskId',
-                dartType: 'String',
-                role: EntityPropertyRole.id),
+              fieldName: 'taskId',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
             EntityPropertyInfo(
-                fieldName: 'title',
-                dartType: 'String',
-                role: EntityPropertyRole.title),
+              fieldName: 'title',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
           ],
         );
 
         final result = generator.generateEntity(entityInfo);
 
-        expect(result,
-            contains(r'cached.filter { identifiers.contains($0.taskId) }'));
+        expect(
+          result,
+          contains(r'cached.filter { identifiers.contains($0.taskId) }'),
+        );
       });
     });
 
@@ -1794,10 +1910,7 @@ void main() {
         final shortcuts = [
           AppShortcutInfo(
             intentClassName: 'CreateTaskIntent',
-            phrases: [
-              'Create a task in {applicationName}',
-              'Add new task',
-            ],
+            phrases: ['Create a task in {applicationName}', 'Add new task'],
             shortTitle: 'Create Task',
             systemImageName: 'plus.circle',
           ),
@@ -1814,9 +1927,7 @@ void main() {
         final shortcuts = [
           AppShortcutInfo(
             intentClassName: 'CreateTaskIntent',
-            phrases: [
-              r'Create a task in ${applicationName}',
-            ],
+            phrases: [r'Create a task in ${applicationName}'],
             shortTitle: 'Create Task',
             systemImageName: 'plus.circle',
           ),
@@ -1832,9 +1943,7 @@ void main() {
         final shortcuts = [
           AppShortcutInfo(
             intentClassName: 'CompleteTaskIntent',
-            phrases: [
-              'Complete {target} in {applicationName}',
-            ],
+            phrases: ['Complete {target} in {applicationName}'],
             shortTitle: 'Complete Task',
             systemImageName: 'checkmark.circle',
           ),
@@ -1843,9 +1952,9 @@ void main() {
         final result = generator.generateAppShortcutsProvider(shortcuts);
 
         expect(
-            result,
-            contains(
-                r'"Complete \(\.$target) in \(.applicationName)"'));
+          result,
+          contains(r'"Complete \(\.$target) in \(.applicationName)"'),
+        );
         expect(result, isNot(contains('{target}')));
       });
 
@@ -1853,9 +1962,7 @@ void main() {
         final shortcuts = [
           AppShortcutInfo(
             intentClassName: 'MoveTaskIntent',
-            phrases: [
-              'Move {task} to {category} in {applicationName}',
-            ],
+            phrases: ['Move {task} to {category} in {applicationName}'],
             shortTitle: 'Move Task',
             systemImageName: 'arrow.right',
           ),
@@ -1864,9 +1971,9 @@ void main() {
         final result = generator.generateAppShortcutsProvider(shortcuts);
 
         expect(
-            result,
-            contains(
-                r'Move \(\.$task) to \(\.$category) in \(.applicationName)'));
+          result,
+          contains(r'Move \(\.$task) to \(\.$category) in \(.applicationName)'),
+        );
       });
     });
 
@@ -1919,48 +2026,51 @@ void main() {
         expect(result, contains('struct TaskEntity: AppEntity'));
       });
 
-      test('generateAll includes import AppIntentsBridge when entities exist',
-          () {
-        final entities = [
-          EntityInfo(
-            className: 'TaskEntity',
-            identifier: 'com.example.task',
-            title: 'Task',
-            pluralTitle: 'Tasks',
-            properties: [
-              EntityPropertyInfo(
-                fieldName: 'id',
-                dartType: 'String',
-                role: EntityPropertyRole.id,
-              ),
-            ],
-          ),
-        ];
+      test(
+        'generateAll includes import AppIntentsBridge when entities exist',
+        () {
+          final entities = [
+            EntityInfo(
+              className: 'TaskEntity',
+              identifier: 'com.example.task',
+              title: 'Task',
+              pluralTitle: 'Tasks',
+              properties: [
+                EntityPropertyInfo(
+                  fieldName: 'id',
+                  dartType: 'String',
+                  role: EntityPropertyRole.id,
+                ),
+              ],
+            ),
+          ];
 
-        final result = generator.generateAll(entities: entities);
+          final result = generator.generateAll(entities: entities);
 
-        expect(result, contains('import AppIntentsBridge'));
-      });
+          expect(result, contains('import AppIntentsBridge'));
+        },
+      );
 
       test(
-          'generateAll does not include import AppIntentsBridge for URL scheme only',
-          () {
-        final intents = [
-          IntentInfo(
-            className: 'CreateTaskIntent',
-            identifier: 'com.example.createTask',
-            title: 'Create Task',
-            implementation: IntentImplementationType.dart,
-            urlScheme: 'taskapp',
-            urlAction: 'create',
-            parameters: [],
-          ),
-        ];
+        'generateAll does not include import AppIntentsBridge for URL scheme only',
+        () {
+          final intents = [
+            IntentInfo(
+              className: 'CreateTaskIntent',
+              identifier: 'com.example.createTask',
+              title: 'Create Task',
+              implementation: IntentImplementationType.dart,
+              urlScheme: 'taskapp',
+              urlAction: 'create',
+              parameters: [],
+            ),
+          ];
 
-        final result = generator.generateAll(intents: intents);
+          final result = generator.generateAll(intents: intents);
 
-        expect(result, isNot(contains('import AppIntentsBridge')));
-      });
+          expect(result, isNot(contains('import AppIntentsBridge')));
+        },
+      );
 
       test('generates combined Swift file with shortcuts', () {
         final intents = [
@@ -2014,8 +2124,18 @@ void main() {
         expect(result, contains('case high'));
         expect(result, contains('case medium'));
         expect(result, contains('case low'));
-        expect(result, contains('static var typeDisplayRepresentation: TypeDisplayRepresentation = "Priority"'));
-        expect(result, contains('static var caseDisplayRepresentations: [TaskPriority: DisplayRepresentation]'));
+        expect(
+          result,
+          contains(
+            'static var typeDisplayRepresentation: TypeDisplayRepresentation = "Priority"',
+          ),
+        );
+        expect(
+          result,
+          contains(
+            'static var caseDisplayRepresentations: [TaskPriority: DisplayRepresentation]',
+          ),
+        );
         expect(result, contains('.high: "High"'));
         expect(result, contains('.medium: "Medium"'));
         expect(result, contains('.low: "Low"'));
@@ -2027,8 +2147,7 @@ void main() {
           identifier: 'com.example.category',
           title: 'Category',
           cases: [
-            EnumCaseInfo(
-                name: 'feed', displayTitle: 'Feed', imageName: 'feed'),
+            EnumCaseInfo(name: 'feed', displayTitle: 'Feed', imageName: 'feed'),
             EnumCaseInfo(name: 'explore', displayTitle: 'Explore'),
           ],
         );
@@ -2036,9 +2155,12 @@ void main() {
         final result = generator.generateEnum(enumInfo);
 
         expect(
-            result,
-            contains('.feed: .init(title: "Feed", '
-                'image: .init(named: "feed", isTemplate: true))'));
+          result,
+          contains(
+            '.feed: .init(title: "Feed", '
+            'image: .init(named: "feed", isTemplate: true))',
+          ),
+        );
         expect(result, contains('.explore: "Explore"'));
       });
     });
@@ -2075,10 +2197,7 @@ void main() {
           ),
         ];
 
-        final result = generator.generateAll(
-          intents: intents,
-          enums: enums,
-        );
+        final result = generator.generateAll(intents: intents, enums: enums);
 
         // Enum should appear before intent
         final enumIndex = result.indexOf('enum TaskPriority');
@@ -2117,7 +2236,10 @@ void main() {
       });
 
       test('returns original type for unknown types', () {
-        expect(generator.dartTypeToSwiftType('CustomType'), equals('CustomType'));
+        expect(
+          generator.dartTypeToSwiftType('CustomType'),
+          equals('CustomType'),
+        );
       });
     });
   });

@@ -7,11 +7,13 @@ import '../models/intent_info.dart';
 
 /// Type checker for IntentSpec annotation.
 const _intentSpecChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/intent_spec.dart#IntentSpec');
+  'package:app_intents_annotations/src/annotations/intent_spec.dart#IntentSpec',
+);
 
 /// Type checker for IntentParam annotation.
 const _intentParamChecker = TypeChecker.fromUrl(
-    'package:app_intents_annotations/src/annotations/intent_param.dart#IntentParam');
+  'package:app_intents_annotations/src/annotations/intent_param.dart#IntentParam',
+);
 
 /// Analyzer for extracting intent information from annotated classes.
 class IntentAnalyzer {
@@ -39,12 +41,15 @@ class IntentAnalyzer {
     final implementation = _parseImplementation(implementationField);
     final urlScheme = annotation.getField('urlScheme')?.toStringValue();
     final urlAction = annotation.getField('urlAction')?.toStringValue();
-    final resultDialogTemplate =
-        annotation.getField('resultDialogTemplate')?.toStringValue();
-    final parameterSummary =
-        annotation.getField('parameterSummary')?.toStringValue();
+    final resultDialogTemplate = annotation
+        .getField('resultDialogTemplate')
+        ?.toStringValue();
+    final parameterSummary = annotation
+        .getField('parameterSummary')
+        ?.toStringValue();
     final supportedModes = _parseSupportedModes(
-        annotation.getField('supportedModes'));
+      annotation.getField('supportedModes'),
+    );
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -129,23 +134,22 @@ class IntentAnalyzer {
       final description = annotation.getField('description')?.toStringValue();
       final isOptional =
           annotation.getField('isOptional')?.toBoolValue() ?? false;
-      final entityType =
-          annotation.getField('entityType')?.toStringValue();
-      final enumType =
-          annotation.getField('enumType')?.toStringValue();
-      final fileType =
-          annotation.getField('fileType')?.toStringValue();
+      final entityType = annotation.getField('entityType')?.toStringValue();
+      final enumType = annotation.getField('enumType')?.toStringValue();
+      final fileType = annotation.getField('fileType')?.toStringValue();
 
-      parameters.add(IntentParamInfo(
-        fieldName: field.name!,
-        dartType: field.type.getDisplayString(),
-        title: title,
-        description: description,
-        isOptional: isOptional,
-        entityType: entityType,
-        enumType: enumType,
-        fileType: fileType,
-      ));
+      parameters.add(
+        IntentParamInfo(
+          fieldName: field.name!,
+          dartType: field.type.getDisplayString(),
+          title: title,
+          description: description,
+          isOptional: isOptional,
+          entityType: entityType,
+          enumType: enumType,
+          fileType: fileType,
+        ),
+      );
     }
 
     return parameters;

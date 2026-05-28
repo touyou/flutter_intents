@@ -30,12 +30,8 @@ class EnumInfo {
   }
 
   @override
-  int get hashCode => Object.hash(
-        className,
-        identifier,
-        title,
-        Object.hashAll(cases),
-      );
+  int get hashCode =>
+      Object.hash(className, identifier, title, Object.hashAll(cases));
 
   @override
   String toString() =>

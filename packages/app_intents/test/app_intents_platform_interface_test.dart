@@ -16,10 +16,8 @@ void main() {
       final platform = _TestAppIntentsPlatform();
 
       expect(
-        () => platform.registerIntentHandler(
-          'test.intent',
-          (params) async => {},
-        ),
+        () =>
+            platform.registerIntentHandler('test.intent', (params) async => {}),
         throwsA(isA<UnimplementedError>()),
       );
     });

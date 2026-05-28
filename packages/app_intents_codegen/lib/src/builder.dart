@@ -12,10 +12,10 @@ import 'models/intent_info.dart';
 
 /// Creates an [AppIntentsBuilder] for use with build_runner.
 Builder appIntentsBuilder(BuilderOptions options) => PartBuilder(
-      [AppIntentsGenerator()],
-      '.intent.dart',
-      header: '// coverage:ignore-file\n// ignore_for_file: type=lint',
-    );
+  [AppIntentsGenerator()],
+  '.intent.dart',
+  header: '// coverage:ignore-file\n// ignore_for_file: type=lint',
+);
 
 /// Generator that processes @IntentSpec and @EntitySpec annotations
 /// and generates Dart handler registration code.
@@ -72,6 +72,9 @@ class AppIntentsGenerator extends Generator {
     // Convert snake_case to camelCase
     final parts = name.split('_');
     return parts.first +
-        parts.skip(1).map((p) => p.isEmpty ? '' : p[0].toUpperCase() + p.substring(1)).join();
+        parts
+            .skip(1)
+            .map((p) => p.isEmpty ? '' : p[0].toUpperCase() + p.substring(1))
+            .join();
   }
 }

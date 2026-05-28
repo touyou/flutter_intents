@@ -47,7 +47,9 @@ class SwiftGenerator {
   /// Unknown types are returned as-is.
   String dartTypeToSwiftType(String dartType) {
     final isNullable = dartType.endsWith('?');
-    final baseType = isNullable ? dartType.substring(0, dartType.length - 1) : dartType;
+    final baseType = isNullable
+        ? dartType.substring(0, dartType.length - 1)
+        : dartType;
     final swiftBaseType = _typeMapping[baseType] ?? baseType;
     return isNullable ? '$swiftBaseType?' : swiftBaseType;
   }
@@ -104,7 +106,10 @@ class SwiftGenerator {
     }
 
     // Use entity type, enum type, or map Dart type to Swift type
-    final swiftType = param.entityType ?? param.enumType ?? dartTypeToSwiftType(param.dartType);
+    final swiftType =
+        param.entityType ??
+        param.enumType ??
+        dartTypeToSwiftType(param.dartType);
 
     // Build @Parameter annotation
     final paramParts = <String>['title: "${param.title}"'];
@@ -137,7 +142,8 @@ class SwiftGenerator {
       return '${param.fieldName}.rawValue';
     }
 
-    final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+    final isDate =
+        param.dartType == 'DateTime' || param.dartType == 'DateTime?';
     final isNullable = param.dartType.endsWith('?');
 
     if (isDate) {
@@ -155,7 +161,9 @@ class SwiftGenerator {
   /// Generates Swift code that writes the IntentFile data to a temporary file
   /// and creates a dictionary with path, mimeType, and filename.
   void _writeFileParamSerialization(
-      StringBuffer buffer, IntentParamInfo param) {
+    StringBuffer buffer,
+    IntentParamInfo param,
+  ) {
     final name = param.fieldName;
     final isNullable = param.isOptional || param.dartType.endsWith('?');
     final indent2 = '$_indent$_indent';
@@ -164,38 +172,46 @@ class SwiftGenerator {
       buffer.writeln('${indent2}var ${name}FileInfo: [String: Any?]? = nil');
       buffer.writeln('${indent2}if let $name {');
       buffer.writeln(
-          '$indent2${_indent}let fileName = "app_intent_\\(UUID().uuidString)"');
+        '$indent2${_indent}let fileName = "app_intent_\\(UUID().uuidString)"',
+      );
       buffer.writeln(
-          '$indent2${_indent}let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory())');
+        '$indent2${_indent}let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory())',
+      );
       buffer.writeln(
-          '$indent2$_indent$_indent.appendingPathComponent(fileName, conformingTo: $name.type ?? .data)');
+        '$indent2$_indent$_indent.appendingPathComponent(fileName, conformingTo: $name.type ?? .data)',
+      );
       buffer.writeln(
-          '$indent2${_indent}try $name.data.write(to: tempUrl, options: [.atomic])');
+        '$indent2${_indent}try $name.data.write(to: tempUrl, options: [.atomic])',
+      );
       buffer.writeln('$indent2$_indent${name}FileInfo = [');
+      buffer.writeln('$indent2$_indent$_indent"path": tempUrl.path(),');
       buffer.writeln(
-          '$indent2$_indent$_indent"path": tempUrl.path(),');
+        '$indent2$_indent$_indent"mimeType": $name.type?.preferredMIMEType as Any,',
+      );
       buffer.writeln(
-          '$indent2$_indent$_indent"mimeType": $name.type?.preferredMIMEType as Any,');
-      buffer.writeln(
-          '$indent2$_indent$_indent"filename": $name.filename as Any');
+        '$indent2$_indent$_indent"filename": $name.filename as Any',
+      );
       buffer.writeln('$indent2$_indent]');
       buffer.writeln('$indent2}');
     } else {
       buffer.writeln(
-          '${indent2}let ${name}FileName = "app_intent_\\(UUID().uuidString)"');
+        '${indent2}let ${name}FileName = "app_intent_\\(UUID().uuidString)"',
+      );
       buffer.writeln(
-          '${indent2}let ${name}TempUrl = URL(fileURLWithPath: NSTemporaryDirectory())');
+        '${indent2}let ${name}TempUrl = URL(fileURLWithPath: NSTemporaryDirectory())',
+      );
       buffer.writeln(
-          '$indent2$_indent.appendingPathComponent(${name}FileName, conformingTo: $name.type ?? .data)');
+        '$indent2$_indent.appendingPathComponent(${name}FileName, conformingTo: $name.type ?? .data)',
+      );
       buffer.writeln(
-          '${indent2}try $name.data.write(to: ${name}TempUrl, options: [.atomic])');
+        '${indent2}try $name.data.write(to: ${name}TempUrl, options: [.atomic])',
+      );
       buffer.writeln('${indent2}let ${name}FileInfo: [String: Any?] = [');
+      buffer.writeln('$indent2$_indent"path": ${name}TempUrl.path(),');
       buffer.writeln(
-          '$indent2$_indent"path": ${name}TempUrl.path(),');
-      buffer.writeln(
-          '$indent2$_indent"mimeType": $name.type?.preferredMIMEType as Any,');
-      buffer.writeln(
-          '$indent2$_indent"filename": $name.filename as Any');
+        '$indent2$_indent"mimeType": $name.type?.preferredMIMEType as Any,',
+      );
+      buffer.writeln('$indent2$_indent"filename": $name.filename as Any');
       buffer.writeln('$indent2]');
     }
   }
@@ -204,18 +220,28 @@ class SwiftGenerator {
   ///
   /// Only emitted in FlutterBridge mode where the file is consumed synchronously.
   /// In cache mode, Dart is responsible for cleanup after reading.
-  void _writeFileParamCleanup(StringBuffer buffer, IntentInfo info, String indent) {
+  void _writeFileParamCleanup(
+    StringBuffer buffer,
+    IntentInfo info,
+    String indent,
+  ) {
     final fileParams = info.parameters.where((p) => p.fileType != null);
     if (fileParams.isEmpty) return;
 
     for (final param in fileParams) {
       final isNullable = param.isOptional || param.dartType.endsWith('?');
       if (isNullable) {
-        buffer.writeln('${indent}if let path = ${param.fieldName}FileInfo?["path"] as? String {');
-        buffer.writeln('$indent${_indent}try? FileManager.default.removeItem(atPath: path)');
+        buffer.writeln(
+          '${indent}if let path = ${param.fieldName}FileInfo?["path"] as? String {',
+        );
+        buffer.writeln(
+          '$indent${_indent}try? FileManager.default.removeItem(atPath: path)',
+        );
         buffer.writeln('$indent}');
       } else {
-        buffer.writeln('${indent}try? FileManager.default.removeItem(at: ${param.fieldName}TempUrl)');
+        buffer.writeln(
+          '${indent}try? FileManager.default.removeItem(at: ${param.fieldName}TempUrl)',
+        );
       }
     }
   }
@@ -264,7 +290,8 @@ class SwiftGenerator {
   void _writePerformSignature(StringBuffer buffer, IntentInfo info) {
     buffer.writeln('$_indent@MainActor');
     buffer.writeln(
-        '${_indent}func perform() async throws -> ${_performReturnType(info)} {');
+      '${_indent}func perform() async throws -> ${_performReturnType(info)} {',
+    );
   }
 
   /// Writes file parameter serialization for all file-type parameters.
@@ -278,11 +305,12 @@ class SwiftGenerator {
   }
 
   /// Writes the return statement (with optional dialog).
-  void _writeReturnResult(
-      StringBuffer buffer, IntentInfo info, String indent) {
+  void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
     if (info.resultDialogTemplate != null) {
       final dialogStr = _interpolateDialogTemplate(
-          info.resultDialogTemplate!, info.parameters);
+        info.resultDialogTemplate!,
+        info.parameters,
+      );
       buffer.writeln('${indent}return .result(dialog: .init("$dialogStr"))');
     } else {
       buffer.writeln('${indent}return .result()');
@@ -298,19 +326,25 @@ class SwiftGenerator {
 
     // Build params dictionary
     if (info.parameters.isEmpty) {
-      buffer.writeln('${indent2}let _ = try await FlutterBridge.shared.invoke(');
+      buffer.writeln(
+        '${indent2}let _ = try await FlutterBridge.shared.invoke(',
+      );
       buffer.writeln('$indent2${_indent}intent: "${info.className}",');
       buffer.writeln('$indent2${_indent}params: [:]');
       buffer.writeln('$indent2)');
     } else {
-      buffer.writeln('${indent2}let _ = try await FlutterBridge.shared.invoke(');
+      buffer.writeln(
+        '${indent2}let _ = try await FlutterBridge.shared.invoke(',
+      );
       buffer.writeln('$indent2${_indent}intent: "${info.className}",');
       buffer.writeln('$indent2${_indent}params: [');
       for (var i = 0; i < info.parameters.length; i++) {
         final param = info.parameters[i];
         final comma = i < info.parameters.length - 1 ? ',' : '';
         final valueExpr = _paramValueExpression(param);
-        buffer.writeln('$_indent$_indent$_indent$_indent"${param.fieldName}": $valueExpr$comma');
+        buffer.writeln(
+          '$_indent$_indent$_indent$_indent"${param.fieldName}": $valueExpr$comma',
+        );
       }
       buffer.writeln('$indent2$_indent]');
       buffer.writeln('$indent2)');
@@ -340,8 +374,12 @@ class SwiftGenerator {
     for (final param in info.parameters) {
       final valueExpr = _paramValueExpression(param);
       if (param.isOptional || param.dartType.endsWith('?')) {
-        buffer.writeln('${indent2}if let ${param.fieldName}Value = $valueExpr {');
-        buffer.writeln('$indent2${_indent}params["${param.fieldName}"] = ${param.fieldName}Value');
+        buffer.writeln(
+          '${indent2}if let ${param.fieldName}Value = $valueExpr {',
+        );
+        buffer.writeln(
+          '$indent2${_indent}params["${param.fieldName}"] = ${param.fieldName}Value',
+        );
         buffer.writeln('$indent2}');
       } else {
         buffer.writeln('${indent2}params["${param.fieldName}"] = $valueExpr');
@@ -375,8 +413,12 @@ class SwiftGenerator {
     _writePerformSignature(buffer, info);
 
     if (info.parameters.isEmpty) {
-      buffer.writeln('${indent2}guard let url = URL(string: "$scheme://$action") else {');
-      buffer.writeln('$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
+      buffer.writeln(
+        '${indent2}guard let url = URL(string: "$scheme://$action") else {',
+      );
+      buffer.writeln(
+        '$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")',
+      );
       buffer.writeln('$indent2}');
     } else {
       buffer.writeln('${indent2}var components = URLComponents()');
@@ -395,7 +437,9 @@ class SwiftGenerator {
       buffer.writeln('$indent2}');
       buffer.writeln();
       buffer.writeln('${indent2}guard let url = components.url else {');
-      buffer.writeln('$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")');
+      buffer.writeln(
+        '$indent2${_indent}throw AppIntentError.custom(code: "URL_CONSTRUCTION_FAILED", message: "Failed to construct URL for intent")',
+      );
       buffer.writeln('$indent2}');
     }
 
@@ -408,35 +452,48 @@ class SwiftGenerator {
   /// Writes a URL query item for a parameter.
   void _writeUrlQueryItem(StringBuffer buffer, IntentParamInfo param) {
     final isNullable = param.dartType.endsWith('?');
-    final isDate = param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+    final isDate =
+        param.dartType == 'DateTime' || param.dartType == 'DateTime?';
     final isEntity = param.entityType != null;
     final isEnum = param.enumType != null;
 
     // Entity types: use .id for the URL value
     if (isEntity) {
-      buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.id))');
+      buffer.writeln(
+        '$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.id))',
+      );
       return;
     }
 
     // Enum types: use .rawValue for the URL value
     if (isEnum) {
-      buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.rawValue))');
+      buffer.writeln(
+        '$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.rawValue))',
+      );
       return;
     }
 
     if (isNullable) {
       buffer.writeln('$_indent${_indent}if let ${param.fieldName} {');
       if (isDate) {
-        buffer.writeln('$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))');
+        buffer.writeln(
+          '$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))',
+        );
       } else {
-        buffer.writeln('$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))');
+        buffer.writeln(
+          '$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))',
+        );
       }
       buffer.writeln('$_indent$_indent}');
     } else {
       if (isDate) {
-        buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))');
+        buffer.writeln(
+          '$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ISO8601DateFormatter().string(from: ${param.fieldName})))',
+        );
       } else {
-        buffer.writeln('$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))');
+        buffer.writeln(
+          '$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: String(describing: ${param.fieldName})))',
+        );
       }
     }
   }
@@ -474,12 +531,20 @@ class SwiftGenerator {
     buffer.writeln('struct ${info.className}: AppEntity {');
 
     // Type display representation
-    buffer.writeln('$_indent' 'static var typeDisplayRepresentation: TypeDisplayRepresentation =');
-    buffer.writeln('$_indent$_indent' 'TypeDisplayRepresentation(name: "${info.title}")');
+    buffer.writeln(
+      '$_indent'
+      'static var typeDisplayRepresentation: TypeDisplayRepresentation =',
+    );
+    buffer.writeln(
+      '$_indent$_indent'
+      'TypeDisplayRepresentation(name: "${info.title}")',
+    );
     buffer.writeln();
 
     // Default query
-    buffer.writeln('${_indent}static var defaultQuery = ${info.className}Query()');
+    buffer.writeln(
+      '${_indent}static var defaultQuery = ${info.className}Query()',
+    );
     buffer.writeln();
 
     // Properties
@@ -521,7 +586,9 @@ class SwiftGenerator {
         .where((p) => p.role == EntityPropertyRole.image)
         .firstOrNull;
 
-    buffer.writeln('${_indent}var displayRepresentation: DisplayRepresentation {');
+    buffer.writeln(
+      '${_indent}var displayRepresentation: DisplayRepresentation {',
+    );
 
     // Build arguments for DisplayRepresentation
     final titleExpr = titleProp != null ? titleProp.fieldName : 'id';
@@ -539,7 +606,8 @@ class SwiftGenerator {
     } else if (imageProp == null && info.displayImageName != null) {
       // Static display image from @EntitySpec (asset bundle image)
       args.add(
-          'image: .init(named: "${info.displayImageName}", isTemplate: true)');
+        'image: .init(named: "${info.displayImageName}", isTemplate: true)',
+      );
     }
 
     if (imageProp != null && imageProp.dartType.endsWith('?')) {
@@ -548,19 +616,23 @@ class SwiftGenerator {
       final argsWithImage = List<String>.from(args);
       argsWithImage.add('image: .init(systemName: ${imageProp.fieldName})');
       buffer.writeln(
-          '$_indent$_indent${_indent}return DisplayRepresentation(${argsWithImage.join(', ')})');
+        '$_indent$_indent${_indent}return DisplayRepresentation(${argsWithImage.join(', ')})',
+      );
       buffer.writeln('$_indent$_indent}');
       // Fallback: use displayImageName if available
       final fallbackArgs = List<String>.from(args);
       if (info.displayImageName != null) {
         fallbackArgs.add(
-            'image: .init(named: "${info.displayImageName}", isTemplate: true)');
+          'image: .init(named: "${info.displayImageName}", isTemplate: true)',
+        );
       }
       buffer.writeln(
-          '$_indent${_indent}return DisplayRepresentation(${fallbackArgs.join(', ')})');
+        '$_indent${_indent}return DisplayRepresentation(${fallbackArgs.join(', ')})',
+      );
     } else {
       buffer.writeln(
-          '$_indent${_indent}return DisplayRepresentation(${args.join(', ')})');
+        '$_indent${_indent}return DisplayRepresentation(${args.join(', ')})',
+      );
     }
 
     buffer.writeln('$_indent}');
@@ -588,54 +660,90 @@ class SwiftGenerator {
 
     if (cacheKey != null) {
       buffer.writeln(
-          '$_indent/// App Group UserDefaults key written from Dart via setCachedValue.');
+        '$_indent/// App Group UserDefaults key written from Dart via setCachedValue.',
+      );
       buffer.writeln('${_indent}static let cacheKey = "$cacheKey"');
       buffer.writeln();
     }
 
     // entities(for:) method
-    buffer.writeln('${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {');
+    buffer.writeln(
+      '${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {',
+    );
     if (cacheKey != null) {
       final idField = idProp?.fieldName ?? 'id';
       buffer.writeln(
-          '$_indent${_indent}if let cached = Self._readCachedEntities() {');
+        '$_indent${_indent}if let cached = Self._readCachedEntities() {',
+      );
       buffer.writeln(
-          '$_indent$_indent${_indent}let filtered = cached.filter { identifiers.contains(\$0.$idField) }');
+        '$_indent$_indent${_indent}let filtered = cached.filter { identifiers.contains(\$0.$idField) }',
+      );
       buffer.writeln('$_indent$_indent${_indent}if !filtered.isEmpty {');
       buffer.writeln('$_indent$_indent$_indent${_indent}return filtered');
       buffer.writeln('$_indent$_indent$_indent}');
       buffer.writeln('$_indent$_indent}');
     }
-    buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.queryEntities(');
-    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}",');
+    buffer.writeln(
+      '$_indent${_indent}let results = try await FlutterBridge.shared.queryEntities(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}entityIdentifier: "${info.identifier}",',
+    );
     buffer.writeln('$_indent$_indent${_indent}identifiers: identifiers');
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
-    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp, imageProp);
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
     buffer.writeln();
 
     // suggestedEntities() method
-    buffer.writeln('${_indent}func suggestedEntities() async throws -> [${info.className}] {');
+    buffer.writeln(
+      '${_indent}func suggestedEntities() async throws -> [${info.className}] {',
+    );
     if (cacheKey != null) {
       buffer.writeln(
-          '$_indent${_indent}if let cached = Self._readCachedEntities(), !cached.isEmpty {');
+        '$_indent${_indent}if let cached = Self._readCachedEntities(), !cached.isEmpty {',
+      );
       buffer.writeln('$_indent$_indent${_indent}return cached');
       buffer.writeln('$_indent$_indent}');
     }
-    buffer.writeln('$_indent${_indent}let results = try await FlutterBridge.shared.suggestedEntities(');
-    buffer.writeln('$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"');
+    buffer.writeln(
+      '$_indent${_indent}let results = try await FlutterBridge.shared.suggestedEntities(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"',
+    );
     buffer.writeln('$_indent$_indent)');
     buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
-    _writeEntityDictMapping(buffer, info, idProp, titleProp, subtitleProp, imageProp);
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
 
     if (cacheKey != null) {
       buffer.writeln();
       _writeCachedEntityReader(
-          buffer, info, idProp, titleProp, subtitleProp, imageProp);
+        buffer,
+        info,
+        idProp,
+        titleProp,
+        subtitleProp,
+        imageProp,
+      );
     }
 
     buffer.writeln('}');
@@ -653,30 +761,48 @@ class SwiftGenerator {
     EntityPropertyInfo? imageProp,
   ) {
     buffer.writeln(
-        '$_indent/// Reads cached entities from App Group UserDefaults.');
+      '$_indent/// Reads cached entities from App Group UserDefaults.',
+    );
     buffer.writeln(
-        '$_indent/// Accepts either a JSON string payload or a pre-decoded array of maps.');
+      '$_indent/// Accepts either a JSON string payload or a pre-decoded array of maps.',
+    );
     buffer.writeln(
-        '${_indent}private static func _readCachedEntities() -> [${info.className}]? {');
+      '${_indent}private static func _readCachedEntities() -> [${info.className}]? {',
+    );
     buffer.writeln(
-        '$_indent${_indent}guard let raw = AppIntentsPlugin.getCached(forKey: cacheKey) else {');
+      '$_indent${_indent}guard let raw = AppIntentsPlugin.getCached(forKey: cacheKey) else {',
+    );
     buffer.writeln('$_indent$_indent${_indent}return nil');
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent${_indent}let dicts: [[String: Any]]');
-    buffer.writeln('$_indent${_indent}if let array = raw as? [[String: Any]] {');
+    buffer.writeln(
+      '$_indent${_indent}if let array = raw as? [[String: Any]] {',
+    );
     buffer.writeln('$_indent$_indent${_indent}dicts = array');
-    buffer.writeln('$_indent$_indent} else if let jsonString = raw as? String,');
     buffer.writeln(
-        '$_indent$_indent$_indent${_indent}let data = jsonString.data(using: .utf8),');
+      '$_indent$_indent} else if let jsonString = raw as? String,',
+    );
     buffer.writeln(
-        '$_indent$_indent$_indent${_indent}let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {');
+      '$_indent$_indent$_indent${_indent}let data = jsonString.data(using: .utf8),',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {',
+    );
     buffer.writeln('$_indent$_indent${_indent}dicts = parsed');
     buffer.writeln('$_indent$_indent} else {');
     buffer.writeln('$_indent$_indent${_indent}return nil');
     buffer.writeln('$_indent$_indent}');
-    buffer.writeln('$_indent${_indent}let entities: [${info.className}] = dicts.compactMap { dict in');
+    buffer.writeln(
+      '$_indent${_indent}let entities: [${info.className}] = dicts.compactMap { dict in',
+    );
     _writeEntityDictMapping(
-        buffer, info, idProp, titleProp, subtitleProp, imageProp);
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent${_indent}return entities');
     buffer.writeln('$_indent}');
@@ -694,19 +820,27 @@ class SwiftGenerator {
     final id = idProp?.fieldName ?? 'id';
     final title = titleProp?.fieldName ?? 'title';
 
-    buffer.writeln('$_indent$_indent${_indent}guard let $id = dict["$id"] as? String,');
-    buffer.writeln('$_indent$_indent$_indent${_indent}let $title = dict["$title"] as? String else {');
+    buffer.writeln(
+      '$_indent$_indent${_indent}guard let $id = dict["$id"] as? String,',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}let $title = dict["$title"] as? String else {',
+    );
     buffer.writeln('$_indent$_indent$_indent${_indent}return nil');
     buffer.writeln('$_indent$_indent$_indent}');
 
     if (subtitleProp != null) {
       final subtitle = subtitleProp.fieldName;
-      buffer.writeln('$_indent$_indent${_indent}let $subtitle = dict["$subtitle"] as? String');
+      buffer.writeln(
+        '$_indent$_indent${_indent}let $subtitle = dict["$subtitle"] as? String',
+      );
     }
 
     if (imageProp != null) {
       final image = imageProp.fieldName;
-      buffer.writeln('$_indent$_indent${_indent}let $image = dict["$image"] as? String');
+      buffer.writeln(
+        '$_indent$_indent${_indent}let $image = dict["$image"] as? String',
+      );
     }
 
     // Build initializer
@@ -717,26 +851,26 @@ class SwiftGenerator {
     if (imageProp != null) {
       initParts.add('${imageProp.fieldName}: ${imageProp.fieldName}');
     }
-    buffer.writeln('$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})');
+    buffer.writeln(
+      '$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})',
+    );
   }
 
   /// Writes EnumerableEntityQuery extension.
-  void _writeEnumerableQueryExtension(
-      StringBuffer buffer, EntityInfo info) {
+  void _writeEnumerableQueryExtension(StringBuffer buffer, EntityInfo info) {
     buffer.writeln();
     buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('extension ${info.className}Query: EnumerableEntityQuery {');
     buffer.writeln(
-        'extension ${info.className}Query: EnumerableEntityQuery {');
-    buffer.writeln(
-        '${_indent}func allEntities() async throws -> [${info.className}] {');
+      '${_indent}func allEntities() async throws -> [${info.className}] {',
+    );
     buffer.writeln('$_indent${_indent}try await suggestedEntities()');
     buffer.writeln('$_indent}');
     buffer.writeln('}');
   }
 
   /// Writes IndexedEntity extension with attributeSet.
-  void _writeIndexedEntityExtension(
-      StringBuffer buffer, EntityInfo info) {
+  void _writeIndexedEntityExtension(StringBuffer buffer, EntityInfo info) {
     final titleProp = info.properties
         .where((p) => p.role == EntityPropertyRole.title)
         .firstOrNull;
@@ -745,12 +879,15 @@ class SwiftGenerator {
     buffer.writeln('@available(iOS 26.0, *)');
     buffer.writeln('extension ${info.className}: IndexedEntity {');
     buffer.writeln(
-        '${_indent}var attributeSet: CSSearchableItemAttributeSet {');
+      '${_indent}var attributeSet: CSSearchableItemAttributeSet {',
+    );
     buffer.writeln(
-        '$_indent${_indent}let attributes = CSSearchableItemAttributeSet()');
+      '$_indent${_indent}let attributes = CSSearchableItemAttributeSet()',
+    );
     if (titleProp != null) {
       buffer.writeln(
-          '$_indent${_indent}attributes.displayName = ${titleProp.fieldName}');
+        '$_indent${_indent}attributes.displayName = ${titleProp.fieldName}',
+      );
     }
     buffer.writeln('$_indent${_indent}return attributes');
     buffer.writeln('$_indent}');
@@ -784,10 +921,13 @@ class SwiftGenerator {
 
     // Single import at the top
     buffer.writeln('import AppIntents');
-    final needsBridge = entities.isNotEmpty ||
-        intents.any((i) =>
-            i.urlScheme == null &&
-            i.supportedModes != IntentModeType.foreground);
+    final needsBridge =
+        entities.isNotEmpty ||
+        intents.any(
+          (i) =>
+              i.urlScheme == null &&
+              i.supportedModes != IntentModeType.foreground,
+        );
     if (needsBridge) {
       buffer.writeln('import AppIntentsBridge');
     }
@@ -841,13 +981,22 @@ class SwiftGenerator {
     buffer.writeln('struct ${info.className}: AppIntent {');
 
     // Title
-    buffer.writeln('$_indent' 'static var title: LocalizedStringResource = "${info.title}"');
+    buffer.writeln(
+      '$_indent'
+      'static var title: LocalizedStringResource = "${info.title}"',
+    );
 
     // Description (if present)
     if (info.description != null) {
-      buffer.writeln('$_indent' 'static var description: IntentDescription =');
+      buffer.writeln(
+        '$_indent'
+        'static var description: IntentDescription =',
+      );
       final escapedDesc = info.description!.replaceAll('\n', '\\n');
-      buffer.writeln('$_indent$_indent' 'IntentDescription("$escapedDesc")');
+      buffer.writeln(
+        '$_indent$_indent'
+        'IntentDescription("$escapedDesc")',
+      );
     }
 
     // supportedModes / openAppWhenRun
@@ -855,7 +1004,8 @@ class SwiftGenerator {
       buffer.writeln();
       buffer.writeln('$_indent@available(iOS 26.0, *)');
       buffer.writeln(
-          '${_indent}static var supportedModes: IntentModes { .foreground }');
+        '${_indent}static var supportedModes: IntentModes { .foreground }',
+      );
       buffer.writeln();
       buffer.writeln('${_indent}static var openAppWhenRun: Bool { true }');
     }
@@ -864,7 +1014,9 @@ class SwiftGenerator {
     if (info.parameterSummary != null) {
       buffer.writeln();
       final summaryStr = _interpolateParameterSummary(info.parameterSummary!);
-      buffer.writeln('${_indent}static var parameterSummary: some ParameterSummary {');
+      buffer.writeln(
+        '${_indent}static var parameterSummary: some ParameterSummary {',
+      );
       buffer.writeln('$_indent${_indent}Summary("$summaryStr")');
       buffer.writeln('$_indent}');
     }
@@ -896,16 +1048,24 @@ class SwiftGenerator {
 
     for (final shortcut in shortcuts) {
       buffer.writeln('$_indent${_indent}AppShortcut(');
-      buffer.writeln('$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),');
+      buffer.writeln(
+        '$_indent$_indent${_indent}intent: ${shortcut.intentClassName}(),',
+      );
       buffer.writeln('$_indent$_indent${_indent}phrases: [');
       for (var j = 0; j < shortcut.phrases.length; j++) {
         final phraseComma = j < shortcut.phrases.length - 1 ? ',' : '';
         final swiftPhrase = _convertPhraseToSwift(shortcut.phrases[j]);
-        buffer.writeln('$_indent$_indent$_indent$_indent"$swiftPhrase"$phraseComma');
+        buffer.writeln(
+          '$_indent$_indent$_indent$_indent"$swiftPhrase"$phraseComma',
+        );
       }
       buffer.writeln('$_indent$_indent$_indent],');
-      buffer.writeln('$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",');
-      buffer.writeln('$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"');
+      buffer.writeln(
+        '$_indent$_indent${_indent}shortTitle: "${shortcut.shortTitle}",',
+      );
+      buffer.writeln(
+        '$_indent$_indent${_indent}systemImageName: "${shortcut.systemImageName}"',
+      );
       buffer.writeln('$_indent$_indent)');
     }
 
@@ -936,22 +1096,25 @@ class SwiftGenerator {
     buffer.writeln();
 
     // typeDisplayRepresentation
-    buffer.writeln('${_indent}static var typeDisplayRepresentation: TypeDisplayRepresentation = "${info.title}"');
+    buffer.writeln(
+      '${_indent}static var typeDisplayRepresentation: TypeDisplayRepresentation = "${info.title}"',
+    );
     buffer.writeln();
 
     // caseDisplayRepresentations
     buffer.writeln(
-        '${_indent}static var caseDisplayRepresentations: [${info.className}: DisplayRepresentation] = [');
+      '${_indent}static var caseDisplayRepresentations: [${info.className}: DisplayRepresentation] = [',
+    );
     for (var i = 0; i < info.cases.length; i++) {
       final c = info.cases[i];
       final comma = i < info.cases.length - 1 ? ',' : '';
       if (c.imageName != null) {
         buffer.writeln(
-            '$_indent$_indent.${c.name}: .init(title: "${c.displayTitle}", '
-            'image: .init(named: "${c.imageName}", isTemplate: true))$comma');
+          '$_indent$_indent.${c.name}: .init(title: "${c.displayTitle}", '
+          'image: .init(named: "${c.imageName}", isTemplate: true))$comma',
+        );
       } else {
-        buffer.writeln(
-            '$_indent$_indent.${c.name}: "${c.displayTitle}"$comma');
+        buffer.writeln('$_indent$_indent.${c.name}: "${c.displayTitle}"$comma');
       }
     }
     buffer.writeln('$_indent]');
@@ -962,12 +1125,18 @@ class SwiftGenerator {
   /// Converts `{paramName}` to `\(paramName)` for Swift dialog string interpolation.
   ///
   /// Also escapes double quotes to prevent conflicts with Swift string delimiters.
-  String _interpolateDialogTemplate(String template, List<IntentParamInfo> params) {
+  String _interpolateDialogTemplate(
+    String template,
+    List<IntentParamInfo> params,
+  ) {
     var result = template;
     // Escape double quotes for Swift string literals
     result = result.replaceAll('"', '\\"');
     for (final param in params) {
-      result = result.replaceAll('{${param.fieldName}}', '\\(${param.fieldName})');
+      result = result.replaceAll(
+        '{${param.fieldName}}',
+        '\\(${param.fieldName})',
+      );
     }
     return result;
   }

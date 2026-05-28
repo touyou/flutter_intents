@@ -108,10 +108,12 @@ class AppIntents {
   void registerEntityQueryHandler(
     String entityIdentifier,
     Future<List<Map<String, dynamic>>> Function(List<String> identifiers)
-        handler,
+    handler,
   ) {
-    AppIntentsPlatform.instance
-        .registerEntityQueryHandler(entityIdentifier, handler);
+    AppIntentsPlatform.instance.registerEntityQueryHandler(
+      entityIdentifier,
+      handler,
+    );
   }
 
   /// Registers a handler for providing suggested/default entities.
@@ -141,8 +143,10 @@ class AppIntents {
     String entityIdentifier,
     Future<List<Map<String, dynamic>>> Function() handler,
   ) {
-    AppIntentsPlatform.instance
-        .registerSuggestedEntitiesHandler(entityIdentifier, handler);
+    AppIntentsPlatform.instance.registerSuggestedEntitiesHandler(
+      entityIdentifier,
+      handler,
+    );
   }
 
   /// A stream of intent execution requests from the native platform.

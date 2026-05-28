@@ -15,16 +15,16 @@ class IntentFile {
   const IntentFile({required this.path, this.mimeType, this.filename});
 
   factory IntentFile.fromMap(Map<String, dynamic> map) => IntentFile(
-        path: map['path'] as String,
-        mimeType: map['mimeType'] as String?,
-        filename: map['filename'] as String?,
-      );
+    path: map['path'] as String,
+    mimeType: map['mimeType'] as String?,
+    filename: map['filename'] as String?,
+  );
 
   Map<String, dynamic> toMap() => {
-        'path': path,
-        if (mimeType != null) 'mimeType': mimeType,
-        if (filename != null) 'filename': filename,
-      };
+    'path': path,
+    if (mimeType != null) 'mimeType': mimeType,
+    if (filename != null) 'filename': filename,
+  };
 
   @override
   bool operator ==(Object other) {

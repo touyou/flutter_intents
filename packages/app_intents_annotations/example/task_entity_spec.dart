@@ -8,7 +8,7 @@ import 'models/task.dart';
   pluralTitle: 'Tasks',
   description: 'An entity representing a task in a task management system.',
 )
-class TaskEntitySpec extends EntitySpecBase<Task>{
+class TaskEntitySpec extends EntitySpecBase<Task> {
   const TaskEntitySpec();
 
   @EntityId()

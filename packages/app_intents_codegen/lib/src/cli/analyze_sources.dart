@@ -61,7 +61,8 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   }
 
   stdout.writeln(
-      'Scanning $inputDir for @IntentSpec and @EntitySpec annotations...');
+    'Scanning $inputDir for @IntentSpec and @EntitySpec annotations...',
+  );
 
   // Find all Dart files
   final dartFiles = <String>[];
@@ -113,49 +114,45 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
       if (result is ResolvedLibraryResult) {
         final library = result.element;
 
-          for (final element in library.classes) {
-            // Check for @IntentSpec
-            if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
-              final info = intentAnalyzer.analyze(element);
-              if (info != null &&
-                  !intentsMap.containsKey(info.identifier)) {
-                intentsMap[info.identifier] = info;
-                stdout.writeln('  Found intent: ${info.className}');
-              }
-            }
-
-            // Check for @EntitySpec
-            if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
-              final info = entityAnalyzer.analyze(element);
-              if (info != null &&
-                  !entitiesMap.containsKey(info.identifier)) {
-                entitiesMap[info.identifier] = info;
-                stdout.writeln('  Found entity: ${info.className}');
-              }
-            }
-
-            // Check for @AppShortcutsProvider
-            if (shortcutAnalyzer
-                .hasAppShortcutsProviderAnnotation(element)) {
-              final shortcuts = shortcutAnalyzer.analyze(element);
-              for (final shortcut in shortcuts) {
-                allShortcuts.add(shortcut);
-                stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
-              }
+        for (final element in library.classes) {
+          // Check for @IntentSpec
+          if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
+            final info = intentAnalyzer.analyze(element);
+            if (info != null && !intentsMap.containsKey(info.identifier)) {
+              intentsMap[info.identifier] = info;
+              stdout.writeln('  Found intent: ${info.className}');
             }
           }
 
-          // Check for @EnumSpec on enums
-          for (final element in library.enums) {
-            if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
-              final info = enumAnalyzer.analyze(element);
-              if (info != null &&
-                  !enumsMap.containsKey(info.identifier)) {
-                enumsMap[info.identifier] = info;
-                stdout.writeln('  Found enum: ${info.className}');
-              }
+          // Check for @EntitySpec
+          if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
+            final info = entityAnalyzer.analyze(element);
+            if (info != null && !entitiesMap.containsKey(info.identifier)) {
+              entitiesMap[info.identifier] = info;
+              stdout.writeln('  Found entity: ${info.className}');
             }
           }
+
+          // Check for @AppShortcutsProvider
+          if (shortcutAnalyzer.hasAppShortcutsProviderAnnotation(element)) {
+            final shortcuts = shortcutAnalyzer.analyze(element);
+            for (final shortcut in shortcuts) {
+              allShortcuts.add(shortcut);
+              stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
+            }
+          }
+        }
+
+        // Check for @EnumSpec on enums
+        for (final element in library.enums) {
+          if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
+            final info = enumAnalyzer.analyze(element);
+            if (info != null && !enumsMap.containsKey(info.identifier)) {
+              enumsMap[info.identifier] = info;
+              stdout.writeln('  Found enum: ${info.className}');
+            }
+          }
+        }
       }
     } catch (e) {
       stderr.writeln('  Warning: Could not analyze $filePath: $e');
@@ -183,8 +180,9 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
 
   stdout.writeln('');
   stdout.writeln(
-      'Found ${intents.length} intents, ${entities.length} entities, '
-      '${enums.length} enums, and ${resolvedShortcuts.length} shortcuts');
+    'Found ${intents.length} intents, ${entities.length} entities, '
+    '${enums.length} enums, and ${resolvedShortcuts.length} shortcuts',
+  );
 
   return AnalyzeResult(
     intents: intents,

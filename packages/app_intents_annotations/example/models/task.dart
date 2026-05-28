@@ -10,9 +10,17 @@ class TaskRepository {
   static final TaskRepository instance = TaskRepository();
 
   final List<Task> _tasks = [
-      Task(id: '1', title: 'Buy groceries', dueDate: DateTime.now().add(Duration(days: 1))),
-      Task(id: '2', title: 'Walk the dog', dueDate: DateTime.now().add(Duration(days: 2))),
-    ];
+    Task(
+      id: '1',
+      title: 'Buy groceries',
+      dueDate: DateTime.now().add(Duration(days: 1)),
+    ),
+    Task(
+      id: '2',
+      title: 'Walk the dog',
+      dueDate: DateTime.now().add(Duration(days: 2)),
+    ),
+  ];
 
   Future<List<Task>> getAllTasks() async {
     return _tasks;

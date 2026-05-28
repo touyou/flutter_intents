@@ -15,18 +15,15 @@ void main() {
     methodCalls.clear();
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      channel,
-      (MethodCall methodCall) async {
-        methodCalls.add(methodCall);
-        switch (methodCall.method) {
-          case 'getPlatformVersion':
-            return 'iOS 17.0';
-          default:
-            return null;
-        }
-      },
-    );
+        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+          methodCalls.add(methodCall);
+          switch (methodCall.method) {
+            case 'getPlatformVersion':
+              return 'iOS 17.0';
+            default:
+              return null;
+          }
+        });
   });
 
   tearDown(() {
@@ -39,14 +36,11 @@ void main() {
       var handlerCalled = false;
       Map<String, dynamic>? receivedParams;
 
-      platform.registerIntentHandler(
-        'com.example.testIntent',
-        (params) async {
-          handlerCalled = true;
-          receivedParams = params;
-          return {'success': true};
-        },
-      );
+      platform.registerIntentHandler('com.example.testIntent', (params) async {
+        handlerCalled = true;
+        receivedParams = params;
+        return {'success': true};
+      });
 
       // Simulate incoming intent execution from iOS
       final result = await platform.handleIntentExecution(
@@ -70,17 +64,16 @@ void main() {
       var handlerCalled = false;
       List<String>? receivedIdentifiers;
 
-      platform.registerEntityQueryHandler(
-        'com.example.TaskEntity',
-        (identifiers) async {
-          handlerCalled = true;
-          receivedIdentifiers = identifiers;
-          return [
-            {'id': '1', 'title': 'Task 1'},
-            {'id': '2', 'title': 'Task 2'},
-          ];
-        },
-      );
+      platform.registerEntityQueryHandler('com.example.TaskEntity', (
+        identifiers,
+      ) async {
+        handlerCalled = true;
+        receivedIdentifiers = identifiers;
+        return [
+          {'id': '1', 'title': 'Task 1'},
+          {'id': '2', 'title': 'Task 2'},
+        ];
+      });
 
       // Simulate entity query from iOS
       final result = await platform.handleEntityQuery(
@@ -94,10 +87,15 @@ void main() {
       expect(result[0]['id'], '1');
     });
 
-    test('handleEntityQuery returns empty list for unregistered entity', () async {
-      final result = await platform.handleEntityQuery('unknown.entity', ['1']);
-      expect(result, isEmpty);
-    });
+    test(
+      'handleEntityQuery returns empty list for unregistered entity',
+      () async {
+        final result = await platform.handleEntityQuery('unknown.entity', [
+          '1',
+        ]);
+        expect(result, isEmpty);
+      },
+    );
 
     test('registerSuggestedEntitiesHandler stores handler correctly', () async {
       var handlerCalled = false;
@@ -122,10 +120,15 @@ void main() {
       expect(result[0]['title'], 'Suggested Task');
     });
 
-    test('handleSuggestedEntitiesQuery returns empty list for unregistered entity', () async {
-      final result = await platform.handleSuggestedEntitiesQuery('unknown.entity');
-      expect(result, isEmpty);
-    });
+    test(
+      'handleSuggestedEntitiesQuery returns empty list for unregistered entity',
+      () async {
+        final result = await platform.handleSuggestedEntitiesQuery(
+          'unknown.entity',
+        );
+        expect(result, isEmpty);
+      },
+    );
   });
 
   group('MethodChannelAppIntents - Intent Execution Stream', () {
@@ -134,14 +137,10 @@ void main() {
       final subscription = platform.onIntentExecution.listen(events.add);
 
       // Simulate receiving intent execution from iOS via method channel
-      await simulateIncomingMethodCall(
-        channel,
-        'executeIntent',
-        {
-          'identifier': 'com.example.testIntent',
-          'params': {'key': 'value'},
-        },
-      );
+      await simulateIncomingMethodCall(channel, 'executeIntent', {
+        'identifier': 'com.example.testIntent',
+        'params': {'key': 'value'},
+      });
 
       await Future.delayed(Duration.zero);
 
@@ -177,9 +176,5 @@ Future<void> simulateIncomingMethodCall(
   );
 
   await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .handlePlatformMessage(
-    channel.name,
-    message,
-    (ByteData? reply) {},
-  );
+      .handlePlatformMessage(channel.name, message, (ByteData? reply) {});
 }

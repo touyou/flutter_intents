@@ -13,9 +13,10 @@ void main() {
     });
 
     group('analyze', () {
-      test('extracts basic intent information from @IntentSpec annotation',
-          () async {
-        final library = await resolveSource('''
+      test(
+        'extracts basic intent information from @IntentSpec annotation',
+        () async {
+          final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 
           @IntentSpec(
@@ -25,17 +26,18 @@ void main() {
           class GreetIntent extends IntentSpecBase {}
         ''');
 
-        final classElement = findClass(library, 'GreetIntent');
+          final classElement = findClass(library, 'GreetIntent');
 
-        final result = analyzer.analyze(classElement);
+          final result = analyzer.analyze(classElement);
 
-        expect(result, isNotNull);
-        expect(result!.className, equals('GreetIntent'));
-        expect(result.identifier, equals('com.example.greet'));
-        expect(result.title, equals('Greet User'));
-        expect(result.description, isNull);
-        expect(result.implementation, equals(IntentImplementationType.dart));
-      });
+          expect(result, isNotNull);
+          expect(result!.className, equals('GreetIntent'));
+          expect(result.identifier, equals('com.example.greet'));
+          expect(result.title, equals('Greet User'));
+          expect(result.description, isNull);
+          expect(result.implementation, equals(IntentImplementationType.dart));
+        },
+      );
 
       test('extracts description when provided', () async {
         final library = await resolveSource('''
@@ -55,7 +57,9 @@ void main() {
 
         expect(result, isNotNull);
         expect(
-            result!.description, equals('Greets the user with a friendly message'));
+          result!.description,
+          equals('Greets the user with a friendly message'),
+        );
       });
 
       test('extracts swift implementation type', () async {
@@ -108,14 +112,17 @@ void main() {
         expect(result, isNotNull);
         expect(result!.parameters, hasLength(2));
 
-        final nameParam = result.parameters.firstWhere((p) => p.fieldName == 'name');
+        final nameParam = result.parameters.firstWhere(
+          (p) => p.fieldName == 'name',
+        );
         expect(nameParam.title, equals('User Name'));
         expect(nameParam.dartType, equals('String'));
         expect(nameParam.isOptional, isFalse);
         expect(nameParam.description, isNull);
 
-        final messageParam =
-            result.parameters.firstWhere((p) => p.fieldName == 'message');
+        final messageParam = result.parameters.firstWhere(
+          (p) => p.fieldName == 'message',
+        );
         expect(messageParam.title, equals('Greeting Message'));
         expect(messageParam.dartType, equals('String?'));
         expect(messageParam.isOptional, isTrue);
