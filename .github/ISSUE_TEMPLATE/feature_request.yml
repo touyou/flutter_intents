@@ -1,0 +1,62 @@
+name: Feature request
+description: Suggest a new capability or enhancement
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an idea! Please describe the problem you're trying to solve
+        before jumping to the implementation — it helps us evaluate alternatives.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What can't you currently do, or what is awkward today?
+      placeholder: |
+        I want to expose entity properties to Spotlight so users can search ... ,
+        but there is no annotation for ... .
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? Sketch the API or the developer experience.
+      placeholder: |
+        Add a `@Property` annotation that ... .
+        ```dart
+        @EntitySpec(...)
+        class TaskEntitySpec extends EntitySpecBase<Task> {
+          @Property(title: 'Title')
+          String title(Task task) => task.title;
+        }
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you tried or thought about.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target platform(s)
+      multiple: true
+      options:
+        - iOS
+        - Android
+        - Codegen / Dart API
+        - Docs / tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links to Apple / Android docs, related issues, screenshots, etc.

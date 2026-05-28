@@ -1,5 +1,4 @@
 // ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
-import 'package:analyzer/dart/element/element.dart';
 import 'package:app_intents_codegen/src/analyzer/shortcut_analyzer.dart';
 import 'package:test/test.dart';
 

@@ -203,7 +203,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     try {
       await methodChannel.invokeMethod('configureStorage', {
         'appGroupIdentifier': appGroupIdentifier,
-        if (storageIdentifier != null) 'storageIdentifier': storageIdentifier,
+        'storageIdentifier': ?storageIdentifier,
       });
     } on MissingPluginException {
       // No-op on platforms that don't implement this (e.g., Android).

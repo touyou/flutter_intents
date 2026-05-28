@@ -1,7 +1,5 @@
 import 'package:app_intents_annotations/app_intents_annotations.dart';
 
-import 'models/task.dart';
-
 @IntentSpec(
   identifier: 'CreateTaskIntent',
   title: 'Create Task',

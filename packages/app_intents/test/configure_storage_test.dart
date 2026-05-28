@@ -2,7 +2,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_intents/app_intents.dart';
 import 'package:app_intents/app_intents_method_channel.dart';
-import 'package:app_intents/app_intents_platform_interface.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

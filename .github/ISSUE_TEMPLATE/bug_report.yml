@@ -1,0 +1,111 @@
+name: Bug report
+description: Report a defect in Flutter Intents
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill in as much of the
+        information below as you can — environment details are especially valuable
+        because Flutter Intents straddles iOS App Intents, Android AppFunctions,
+        Dart codegen, and platform tooling.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have searched existing [issues](https://github.com/touyou/flutter_intents/issues) and the [CHANGELOGs](https://github.com/touyou/flutter_intents/tree/main/packages) for duplicates.
+          required: true
+        - label: I am using the latest released versions of `app_intents`, `app_intents_annotations`, and `app_intents_codegen` (or I have noted the exact versions below).
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+      placeholder: |
+        When I invoke ... from Siri, the app opens but ... .
+        I expected ... .
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: A minimal, self-contained reproduction is hugely helpful — code snippets, a link to a sample repo, or a stripped-down spec file are all great.
+      placeholder: |
+        1. Define an IntentSpec like ...
+        2. Run `dart run app_intents_codegen:generate_swift ...`
+        3. Build & run the app on iOS 17.5 simulator
+        4. Trigger the Shortcut from Spotlight
+        5. Observe ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Affected platform(s)
+      multiple: true
+      options:
+        - iOS
+        - Android
+        - Codegen / Dart-only
+        - Docs / tooling
+    validations:
+      required: true
+
+  - type: input
+    id: app_intents_version
+    attributes:
+      label: app_intents version
+      placeholder: e.g. 0.10.0
+    validations:
+      required: true
+
+  - type: input
+    id: codegen_version
+    attributes:
+      label: app_intents_codegen version
+      placeholder: e.g. 0.10.0
+
+  - type: input
+    id: flutter_doctor
+    attributes:
+      label: Flutter / Dart versions
+      description: Paste the relevant lines from `flutter --version` (or `dart --version` if codegen-only).
+      placeholder: |
+        Flutter 3.41.2 • channel stable
+        Dart 3.10.x
+    validations:
+      required: true
+
+  - type: input
+    id: ios_env
+    attributes:
+      label: iOS environment (if applicable)
+      description: iOS version, device/simulator model, Xcode version.
+      placeholder: iOS 17.5 simulator (iPhone 15), Xcode 16.2
+
+  - type: input
+    id: android_env
+    attributes:
+      label: Android environment (if applicable)
+      description: API level, device/emulator, AGP / Kotlin / KSP versions.
+      placeholder: API 36 emulator (Pixel 8), AGP 9.1.1, Kotlin 2.2.20, KSP 2.2.20-2.0.4
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace
+      description: Console output, Xcode logs, `adb logcat`, KSP errors, etc. Wrap in triple-backticks.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else worth knowing — recent changes, workarounds tried, screenshots.

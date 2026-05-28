@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dart-packages:
+    name: Dart package (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - app_intents_annotations
+          - app_intents_codegen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install dependencies
+        working-directory: packages/${{ matrix.package }}
+        run: dart pub get
+      - name: Analyze
+        working-directory: packages/${{ matrix.package }}
+        run: dart analyze
+      - name: Run tests
+        working-directory: packages/${{ matrix.package }}
+        run: dart test
+
+  flutter-plugin:
+    name: Flutter plugin (app_intents)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: packages/app_intents
+        run: flutter pub get
+      - name: Analyze
+        working-directory: packages/app_intents
+        run: flutter analyze
+      - name: Run tests
+        working-directory: packages/app_intents
+        run: flutter test
+
+  swift-package:
+    name: Swift package (AppIntentsBridge) - build only
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Swift / Xcode versions
+        run: |
+          swift --version
+          xcodebuild -version
+      - name: Build for iOS Simulator
+        # The package targets iOS only, so `swift test` cannot run on macOS.
+        # We compile against an iOS Simulator destination to at least catch
+        # build breakage. Running the test suite requires booting a simulator
+        # and is left as a follow-up.
+        run: |
+          xcodebuild build \
+            -scheme AppIntentsBridge \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .build-ci \
+            -quiet

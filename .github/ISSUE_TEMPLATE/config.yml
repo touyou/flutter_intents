@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / discussion
+    url: https://github.com/touyou/flutter_intents/discussions
+    about: For questions, design discussions, or "how do I…" usage help, please start a Discussion instead of filing an issue.
+  - name: Documentation
+    url: https://github.com/touyou/flutter_intents/tree/main/docs
+    about: Architecture, package reference, and usage guides live under `docs/`.
+  - name: Security vulnerability
+    url: https://github.com/touyou/flutter_intents/security/advisories/new
+    about: Please report security issues privately via a GitHub Security Advisory rather than a public issue.

@@ -1,0 +1,65 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: pub
+    directory: "/packages/app_intents"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - dart
+
+  - package-ecosystem: pub
+    directory: "/packages/app_intents_annotations"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - dart
+
+  - package-ecosystem: pub
+    directory: "/packages/app_intents_codegen"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - dart
+
+  - package-ecosystem: pub
+    directory: "/app"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - dart
+      - example
+
+  - package-ecosystem: gradle
+    directory: "/app/android"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - android
+
+  - package-ecosystem: swift
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - swift
