@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         working-directory: packages/${{ matrix.package }}
         run: dart pub get
+      - name: Verify formatting
+        working-directory: packages/${{ matrix.package }}
+        run: dart format --output=none --set-exit-if-changed .
       - name: Analyze
         working-directory: packages/${{ matrix.package }}
         run: dart analyze
@@ -54,6 +57,9 @@ jobs:
       - name: Install dependencies
         working-directory: packages/app_intents
         run: flutter pub get
+      - name: Verify formatting
+        working-directory: packages/app_intents
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
         working-directory: packages/app_intents
         run: flutter analyze
@@ -74,6 +80,9 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: flutter pub get
+      - name: Verify formatting
+        working-directory: app
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Run codegen (Dart part files)
         # Generated *.intent.dart files are not checked into the repo, so the
         # analyzer needs them produced before it can resolve `part` directives.
@@ -112,7 +121,7 @@ jobs:
         run: flutter build apk --debug
 
   swift-package:
-    name: Swift package (AppIntentsBridge) - build only
+    name: Swift package (AppIntentsBridge)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -120,13 +129,33 @@ jobs:
         run: |
           swift --version
           xcodebuild -version
-      - name: Build for iOS Simulator
-        # The package targets iOS only, so `swift test` cannot run on macOS.
-        # We compile against an iOS Simulator destination to at least catch
-        # build breakage. Running the test suite requires booting a simulator
-        # and is left as a follow-up.
+      - name: Select iOS Simulator
+        # Pick whatever the runner currently has so we don't have to chase
+        # Xcode-version-specific device names. We pick the first available
+        # iPhone — none of these tests depend on a specific device model.
+        id: select_simulator
         run: |
-          xcodebuild build \
+          DEVICE_NAME=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          iphones = [d["name"] for runtime in devices.values() for d in runtime if d["name"].startswith("iPhone")]
+          print(iphones[0] if iphones else "")
+          ')
+          if [ -z "$DEVICE_NAME" ]; then
+            echo "No iPhone simulator available on this runner" >&2
+            exit 1
+          fi
+          echo "device=$DEVICE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DEVICE_NAME"
+      - name: Run tests on iOS Simulator
+        # The package targets iOS only, so `swift test` cannot run on the
+        # macOS host. We boot an iOS Simulator and run the XCTest suite via
+        # xcodebuild, which exercises FlutterBridge against the real iOS
+        # concurrency runtime.
+        env:
+          SIMULATOR_NAME: ${{ steps.select_simulator.outputs.device }}
+        run: |
+          xcodebuild test \
             -scheme AppIntentsBridge \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME,OS=latest" \
             -derivedDataPath .build-ci
