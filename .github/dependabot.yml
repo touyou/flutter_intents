@@ -47,6 +47,15 @@ updates:
       - example
 
   - package-ecosystem: gradle
+    directory: "/packages/app_intents/android"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - android
+
+  - package-ecosystem: gradle
     directory: "/app/android"
     schedule:
       interval: weekly
@@ -54,6 +63,7 @@ updates:
     labels:
       - dependencies
       - android
+      - example
 
   - package-ecosystem: swift
     directory: "/"

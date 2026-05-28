@@ -49,5 +49,7 @@
 - [ ] `make test` passes locally
 - [ ] `dart analyze` / `flutter analyze` is clean for touched packages
 - [ ] Public API changes are reflected in the relevant `CHANGELOG.md`
-- [ ] Docs (`README*.md`, `docs/*`, `CLAUDE.md`) updated if behavior changed
-- [ ] Generated code (Swift / Kotlin / part files) regenerated if generators changed
+- [ ] User-visible doc changes are mirrored in **both** `README.md` **and** `README.ja.md` (and the matching `docs/*.md` / `docs/*.ja.md` pairs)
+- [ ] `CLAUDE.md` updated if architecture or non-obvious conventions changed
+- [ ] Generated code (Swift / Kotlin / Dart `part` files) regenerated if generators changed
+- [ ] Version bumps and `CHANGELOG.md` updates are left to the maintainer at release time — please do **not** bump versions in feature PRs unless explicitly asked

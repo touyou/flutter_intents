@@ -30,11 +30,17 @@ Include as much of the following as you can:
 
 ## What to expect
 
-- **Acknowledgement:** within 7 days of your report.
-- **Initial assessment:** within 14 days, including a tentative severity and a plan.
+Flutter Intents is currently maintained by volunteers in their spare time, so
+these are best-effort response targets rather than guarantees:
+
+- **Acknowledgement:** within ~14 days of your report.
+- **Initial assessment:** within ~30 days, including a tentative severity and a plan.
 - **Fix & disclosure:** coordinated through the same GitHub Security Advisory. We will
   publish a CVE-numbered advisory and a patched release together, and credit the reporter
   unless they prefer to remain anonymous.
+
+If you do not hear back within these windows, please feel free to nudge the
+advisory thread — it likely means the notification was missed, not ignored.
 
 ## Scope
 

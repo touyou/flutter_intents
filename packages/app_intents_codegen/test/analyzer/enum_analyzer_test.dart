@@ -1,4 +1,3 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
 import 'package:app_intents_codegen/src/analyzer/enum_analyzer.dart';
 import 'package:test/test.dart';
 

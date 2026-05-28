@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Minimal token scope — this CI only reads the repo and reports back.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -24,7 +28,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          # Pinned to keep analyze/test reproducible. Bump via Dependabot
+          # alongside the package's `environment.sdk` constraint.
+          sdk: '3.10.0'
       - name: Install dependencies
         working-directory: packages/${{ matrix.package }}
         run: dart pub get
@@ -55,6 +61,56 @@ jobs:
         working-directory: packages/app_intents
         run: flutter test
 
+  example-app:
+    name: Example app analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+      - name: Run codegen (Dart part files)
+        # Generated *.intent.dart files are not checked into the repo, so the
+        # analyzer needs them produced before it can resolve `part` directives.
+        working-directory: app
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Analyze
+        working-directory: app
+        run: flutter analyze
+
+  android-plugin:
+    name: Android plugin build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+      - name: Generate Kotlin sources
+        working-directory: app
+        run: |
+          dart run app_intents_codegen:generate_kotlin \
+            -i lib \
+            -o android/app/src/main/kotlin/com/example/app/generated \
+            -p com.example.app.generated
+      - name: Build debug APK
+        working-directory: app
+        run: flutter build apk --debug
+
   swift-package:
     name: Swift package (AppIntentsBridge) - build only
     runs-on: macos-15
@@ -73,5 +129,4 @@ jobs:
           xcodebuild build \
             -scheme AppIntentsBridge \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath .build-ci \
-            -quiet
+            -derivedDataPath .build-ci

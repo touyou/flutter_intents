@@ -55,8 +55,22 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: apple_docs
+    attributes:
+      label: Apple developer documentation link
+      description: If this maps to an iOS App Intents / Shortcuts / SiriKit API, paste the URL here.
+      placeholder: https://developer.apple.com/documentation/appintents/...
+
+  - type: input
+    id: android_docs
+    attributes:
+      label: Android developer documentation link
+      description: If this maps to an Android AppFunctions / Gemini API, paste the URL here.
+      placeholder: https://developer.android.com/...
+
   - type: textarea
     id: additional
     attributes:
       label: Additional context
-      description: Links to Apple / Android docs, related issues, screenshots, etc.
+      description: Related issues, screenshots, prior art in other plugins, etc.

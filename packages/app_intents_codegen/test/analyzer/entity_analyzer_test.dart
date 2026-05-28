@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
+// ignore_for_file: unnecessary_non_null_assertion
 import 'package:app_intents_codegen/src/analyzer/entity_analyzer.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:test/test.dart';
