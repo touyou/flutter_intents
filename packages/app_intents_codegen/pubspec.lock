@@ -20,9 +20,10 @@ packages:
   app_intents_annotations:
     dependency: "direct main"
     description:
-      path: "../app_intents_annotations"
-      relative: true
-    source: path
+      name: app_intents_annotations
+      sha256: eb3e589a429d88ad44f896431ade396d6c5d012dcad4675121d6e221af326b6d
+      url: "https://pub.dev"
+    source: hosted
     version: "0.10.0"
   args:
     dependency: "direct main"
@@ -172,10 +173,10 @@ packages:
     dependency: "direct main"
     description:
       name: dart_style
-      sha256: "6f6b30cba0301e7b38f32bdc9a6bdae6f5921a55f0a1eb9450e1e6515645dbb2"
+      sha256: "29f7ecc274a86d32920b1d9cfc7502fa87220da41ec60b55f329559d5732e2b2"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.6"
+    version: "3.1.7"
   file:
     dependency: transitive
     description:
