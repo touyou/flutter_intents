@@ -25,7 +25,7 @@ jobs:
           - app_intents_annotations
           - app_intents_codegen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dart-lang/setup-dart@v1
         with:
           # Pinned to keep analyze/test reproducible. Bump via Dependabot
@@ -48,7 +48,7 @@ jobs:
     name: Flutter plugin (app_intents)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
@@ -71,7 +71,7 @@ jobs:
     name: Example app analyze
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
@@ -96,7 +96,7 @@ jobs:
     name: Android plugin build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -124,7 +124,7 @@ jobs:
     name: Swift package (AppIntentsBridge)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Show Swift / Xcode versions
         run: |
           swift --version
