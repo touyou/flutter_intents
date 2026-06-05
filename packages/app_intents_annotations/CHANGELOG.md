@@ -1,3 +1,7 @@
+## 0.10.1
+
+- No annotation changes; version bump aligns with `app_intents` 0.10.1 (Android `compilerOptions` DSL fix for Kotlin 2.3+ / AGP 9.1.0+, #20)
+
 ## 0.10.0
 
 - No annotation changes; version bump aligns with `app_intents` 0.10.0 (Swift Package Manager support for the iOS plugin, #29)

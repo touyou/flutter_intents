@@ -1,3 +1,9 @@
+## 0.10.1
+
+- Fix Android build on Kotlin 2.3+ / AGP 9.1.0+: migrate the plugin's `android/build.gradle.kts` from the deprecated `kotlinOptions` DSL to the modern `compilerOptions` DSL (#20, thanks @cpbritton)
+  - The `kotlinOptions` block now causes "Script compilation errors" with recent Kotlin Gradle Plugin / AGP toolchains; `compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }` is the supported replacement
+- Maintenance: dependency bumps and OSS infrastructure hardening (CI, issue/PR templates, Dependabot)
+
 ## 0.10.0
 
 - Add Swift Package Manager (SPM) support for the iOS plugin (#29)
