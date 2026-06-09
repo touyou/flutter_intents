@@ -3,8 +3,9 @@ import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:test/test.dart';
 
-SwiftGenerator _experimentalGenerator() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
+SwiftGenerator _experimentalGenerator() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
+);
 
 IntentInfo _intent({
   List<IntentParamInfo> parameters = const [],
@@ -30,7 +31,9 @@ void main() {
     group('default / fallback (rich-types OFF)', () {
       test('emits a String parameter in a single struct, no #if', () {
         final result = const SwiftGenerator().generateAll(
-          intents: [_intent(parameters: [_personName])],
+          intents: [
+            _intent(parameters: [_personName]),
+          ],
         );
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
@@ -48,7 +51,9 @@ void main() {
     group('rich-types ON (dual-branch)', () {
       test('native PersonNameComponents in #if, String fallback in #else', () {
         final result = _experimentalGenerator().generateAll(
-          intents: [_intent(parameters: [_personName])],
+          intents: [
+            _intent(parameters: [_personName]),
+          ],
         );
 
         expect(result, contains('#if APP_INTENTS_WWDC26'));
@@ -67,7 +72,9 @@ void main() {
         expect(ifBranch, contains('var authorName: [String: String] = [:]'));
         expect(
           ifBranch,
-          contains('if let v = author.givenName { authorName["givenName"] = v }'),
+          contains(
+            'if let v = author.givenName { authorName["givenName"] = v }',
+          ),
         );
         expect(
           ifBranch,
@@ -79,9 +86,7 @@ void main() {
         expect(elseBranch, contains('var author: String'));
         expect(
           elseBranch,
-          contains(
-            'let authorName: [String: String] = ["givenName": author]',
-          ),
+          contains('let authorName: [String: String] = ["givenName": author]'),
         );
 
         // Both branches feed the same branch-agnostic Dart wire value.
@@ -97,7 +102,9 @@ void main() {
           isOptional: true,
         );
         final result = _experimentalGenerator().generateAll(
-          intents: [_intent(parameters: [nullable])],
+          intents: [
+            _intent(parameters: [nullable]),
+          ],
         );
         final ifBranch = result.substring(
           result.indexOf('#if'),

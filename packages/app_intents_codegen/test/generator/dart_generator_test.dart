@@ -265,14 +265,8 @@ void main() {
         expect(result, contains("map['editor'] != null"));
         expect(result, contains("map['editor'] as Map"));
         // fromQueryParameters: URL carries only the given name.
-        expect(
-          result,
-          contains("PersonName(givenName: params['author']!)"),
-        );
-        expect(
-          result,
-          contains("PersonName(givenName: params['editor'])"),
-        );
+        expect(result, contains("PersonName(givenName: params['author']!)"));
+        expect(result, contains("PersonName(givenName: params['editor'])"));
       });
 
       test('generates handler using Params class with named parameters', () {
