@@ -74,7 +74,9 @@ void main() {
       ''');
 
       final result = analyzer.analyze(findClass(library, 'NoteEntity'));
-      final bodyProp = result!.properties.firstWhere((p) => p.fieldName == 'body');
+      final bodyProp = result!.properties.firstWhere(
+        (p) => p.fieldName == 'body',
+      );
 
       expect(bodyProp.exposeAsProperty, isTrue);
       expect(bodyProp.propertyTitle, equals('Body'));

@@ -1,3 +1,5 @@
+import 'package:source_gen/source_gen.dart';
+
 import '../experimental/experimental_features.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
@@ -720,23 +722,67 @@ class SwiftGenerator {
   /// receive type-appropriate defaults so callers that only pass the role
   /// fields still compile.
   void _writeEntityInit(StringBuffer buffer, EntityInfo info) {
-    final params = info.properties.map((prop) {
-      final swiftType = dartTypeToSwiftType(prop.dartType);
-      if (prop.exposeAsProperty) {
-        return '${prop.fieldName}: $swiftType = ${_defaultForSwiftType(swiftType)}';
-      }
-      return '${prop.fieldName}: $swiftType';
-    }).join(', ');
+    // The initializer's parameter order MUST match the construction call site
+    // (`_writeEntityDictMapping`), which lists role fields first
+    // (id, title, subtitle, image) then exposed properties. Swift requires the
+    // labeled arguments a caller *does* provide to appear in declaration order
+    // even when the omitted ones have defaults, so emitting parameters in Dart
+    // field-declaration order would produce non-compiling Swift whenever the
+    // field order differs from the role order.
+    final ordered = _initOrderedProperties(info);
+    final params = ordered
+        .map((prop) {
+          final swiftType = dartTypeToSwiftType(prop.dartType);
+          if (prop.exposeAsProperty) {
+            return '${prop.fieldName}: $swiftType = '
+                '${_defaultForSwiftType(swiftType, prop.fieldName)}';
+          }
+          return '${prop.fieldName}: $swiftType';
+        })
+        .join(', ');
     buffer.writeln('${_indent}init($params) {');
-    for (final prop in info.properties) {
-      buffer.writeln('$_indent${_indent}self.${prop.fieldName} = ${prop.fieldName}');
+    for (final prop in ordered) {
+      buffer.writeln(
+        '$_indent${_indent}self.${prop.fieldName} = ${prop.fieldName}',
+      );
     }
     buffer.writeln('$_indent}');
   }
 
-  /// A literal default value for a Swift type, used for exposed-property init
-  /// parameters so role-only construction keeps compiling.
-  String _defaultForSwiftType(String swiftType) {
+  /// Properties in the order the generated initializer and every construction
+  /// call site list them: the role fields first (id, title, subtitle, image),
+  /// then exposed `@EntityProperty` fields in declaration order. Mirrors the
+  /// argument order built in [_writeEntityDictMapping] so the two cannot drift.
+  List<EntityPropertyInfo> _initOrderedProperties(EntityInfo info) {
+    final ordered = <EntityPropertyInfo>[];
+    for (final role in const [
+      EntityPropertyRole.id,
+      EntityPropertyRole.title,
+      EntityPropertyRole.subtitle,
+      EntityPropertyRole.image,
+    ]) {
+      final prop = info.properties.where((p) => p.role == role).firstOrNull;
+      if (prop != null) ordered.add(prop);
+    }
+    // `_extractProperties` keeps only role-annotated or exposed fields, so every
+    // remaining (role == none) property is an exposed @EntityProperty and is
+    // given a default below — the call site may safely omit it.
+    ordered.addAll(
+      info.properties.where((p) => p.role == EntityPropertyRole.none),
+    );
+    return ordered;
+  }
+
+  /// A literal default value for an exposed property's Swift type, used so a
+  /// construction call site that only passes the role fields (and exposed
+  /// String properties) still compiles.
+  ///
+  /// Throws for types that have no synthesizable default — those cannot be
+  /// exposed via `@EntityProperty`. Note: non-String exposed properties (e.g.
+  /// `Date`) compile via this default but are not populated from the cached
+  /// dict (the query reads only String properties), so they always take the
+  /// default value at construction.
+  String _defaultForSwiftType(String swiftType, String fieldName) {
     if (swiftType.endsWith('?')) return 'nil';
     switch (swiftType) {
       case 'Int':
@@ -746,8 +792,16 @@ class SwiftGenerator {
       case 'Bool':
         return 'false';
       case 'String':
-      default:
         return '""';
+      case 'Date':
+        return 'Date()';
+      default:
+        throw InvalidGenerationSourceError(
+          'Cannot expose entity property `$fieldName` of Swift type '
+          '`$swiftType` via @EntityProperty: no default value can be '
+          'synthesized for the generated initializer. Expose only '
+          'String/int/double/bool/DateTime (or their nullable forms).',
+        );
     }
   }
 

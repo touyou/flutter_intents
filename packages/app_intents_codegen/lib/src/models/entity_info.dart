@@ -166,8 +166,14 @@ class EntityPropertyInfo {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(fieldName, dartType, role, exposeAsProperty, propertyTitle, indexingKey);
+  int get hashCode => Object.hash(
+    fieldName,
+    dartType,
+    role,
+    exposeAsProperty,
+    propertyTitle,
+    indexingKey,
+  );
 
   @override
   String toString() =>
