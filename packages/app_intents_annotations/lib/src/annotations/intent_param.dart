@@ -29,6 +29,16 @@ class IntentParam {
   /// The Dart parameter type should be `IntentFile` or `IntentFile?`.
   final String? fileType;
 
+  /// The element entity type for an entity-collection parameter (#53,
+  /// e.g. 'PhotoEntity').
+  ///
+  /// When set, the generated Swift parameter uses the WWDC26
+  /// `EntityCollection<Entity>` type (iOS 27, behind the `rich-types`
+  /// experimental feature) or a `[Entity]` array fallback. Either way the Dart
+  /// handler receives the entity identifiers as a `List<String>`, so the Dart
+  /// parameter type should be `List<String>`.
+  final String? entityCollectionType;
+
   const IntentParam({
     required this.title,
     this.description,
@@ -36,5 +46,6 @@ class IntentParam {
     this.entityType,
     this.enumType,
     this.fileType,
+    this.entityCollectionType,
   });
 }

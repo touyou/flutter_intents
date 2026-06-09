@@ -90,6 +90,8 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool isOptional;
           final String? entityType;
           final String? enumType;
+          final String? fileType;
+          final String? entityCollectionType;
 
           const IntentParam({
             required this.title,
@@ -97,6 +99,8 @@ Future<LibraryElement> resolveSource(String source) async {
             this.isOptional = false,
             this.entityType,
             this.enumType,
+            this.fileType,
+            this.entityCollectionType,
           });
         }
       ''',

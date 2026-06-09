@@ -210,6 +210,16 @@ $fromMapParams    );
       }
     }
 
+    // Entity-collection parameters arrive as a List of identifier strings
+    // (EntityCollection.identifiers / [Entity].map { $0.id }).
+    if (param.entityCollectionType != null) {
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? (map['${param.fieldName}'] as List).cast<String>() : null";
+      } else {
+        return "(map['${param.fieldName}'] as List).cast<String>()";
+      }
+    }
+
     if (baseType == 'double') {
       if (isNullable) {
         return "(map['${param.fieldName}'] as num?)?.toDouble()";
@@ -254,6 +264,15 @@ $fromMapParams    );
         return "params['${param.fieldName}'] != null ? PersonName(givenName: params['${param.fieldName}']) : null";
       } else {
         return "PersonName(givenName: params['${param.fieldName}']!)";
+      }
+    }
+
+    // Entity-collection parameters arrive comma-joined in URL scheme.
+    if (param.entityCollectionType != null) {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? params['${param.fieldName}']!.split(',') : null";
+      } else {
+        return "params['${param.fieldName}']!.split(',')";
       }
     }
 

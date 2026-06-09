@@ -160,6 +160,13 @@ class SwiftGenerator {
       final base = nativeRichTypes ? 'PersonNameComponents' : 'String';
       return nullable ? '$base?' : base;
     }
+    if (_isEntityCollectionParam(param)) {
+      // Native EntityCollection<Entity> (iOS 27) vs. a plain [Entity] array
+      // fallback. Both yield the same `[String]` identifier wire.
+      final entity = param.entityCollectionType!;
+      final base = nativeRichTypes ? 'EntityCollection<$entity>' : '[$entity]';
+      return nullable ? '$base?' : base;
+    }
     return dartTypeToSwiftType(param.dartType);
   }
 
@@ -171,9 +178,15 @@ class SwiftGenerator {
   bool _isPersonNameParam(IntentParamInfo param) =>
       param.dartType == 'PersonName' || param.dartType == 'PersonName?';
 
+  /// Whether [param] is an entity-collection parameter (#53).
+  bool _isEntityCollectionParam(IntentParamInfo param) =>
+      param.entityCollectionType != null;
+
   /// Whether [param] is a WWDC26 "rich" parameter type (#53).
   bool _isRichTypeParam(IntentParamInfo param) =>
-      _isDurationParam(param) || _isPersonNameParam(param);
+      _isDurationParam(param) ||
+      _isPersonNameParam(param) ||
+      _isEntityCollectionParam(param);
 
   /// Whether [info] has any rich (#53) parameter.
   bool _hasRichTypeParams(IntentInfo info) =>
@@ -201,6 +214,12 @@ class SwiftGenerator {
     // [_writePersonNameSerializations]).
     if (_isPersonNameParam(param)) {
       return '${param.fieldName}Name';
+    }
+
+    // Entity-collection types: use pre-serialized identifier list (see
+    // [_writeEntityCollectionSerializations]).
+    if (_isEntityCollectionParam(param)) {
+      return '${param.fieldName}Ids';
     }
 
     // Entity types: use .id
@@ -488,6 +507,31 @@ class SwiftGenerator {
     }
   }
 
+  /// Writes `<field>Ids` locals converting entity-collection parameters to a
+  /// `[String]` of identifiers.
+  ///
+  /// Native `EntityCollection` (`#if`) exposes `.identifiers`; the `[Entity]`
+  /// array fallback maps `.id`. Both reduce to the same `[String]` so the params
+  /// dictionary stays branch-agnostic (Dart handler receives a `List<String>`).
+  void _writeEntityCollectionSerializations(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeRichTypes,
+  ) {
+    final indent2 = '$_indent$_indent';
+    for (final param in info.parameters) {
+      if (!_isEntityCollectionParam(param)) continue;
+      final name = param.fieldName;
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+      final access = nativeRichTypes ? '.identifiers' : '.map { \$0.id }';
+      if (isNullable) {
+        buffer.writeln('${indent2}let ${name}Ids: [String]? = $name?$access');
+      } else {
+        buffer.writeln('${indent2}let ${name}Ids: [String] = $name$access');
+      }
+    }
+  }
+
   /// Writes the return statement (with optional dialog).
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
     if (info.resultDialogTemplate != null) {
@@ -511,6 +555,7 @@ class SwiftGenerator {
     _writeFileParamSerializations(buffer, info);
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
+    _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -574,6 +619,7 @@ class SwiftGenerator {
     _writeFileParamSerializations(buffer, info);
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
+    _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
     final indent3 = '$_indent$_indent$_indent';
@@ -621,6 +667,7 @@ class SwiftGenerator {
     _writeFileParamSerializations(buffer, info);
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
+    _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -686,6 +733,7 @@ class SwiftGenerator {
       buffer.writeln();
       _writeDurationSerializations(buffer, info, nativeRichTypes);
       _writePersonNameSerializations(buffer, info, nativeRichTypes);
+      _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
       buffer.writeln('${indent2}var queryItems = [URLQueryItem]()');
 
       for (final param in info.parameters) {
@@ -765,6 +813,24 @@ class SwiftGenerator {
         '${indent3}queryItems.append(URLQueryItem(name: "$name", value: ${name}Given))',
       );
       buffer.writeln('$_indent$_indent}');
+      return;
+    }
+
+    // Entity-collection types: comma-join the pre-serialized identifier list.
+    if (_isEntityCollectionParam(param)) {
+      final name = param.fieldName;
+      final joined = '${name}Ids.joined(separator: ",")';
+      if (isNullable) {
+        buffer.writeln('$_indent${_indent}if let ${name}Ids {');
+        buffer.writeln(
+          '$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: $joined))',
+        );
+        buffer.writeln('$_indent$_indent}');
+      } else {
+        buffer.writeln(
+          '$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: $joined))',
+        );
+      }
       return;
     }
 
