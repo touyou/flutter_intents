@@ -219,6 +219,51 @@ void main() {
         expect(photos.dartType, equals('List<String>'));
       });
 
+      test('resolves a union-typed parameter (#53)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @UnionValueSpec(identifier: 'com.example.GalleryContent')
+          sealed class GalleryContent {
+            const GalleryContent();
+          }
+
+          @UnionCase(entityType: 'PhotoEntity')
+          class PhotoContent extends GalleryContent {
+            final String id;
+            const PhotoContent(this.id);
+          }
+
+          @UnionCase(entityType: 'AlbumEntity')
+          class AlbumContent extends GalleryContent {
+            final String id;
+            const AlbumContent(this.id);
+          }
+
+          @IntentSpec(identifier: 'com.example.openGallery', title: 'Open Gallery')
+          class OpenGalleryIntent extends IntentSpecBase {
+            @IntentParam(title: 'Content')
+            final GalleryContent content;
+
+            OpenGalleryIntent({required this.content});
+          }
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'OpenGalleryIntent'));
+
+        expect(result, isNotNull);
+        final content = result!.parameters.firstWhere(
+          (p) => p.fieldName == 'content',
+        );
+        expect(content.unionInfo, isNotNull);
+        expect(content.unionInfo!.className, equals('GalleryContent'));
+        expect(content.unionInfo!.cases, hasLength(2));
+        expect(
+          content.unionInfo!.cases.map((c) => c.entityType),
+          containsAll(['PhotoEntity', 'AlbumEntity']),
+        );
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

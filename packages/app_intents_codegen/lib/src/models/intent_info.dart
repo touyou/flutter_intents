@@ -1,3 +1,5 @@
+import 'union_info.dart';
+
 /// Represents analyzed information about an intent specification.
 class IntentInfo {
   /// The class name of the intent specification.
@@ -170,6 +172,11 @@ class IntentParamInfo {
   /// identifiers.
   final String? entityCollectionType;
 
+  /// The resolved union (#53) when this parameter's type is a `@UnionValueSpec`
+  /// sealed class. When set, the Swift parameter uses the native `@UnionValue
+  /// enum` (or the first case's entity type as the stable fallback).
+  final UnionInfo? unionInfo;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -180,6 +187,7 @@ class IntentParamInfo {
     this.enumType,
     this.fileType,
     this.entityCollectionType,
+    this.unionInfo,
   });
 
   @override
@@ -194,7 +202,8 @@ class IntentParamInfo {
         entityType == other.entityType &&
         enumType == other.enumType &&
         fileType == other.fileType &&
-        entityCollectionType == other.entityCollectionType;
+        entityCollectionType == other.entityCollectionType &&
+        unionInfo == other.unionInfo;
   }
 
   @override
@@ -208,6 +217,7 @@ class IntentParamInfo {
     enumType,
     fileType,
     entityCollectionType,
+    unionInfo,
   );
 
   @override
@@ -215,7 +225,7 @@ class IntentParamInfo {
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
       'description: $description, isOptional: $isOptional, entityType: $entityType, '
       'enumType: $enumType, fileType: $fileType, '
-      'entityCollectionType: $entityCollectionType)';
+      'entityCollectionType: $entityCollectionType, unionInfo: $unionInfo)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

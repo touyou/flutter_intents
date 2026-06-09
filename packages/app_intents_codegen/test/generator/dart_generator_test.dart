@@ -1,6 +1,7 @@
 import 'package:app_intents_codegen/src/generator/dart_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
+import 'package:app_intents_codegen/src/models/union_info.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -295,6 +296,51 @@ void main() {
         expect(result, contains("(map['photos'] as List).cast<String>()"));
         // fromQueryParameters: comma-joined.
         expect(result, contains("params['photos']!.split(',')"));
+      });
+
+      test('generates a union factory and union param extraction (#53)', () {
+        const union = UnionInfo(
+          className: 'GalleryContent',
+          identifier: 'com.example.GalleryContent',
+          cases: [
+            UnionCaseInfo(
+              dartClassName: 'PhotoContent',
+              entityType: 'PhotoEntity',
+            ),
+            UnionCaseInfo(
+              dartClassName: 'AlbumContent',
+              entityType: 'AlbumEntity',
+            ),
+          ],
+        );
+        final intents = [
+          const IntentInfo(
+            className: 'OpenGalleryIntent',
+            identifier: 'com.example.openGallery',
+            title: 'Open Gallery',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'content',
+                dartType: 'GalleryContent',
+                title: 'Content',
+                isOptional: false,
+                unionInfo: union,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, [], unions: [union]);
+
+        // The generated factory switches on _type into the case subclasses.
+        expect(result, contains('GalleryContent galleryContentFromMap('));
+        expect(result, contains("case 'PhotoContent':"));
+        expect(result, contains("return PhotoContent(map['id'] as String)"));
+        expect(result, contains("case 'AlbumContent':"));
+        // The intent Params field is the union type and uses the factory.
+        expect(result, contains('final GalleryContent content'));
+        expect(result, contains('galleryContentFromMap('));
       });
 
       test('generates handler using Params class with named parameters', () {
