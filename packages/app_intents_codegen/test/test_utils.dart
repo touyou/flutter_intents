@@ -43,6 +43,10 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? urlAction;
           final String? resultDialogTemplate;
           final String? parameterSummary;
+          final IntentMode? supportedModes;
+          final bool longRunning;
+          final bool cancellable;
+          final List<IntentExecutionTarget>? executionTargets;
 
           const IntentSpec({
             required this.identifier,
@@ -53,12 +57,27 @@ Future<LibraryElement> resolveSource(String source) async {
             this.urlAction,
             this.resultDialogTemplate,
             this.parameterSummary,
+            this.supportedModes,
+            this.longRunning = false,
+            this.cancellable = false,
+            this.executionTargets,
           });
         }
 
         enum IntentImplementation {
           dart,
           swift,
+        }
+
+        enum IntentMode {
+          background,
+          foreground,
+        }
+
+        enum IntentExecutionTarget {
+          main,
+          appIntentsExtension,
+          widgetKitExtension,
         }
       ''',
       'app_intents_annotations|lib/src/annotations/intent_param.dart': '''

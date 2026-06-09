@@ -8,6 +8,7 @@ export 'src/analyzer/entity_analyzer.dart';
 export 'src/analyzer/enum_analyzer.dart';
 export 'src/analyzer/intent_analyzer.dart';
 export 'src/analyzer/shortcut_analyzer.dart';
+export 'src/experimental/experimental_features.dart';
 export 'src/generator/dart_generator.dart';
 export 'src/generator/kotlin_generator.dart';
 export 'src/generator/swift_generator.dart';

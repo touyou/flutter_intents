@@ -1,3 +1,4 @@
+import '../experimental/experimental_features.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
@@ -29,6 +30,15 @@ class AppShortcutInfo {
 /// This generator produces Swift code that can be used in iOS 17+ applications
 /// to integrate with the App Intents framework.
 class SwiftGenerator {
+  /// Creates a Swift generator.
+  ///
+  /// [experimental] controls opt-in WWDC26 code generation. It defaults to
+  /// [ExperimentalFeatures.none], reproducing the stable output exactly.
+  const SwiftGenerator({this.experimental = ExperimentalFeatures.none});
+
+  /// Opt-in WWDC26 experimental code-generation configuration.
+  final ExperimentalFeatures experimental;
+
   /// Mapping of Dart types to Swift types.
   static const _typeMapping = <String, String>{
     'String': 'String',
@@ -324,33 +334,83 @@ class SwiftGenerator {
 
     final indent2 = '$_indent$_indent';
 
-    // Build params dictionary
+    _writeFlutterBridgeInvoke(buffer, info, indent2);
+
+    // Clean up temp files after FlutterBridge invoke completes
+    _writeFileParamCleanup(buffer, info, indent2);
+
+    _writeReturnResult(buffer, info, indent2);
+    buffer.writeln('$_indent}');
+  }
+
+  /// Writes a `FlutterBridge.shared.invoke(...)` call at [baseIndent].
+  ///
+  /// Shared by the stable FlutterBridge perform() and the experimental
+  /// long-running/cancellable perform(), where it sits inside a wrapping
+  /// closure at a deeper indent.
+  void _writeFlutterBridgeInvoke(
+    StringBuffer buffer,
+    IntentInfo info,
+    String baseIndent,
+  ) {
+    buffer.writeln('${baseIndent}let _ = try await FlutterBridge.shared.invoke(');
+    buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
     if (info.parameters.isEmpty) {
-      buffer.writeln(
-        '${indent2}let _ = try await FlutterBridge.shared.invoke(',
-      );
-      buffer.writeln('$indent2${_indent}intent: "${info.className}",');
-      buffer.writeln('$indent2${_indent}params: [:]');
-      buffer.writeln('$indent2)');
+      buffer.writeln('$baseIndent${_indent}params: [:]');
     } else {
-      buffer.writeln(
-        '${indent2}let _ = try await FlutterBridge.shared.invoke(',
-      );
-      buffer.writeln('$indent2${_indent}intent: "${info.className}",');
-      buffer.writeln('$indent2${_indent}params: [');
+      buffer.writeln('$baseIndent${_indent}params: [');
       for (var i = 0; i < info.parameters.length; i++) {
         final param = info.parameters[i];
         final comma = i < info.parameters.length - 1 ? ',' : '';
         final valueExpr = _paramValueExpression(param);
         buffer.writeln(
-          '$_indent$_indent$_indent$_indent"${param.fieldName}": $valueExpr$comma',
+          '$baseIndent$_indent$_indent"${param.fieldName}": $valueExpr$comma',
         );
       }
-      buffer.writeln('$indent2$_indent]');
-      buffer.writeln('$indent2)');
+      buffer.writeln('$baseIndent$_indent]');
+    }
+    buffer.writeln('$baseIndent)');
+  }
+
+  /// Writes the experimental perform() that wraps the background invoke in
+  /// `performBackgroundTask` and/or `withIntentCancellationHandler`.
+  ///
+  /// An intent that only restricts `executionTargets` (without long-running or
+  /// cancellable) keeps the standard background perform().
+  void _writeExperimentalPerformMethod(StringBuffer buffer, IntentInfo info) {
+    if (!info.longRunning && !info.cancellable) {
+      _writeFlutterBridgePerformMethod(buffer, info);
+      return;
     }
 
-    // Clean up temp files after FlutterBridge invoke completes
+    _writePerformSignature(buffer, info);
+    _writeFileParamSerializations(buffer, info);
+
+    final indent2 = '$_indent$_indent';
+    final indent3 = '$_indent$_indent$_indent';
+
+    // Long-running work uses performBackgroundTask; cancellable-only work uses
+    // the cancellation handler. Both take the operation as a trailing closure.
+    // When the intent is both long-running and cancellable, the combined
+    // performBackgroundTask(operation:onCancel:) overload (which requires
+    // CancellableIntent conformance) is used.
+    final wrapper = info.longRunning
+        ? 'performBackgroundTask'
+        : 'withIntentCancellationHandler';
+    buffer.writeln('${indent2}try await $wrapper {');
+    _writeFlutterBridgeInvoke(buffer, info, indent3);
+    if (info.cancellable) {
+      buffer.writeln('$indent2} onCancel: { reason in');
+      buffer.writeln(
+        '$indent3// The system cancelled this intent; `reason` explains why.',
+      );
+      buffer.writeln('$indent3// Perform best-effort cleanup here.');
+      buffer.writeln('$indent2}');
+    } else {
+      buffer.writeln('$indent2}');
+    }
+
+    // Clean up temp files after the background work completes.
     _writeFileParamCleanup(buffer, info, indent2);
 
     _writeReturnResult(buffer, info, indent2);
@@ -975,29 +1035,44 @@ class SwiftGenerator {
   }
 
   /// Generates intent body without import statement.
+  ///
+  /// When experimental execution control is enabled for this intent, emits two
+  /// variants guarded by a compilation condition: the WWDC26 form inside
+  /// `#if APP_INTENTS_WWDC26` and the stable form inside `#else`, so projects
+  /// that build against a released SDK (without the `APP_INTENTS_WWDC26` flag)
+  /// still compile.
   void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
-    // Availability and struct declaration
+    if (_usesExperimentalExecution(info)) {
+      buffer.writeln('#if APP_INTENTS_WWDC26');
+      _generateExperimentalIntentBody(buffer, info);
+      buffer.writeln();
+      buffer.writeln('#else');
+      _generateStableIntentBody(buffer, info);
+      buffer.writeln();
+      buffer.write('#endif');
+    } else {
+      _generateStableIntentBody(buffer, info);
+    }
+  }
+
+  /// Whether [info] should emit the experimental WWDC26 execution-control form.
+  ///
+  /// Requires both the opt-in `long-running` feature to be enabled and the
+  /// intent to actually declare one of the experimental execution attributes.
+  bool _usesExperimentalExecution(IntentInfo info) {
+    if (!experimental.isEnabled(ExperimentalFeature.longRunning)) return false;
+    return info.longRunning ||
+        info.cancellable ||
+        (info.executionTargets != null && info.executionTargets!.isNotEmpty);
+  }
+
+  /// Generates the stable (released-SDK) intent struct.
+  void _generateStableIntentBody(StringBuffer buffer, IntentInfo info) {
     buffer.writeln('@available(iOS 17.0, *)');
     buffer.writeln('struct ${info.className}: AppIntent {');
 
-    // Title
-    buffer.writeln(
-      '$_indent'
-      'static var title: LocalizedStringResource = "${info.title}"',
-    );
-
-    // Description (if present)
-    if (info.description != null) {
-      buffer.writeln(
-        '$_indent'
-        'static var description: IntentDescription =',
-      );
-      final escapedDesc = info.description!.replaceAll('\n', '\\n');
-      buffer.writeln(
-        '$_indent$_indent'
-        'IntentDescription("$escapedDesc")',
-      );
-    }
+    _writeIntentTitle(buffer, info);
+    _writeIntentDescription(buffer, info);
 
     // supportedModes / openAppWhenRun
     if (_needsForeground(info)) {
@@ -1010,30 +1085,114 @@ class SwiftGenerator {
       buffer.writeln('${_indent}static var openAppWhenRun: Bool { true }');
     }
 
-    // Parameter summary
-    if (info.parameterSummary != null) {
-      buffer.writeln();
-      final summaryStr = _interpolateParameterSummary(info.parameterSummary!);
-      buffer.writeln(
-        '${_indent}static var parameterSummary: some ParameterSummary {',
-      );
-      buffer.writeln('$_indent${_indent}Summary("$summaryStr")');
-      buffer.writeln('$_indent}');
-    }
+    _writeParameterSummary(buffer, info);
+    _writeIntentParameters(buffer, info);
 
-    // Parameters
-    if (info.parameters.isNotEmpty) {
-      buffer.writeln();
-      for (final param in info.parameters) {
-        _writeParameter(buffer, param);
-      }
-    }
-
-    // Perform method
     buffer.writeln();
     _writePerformMethod(buffer, info);
 
     buffer.write('}');
+  }
+
+  /// Generates the experimental WWDC26 intent struct.
+  ///
+  /// Conforms to `LongRunningIntent` and/or `CancellableIntent` as declared,
+  /// emits `allowedExecutionTargets`, and wraps the background work in
+  /// `performBackgroundTask` / `withIntentCancellationHandler`. The whole struct
+  /// is gated at the minimum OS version the chosen APIs require (so we avoid the
+  /// problem of conditionally conforming to a newer-OS protocol).
+  void _generateExperimentalIntentBody(StringBuffer buffer, IntentInfo info) {
+    final hasExecutionTargets =
+        info.executionTargets != null && info.executionTargets!.isNotEmpty;
+
+    final conformances = <String>['AppIntent'];
+    if (info.longRunning) conformances.add('LongRunningIntent');
+    if (info.cancellable) conformances.add('CancellableIntent');
+
+    // LongRunningIntent and IntentExecutionTargets are iOS 27+; CancellableIntent
+    // on its own is iOS 26.4+.
+    final minVersion = (info.longRunning || hasExecutionTargets)
+        ? '27.0'
+        : '26.4';
+
+    buffer.writeln('@available(iOS $minVersion, *)');
+    buffer.writeln('struct ${info.className}: ${conformances.join(', ')} {');
+
+    _writeIntentTitle(buffer, info);
+    _writeIntentDescription(buffer, info);
+
+    if (hasExecutionTargets) {
+      final members = info.executionTargets!
+          .map(_executionTargetToSwift)
+          .join(', ');
+      buffer.writeln();
+      buffer.writeln(
+        '${_indent}static var allowedExecutionTargets: IntentExecutionTargets { [$members] }',
+      );
+    }
+
+    _writeParameterSummary(buffer, info);
+    _writeIntentParameters(buffer, info);
+
+    buffer.writeln();
+    _writeExperimentalPerformMethod(buffer, info);
+
+    buffer.write('}');
+  }
+
+  /// Writes the static `title` declaration.
+  void _writeIntentTitle(StringBuffer buffer, IntentInfo info) {
+    buffer.writeln(
+      '$_indent'
+      'static var title: LocalizedStringResource = "${info.title}"',
+    );
+  }
+
+  /// Writes the static `description` declaration when present.
+  void _writeIntentDescription(StringBuffer buffer, IntentInfo info) {
+    if (info.description == null) return;
+    buffer.writeln(
+      '$_indent'
+      'static var description: IntentDescription =',
+    );
+    final escapedDesc = info.description!.replaceAll('\n', '\\n');
+    buffer.writeln(
+      '$_indent$_indent'
+      'IntentDescription("$escapedDesc")',
+    );
+  }
+
+  /// Writes the `parameterSummary` declaration when present.
+  void _writeParameterSummary(StringBuffer buffer, IntentInfo info) {
+    if (info.parameterSummary == null) return;
+    buffer.writeln();
+    final summaryStr = _interpolateParameterSummary(info.parameterSummary!);
+    buffer.writeln(
+      '${_indent}static var parameterSummary: some ParameterSummary {',
+    );
+    buffer.writeln('$_indent${_indent}Summary("$summaryStr")');
+    buffer.writeln('$_indent}');
+  }
+
+  /// Writes the `@Parameter` declarations when present.
+  void _writeIntentParameters(StringBuffer buffer, IntentInfo info) {
+    if (info.parameters.isEmpty) return;
+    buffer.writeln();
+    for (final param in info.parameters) {
+      _writeParameter(buffer, param);
+    }
+  }
+
+  /// Maps an execution target to its Swift `IntentExecutionTargets` member.
+  String _executionTargetToSwift(IntentExecutionTargetType target) {
+    switch (target) {
+      case IntentExecutionTargetType.main:
+        return '.main';
+      case IntentExecutionTargetType.appIntentsExtension:
+        return '.appIntentsExtension';
+      case IntentExecutionTargetType.widgetKitExtension:
+        return '.widgetKitExtension';
+    }
   }
 
   /// Generates shortcuts provider body without import statement.

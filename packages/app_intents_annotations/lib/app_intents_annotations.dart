@@ -5,6 +5,7 @@ export 'src/annotations/app_shortcut.dart';
 export 'src/annotations/entity_params.dart';
 export 'src/annotations/entity_spec.dart';
 export 'src/annotations/enum_spec.dart';
+export 'src/annotations/intent_execution_target.dart';
 export 'src/annotations/intent_mode.dart';
 export 'src/annotations/intent_param.dart';
 export 'src/annotations/intent_spec.dart';

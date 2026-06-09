@@ -50,6 +50,13 @@ class IntentAnalyzer {
     final supportedModes = _parseSupportedModes(
       annotation.getField('supportedModes'),
     );
+    final longRunning =
+        annotation.getField('longRunning')?.toBoolValue() ?? false;
+    final cancellable =
+        annotation.getField('cancellable')?.toBoolValue() ?? false;
+    final executionTargets = _parseExecutionTargets(
+      annotation.getField('executionTargets'),
+    );
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -60,6 +67,18 @@ class IntentAnalyzer {
     if (title == null) {
       throw InvalidGenerationSourceError(
         '@IntentSpec requires a "title" field.',
+        element: element,
+      );
+    }
+
+    // Long-running / cancellable intents are inherently background work; they
+    // cannot also open the app via URL scheme or foreground mode.
+    if ((longRunning || cancellable) &&
+        (urlScheme != null || supportedModes == IntentModeType.foreground)) {
+      throw InvalidGenerationSourceError(
+        '@IntentSpec "longRunning"/"cancellable" require background execution '
+        'and cannot be combined with "urlScheme" or '
+        'supportedModes: IntentMode.foreground.',
         element: element,
       );
     }
@@ -78,7 +97,37 @@ class IntentAnalyzer {
       resultDialogTemplate: resultDialogTemplate,
       parameterSummary: parameterSummary,
       supportedModes: supportedModes,
+      longRunning: longRunning,
+      cancellable: cancellable,
+      executionTargets: executionTargets,
     );
+  }
+
+  /// Parses the `executionTargets` list of `IntentExecutionTarget` enum values.
+  ///
+  /// Returns `null` when the field is absent/null, preserving the "not
+  /// specified" distinction from an explicitly empty list.
+  List<IntentExecutionTargetType>? _parseExecutionTargets(DartObject? field) {
+    if (field == null || field.isNull) {
+      return null;
+    }
+    final values = field.toListValue();
+    if (values == null) {
+      return null;
+    }
+    final result = <IntentExecutionTargetType>[];
+    for (final element in values) {
+      final index = element.getField('index')?.toIntValue();
+      switch (index) {
+        case 0:
+          result.add(IntentExecutionTargetType.main);
+        case 1:
+          result.add(IntentExecutionTargetType.appIntentsExtension);
+        case 2:
+          result.add(IntentExecutionTargetType.widgetKitExtension);
+      }
+    }
+    return result;
   }
 
   IntentModeType? _parseSupportedModes(DartObject? field) {
