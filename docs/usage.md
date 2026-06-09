@@ -7,11 +7,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  app_intents: ^0.10.1
-  app_intents_annotations: ^0.10.1
+  app_intents: ^0.11.0
+  app_intents_annotations: ^0.11.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.10.1
+  app_intents_codegen: ^0.11.0
   build_runner: ^2.4.0
 ```
 
@@ -46,9 +46,9 @@ Add KSP and AppFunctions dependencies:
 
 ```kotlin
 // android/settings.gradle.kts
-id("com.android.application") version "9.1.1" apply false
+id("com.android.application") version "9.2.1" apply false
 id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+id("com.google.devtools.ksp") version "2.3.9" apply false
 
 // android/app/build.gradle.kts
 plugins {
@@ -80,7 +80,7 @@ android.builtInKotlin=false
 Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.properties`:
 
 ```properties
-distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
 > **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha09` AAR metadata.
@@ -542,9 +542,9 @@ The `{paramName}` placeholders become `\(\.$paramName)` in the generated Swift `
 Define enum parameters for selection-based inputs:
 
 ```dart
-@EnumSpec(title: 'Priority')
+@EnumSpec(identifier: 'com.example.taskapp.TaskPriority', title: 'Priority')
 enum TaskPriority {
-  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  @EnumCaseDisplay(title: 'High')
   high,
   @EnumCaseDisplay(title: 'Medium')
   medium,
@@ -556,7 +556,7 @@ enum TaskPriority {
 Use with `@IntentParam`:
 
 ```dart
-@IntentParam(title: 'Priority', enumType: TaskPriority)
+@IntentParam(title: 'Priority', enumType: 'TaskPriority')
 final TaskPriority priority;
 ```
 
@@ -785,7 +785,7 @@ import 'intents/create_task_intent.dart';
 import 'intents/create_task_with_image_intent.dart';
 import 'entities/task_entity.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Configure App Group storage (iOS, required for cache mode).
@@ -821,7 +821,7 @@ void main() async {
 When using `processPendingActions()`, the initialization order in `main()` is critical. Intent handlers must be registered **before** calling `processPendingActions()`, otherwise the pending action will be dispatched but no handler will receive it.
 
 ```dart
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 0. Configure App Group storage (must come first)
@@ -879,7 +879,7 @@ can also toggle it from build settings. Existing stable output is unchanged.
 # Master switch + select features (comma-separated). Master OFF → nothing emitted.
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-query,value-representation,donation,long-running,app-schema,rich-types
+  --experimental=value-query,value-representation,donation,long-running,app-schema,ownership,rich-types
 ```
 
 To actually compile the emitted WWDC26 form, add `APP_INTENTS_WWDC26` to your
@@ -890,6 +890,7 @@ enables experimental codegen but hasn't set the flag still builds.
 | Flag | Feature |
 |------|---------|
 | `app-schema` | `@AppEntity/@AppIntent/@AppEnum(schema:)` domain conformance (#49) |
+| `ownership` | `OwnershipProvidingEntity` conformance via `@EntitySpec(ownership:)` (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / execution targets (#52) |
 | `rich-types` | Native `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` params (#53) |
 | `value-query` | `IntentValueQuery` structured search (#51) |

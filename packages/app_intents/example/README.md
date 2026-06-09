@@ -1,16 +1,20 @@
 # app_intents_example
 
-Demonstrates how to use the app_intents plugin.
+A minimal Flutter app that loads the [`app_intents`](https://pub.dev/packages/app_intents)
+plugin and displays the host platform version. It exists to satisfy the plugin's example
+requirement and to provide a smoke test that the plugin links and runs on a device.
 
-## Getting Started
+```bash
+flutter run
+```
 
-This project is a starting point for a Flutter application.
+## Looking for a real-world example?
 
-A few resources to get you started if this is your first Flutter project:
+This minimal app does **not** demonstrate intent/entity definitions or code generation.
+For a full, working showcase — intents with Siri dialog & Shortcuts UI, entity pickers,
+`IntentFile` parameters, App Shortcuts, and the iOS/Android codegen wiring — see the
+task-management demo and the guides:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Demo app: <https://github.com/touyou/flutter_intents/tree/main/app>
+- Usage guide: <https://github.com/touyou/flutter_intents/blob/main/docs/usage.md>
+- Architecture: <https://github.com/touyou/flutter_intents/blob/main/docs/architecture.md>

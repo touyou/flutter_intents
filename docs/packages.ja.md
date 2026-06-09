@@ -6,7 +6,7 @@ Intent/Entityを定義するためのアノテーションとベースクラス�
 
 ### 依存関係
 
-- Dart SDK: ^3.10.1
+- Dart SDK: ^3.10.0
 - 外部依存なし（フレームワーク非依存）
 
 ### Intent関連
@@ -174,9 +174,9 @@ class TaskEntitySpec extends EntitySpecBase<Task> {}
 AppEnumを定義するためのアノテーション。
 
 ```dart
-@EnumSpec(title: 'Priority')
+@EnumSpec(identifier: 'com.example.taskapp.TaskPriority', title: 'Priority')
 enum TaskPriority {
-  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  @EnumCaseDisplay(title: 'High')
   high,
   @EnumCaseDisplay(title: 'Medium')
   medium,
@@ -187,6 +187,7 @@ enum TaskPriority {
 
 | プロパティ | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
+| identifier | String | Yes | 列挙型の一意な識別子 |
 | title | String | Yes | 列挙型の表示名 |
 
 #### EnumCaseDisplay
@@ -196,7 +197,7 @@ enum TaskPriority {
 | プロパティ | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
 | title | String | Yes | ケース表示名 |
-| subtitle | String | No | ケースサブタイトル |
+| imageName | String | No | `.init(named:isTemplate:)` 画像用のアセット/SF Symbol 名 |
 
 ### ファイル構成
 
@@ -335,6 +336,12 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
   // - "setCachedValue"        → UserDefaultsキャッシュへ書き込み
   // - "clearCachedValue"      → キャッシュ値をクリア
   // - "processPendingActions" → キューイングされたアクションを処理
+  // - "configureStorage"      → プロセス間ストレージ用の App Group 識別子を設定
+
+  // ストレージ設定（cache モードで必須）:
+  // AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+  // .standard の代わりに App Group UserDefaults を使い、メインアプリと
+  // App Intent 拡張プロセス間でデータを共有する。
 }
 ```
 
@@ -345,7 +352,10 @@ app_intents/
 ├── lib/
 │   ├── app_intents.dart                    # Public API
 │   ├── app_intents_platform_interface.dart # Platform Interface
-│   └── app_intents_method_channel.dart     # Method Channel実装
+│   ├── app_intents_method_channel.dart     # Method Channel実装
+│   └── src/models/
+│       ├── app_intent_error.dart           # エラーモデル
+│       └── intent_execution_request.dart   # Intentリクエストモデル
 ├── ios/
 │   ├── app_intents/
 │   │   ├── Package.swift                    # Swift Package Managerマニフェスト
@@ -381,11 +391,17 @@ Dartアノテーションからコードを生成するツール。
 
 ### 依存関係
 
-- Dart SDK: ^3.10.1
-- analyzer: ^7.4.5
-- build: ^2.4.2
-- source_gen: ^2.0.0
+- Dart SDK: ^3.10.0
+- analyzer: ">=7.0.0 <14.0.0"
+- args: ^2.5.0
+- build: ">=2.4.0 <5.0.0"
+- source_gen: ">=2.0.0 <5.0.0"
+- code_builder: ^4.10.0
+- dart_style: ^3.0.0
+- glob: ^2.1.0
 - path: ^1.9.0
+- yaml: ^3.1.0
+- app_intents_annotations: ^0.11.0
 
 ### 実装済み機能
 
@@ -418,7 +434,7 @@ Dartアノテーションからコードを生成するツール。
 
 6. **WWDC26 実験的生成（opt-in・デフォルト OFF）** ✅
    - マスタースイッチ `--experimental-wwdc26` + 機能別 `--experimental=<flag>`
-     (`app-schema`, `long-running`, `rich-types`, `value-query`,
+     (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`,
      `value-representation`, `donation`)。出力は `#if APP_INTENTS_WWDC26` で囲む。
    - App Schema (#49)、実行制御 (#52)、リッチなパラメータ型 (#53)、
      `IntentValueQuery` (#51)、アプリ間 export (#54)、`SyncableEntity` /
@@ -432,7 +448,7 @@ Dartアノテーションからコードを生成するツール。
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.10.1
+  app_intents_codegen: ^0.11.0
 ```
 
 ```bash

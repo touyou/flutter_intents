@@ -1,3 +1,15 @@
+## 0.11.0
+
+- WWDC26 experimental code generation (opt-in, default OFF). Master switch `--experimental-wwdc26` + per-feature `--experimental=<flag>` (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`, `value-representation`, `donation`). Experimental Swift is emitted inside `#if APP_INTENTS_WWDC26` with a mandatory stable `#else` fallback, so released-SDK builds (without the flag) still compile.
+  - Intent execution control (#52): `LongRunningIntent` / `CancellableIntent` / execution targets.
+  - App Schema (#49) + semantic indexing (#50): `@AppEntity/@AppIntent/@AppEnum(schema:)` and `@Property(indexingKey:)` (indexing ships as a normal iOS 18.4 feature).
+  - Entity ownership (#55): additive `OwnershipProvidingEntity` conformance.
+  - Rich parameter types (#53): native `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` parameters with compile-everywhere fallbacks, plus a generated union `fromMap` factory.
+  - IntentValueQuery (#51), cross-app export (#54, `IntentPerson`), and `SyncableEntity` / `RelevantEntities` donation (#55).
+  - Dual-branch output verified via `swiftc -typecheck` (with and without `APP_INTENTS_WWDC26`) against the Xcode 27 beta SDK; see `scripts/verify_experimental_swift.sh`.
+- AppIntentsTesting scaffold for the example app (#57, compile-checked, inert on stable Xcode).
+- Docs: correct the `@EnumSpec` / `@EnumCaseDisplay` examples, the Dart SDK constraint (`^3.10.0`) and dependency ranges, the Android toolchain versions, and add the `ownership` experimental flag to the feature tables.
+
 ## 0.10.1
 
 - No codegen changes; version bump aligns with `app_intents` 0.10.1 (Android `compilerOptions` DSL fix for Kotlin 2.3+ / AGP 9.1.0+, #20)

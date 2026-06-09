@@ -237,7 +237,7 @@ Options:
 - `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
-- KSP version format: `{kotlin-version}-{ksp-version}` (e.g., `2.2.20-2.0.4`)
+- KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
 
 ### Entity Identifier Consistency
@@ -528,9 +528,9 @@ if #available(iOS 17.0, *) {
 1. Use AGP 9.1.0+ / Gradle 9.3.1+ (required by `appfunctions:1.0.0-alpha09`)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
-   id("com.android.application") version "9.1.1" apply false
+   id("com.android.application") version "9.2.1" apply false
    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-   id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+   id("com.google.devtools.ksp") version "2.3.9" apply false
    ```
 3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
    ```properties
