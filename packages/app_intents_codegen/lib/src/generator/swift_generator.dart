@@ -102,7 +102,17 @@ class SwiftGenerator {
   }
 
   /// Writes a parameter declaration to the buffer.
-  void _writeParameter(StringBuffer buffer, IntentParamInfo param) {
+  ///
+  /// When [nativeDuration] is true (the experimental WWDC26 `#if` branch with
+  /// the `rich-types` feature enabled), a Dart `Duration` parameter is emitted
+  /// as the native iOS 27 `Duration` type. Otherwise it falls back to
+  /// `Measurement<UnitDuration>`, which the stable SDK supports — so the default
+  /// and `#else` output always compiles.
+  void _writeParameter(
+    StringBuffer buffer,
+    IntentParamInfo param, {
+    bool nativeDuration = false,
+  }) {
     // File type parameters use IntentFile
     if (param.fileType != null) {
       final isNullable = param.isOptional || param.dartType.endsWith('?');
@@ -121,7 +131,7 @@ class SwiftGenerator {
     final swiftType =
         param.entityType ??
         param.enumType ??
-        dartTypeToSwiftType(param.dartType);
+        _swiftParameterType(param, nativeDuration: nativeDuration);
 
     // Build @Parameter annotation
     final paramParts = <String>['title: "${param.title}"'];
@@ -131,6 +141,27 @@ class SwiftGenerator {
     buffer.writeln('$_indent@Parameter(${paramParts.join(', ')})');
     buffer.writeln('${_indent}var ${param.fieldName}: $swiftType');
   }
+
+  /// The Swift `@Parameter` type for [param], accounting for the Duration
+  /// fallback. See [_writeParameter] for the [nativeDuration] semantics.
+  String _swiftParameterType(
+    IntentParamInfo param, {
+    required bool nativeDuration,
+  }) {
+    if (_isDurationParam(param)) {
+      final base = nativeDuration ? 'Duration' : 'Measurement<UnitDuration>';
+      return param.dartType.endsWith('?') ? '$base?' : base;
+    }
+    return dartTypeToSwiftType(param.dartType);
+  }
+
+  /// Whether [param] is a Dart `Duration` (nullable or not).
+  bool _isDurationParam(IntentParamInfo param) =>
+      param.dartType == 'Duration' || param.dartType == 'Duration?';
+
+  /// Whether [info] has any Duration parameter.
+  bool _hasDurationParams(IntentInfo info) =>
+      info.parameters.any(_isDurationParam);
 
   /// Returns the Swift expression to convert a parameter value for MethodChannel.
   ///
@@ -142,6 +173,12 @@ class SwiftGenerator {
     // File types: use pre-serialized variable
     if (param.fileType != null) {
       return '${param.fieldName}FileInfo';
+    }
+
+    // Duration types: use pre-serialized microseconds local (see
+    // [_writeDurationSerializations]), so both Swift type branches agree.
+    if (_isDurationParam(param)) {
+      return '${param.fieldName}Micros';
     }
 
     // Entity types: use .id
@@ -281,13 +318,17 @@ class SwiftGenerator {
   /// 1. URL scheme: urlScheme is set → opens URL
   /// 2. Cache: supportedModes is foreground without urlScheme → caches to UserDefaults
   /// 3. FlutterBridge: default → direct MethodChannel via FlutterBridge actor
-  void _writePerformMethod(StringBuffer buffer, IntentInfo info) {
+  void _writePerformMethod(
+    StringBuffer buffer,
+    IntentInfo info, {
+    bool nativeDuration = false,
+  }) {
     if (info.urlScheme != null) {
-      _writeUrlSchemePerformMethod(buffer, info);
+      _writeUrlSchemePerformMethod(buffer, info, nativeDuration);
     } else if (info.supportedModes == IntentModeType.foreground) {
-      _writeCachePerformMethod(buffer, info);
+      _writeCachePerformMethod(buffer, info, nativeDuration);
     } else {
-      _writeFlutterBridgePerformMethod(buffer, info);
+      _writeFlutterBridgePerformMethod(buffer, info, nativeDuration);
     }
   }
 
@@ -316,6 +357,47 @@ class SwiftGenerator {
     }
   }
 
+  /// Writes `<field>Micros` locals converting Duration parameters to an `Int`
+  /// number of microseconds.
+  ///
+  /// The native `Duration` (`#if` branch) and the `Measurement<UnitDuration>`
+  /// fallback have different APIs, but both reduce to the same microseconds
+  /// integer here — so the params dictionary and URL query items are identical
+  /// across branches and the Dart handler stays branch-agnostic
+  /// (`Duration(microseconds:)`).
+  void _writeDurationSerializations(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeDuration,
+  ) {
+    final indent2 = '$_indent$_indent';
+    for (final param in info.parameters) {
+      if (!_isDurationParam(param)) continue;
+      final name = param.fieldName;
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+      if (isNullable) {
+        final conv = _durationToMicrosExpression(r'$0', nativeDuration);
+        buffer.writeln(
+          '${indent2}let ${name}Micros: Int? = $name.map { $conv }',
+        );
+      } else {
+        final conv = _durationToMicrosExpression(name, nativeDuration);
+        buffer.writeln('${indent2}let ${name}Micros: Int = $conv');
+      }
+    }
+  }
+
+  /// The Swift expression converting [ref] (a `Duration` when [nativeDuration],
+  /// otherwise a `Measurement<UnitDuration>`) to an `Int` of microseconds.
+  String _durationToMicrosExpression(String ref, bool nativeDuration) {
+    if (nativeDuration) {
+      // 1 microsecond == 1_000_000_000_000 attoseconds.
+      return 'Int($ref.components.seconds) * 1_000_000 + '
+          'Int($ref.components.attoseconds / 1_000_000_000_000)';
+    }
+    return 'Int($ref.converted(to: .seconds).value * 1_000_000)';
+  }
+
   /// Writes the return statement (with optional dialog).
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
     if (info.resultDialogTemplate != null) {
@@ -330,9 +412,14 @@ class SwiftGenerator {
   }
 
   /// Writes the perform method using FlutterBridge (MethodChannel).
-  void _writeFlutterBridgePerformMethod(StringBuffer buffer, IntentInfo info) {
+  void _writeFlutterBridgePerformMethod(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeDuration,
+  ) {
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
+    _writeDurationSerializations(buffer, info, nativeDuration);
 
     final indent2 = '$_indent$_indent';
 
@@ -382,14 +469,19 @@ class SwiftGenerator {
   /// An intent that only restricts `executionTargets` or conforms to a schema
   /// (without long-running or cancellable) keeps its standard perform() for the
   /// configured execution mode.
-  void _writeExperimentalPerformMethod(StringBuffer buffer, IntentInfo info) {
+  void _writeExperimentalPerformMethod(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeDuration,
+  ) {
     if (!info.longRunning && !info.cancellable) {
-      _writePerformMethod(buffer, info);
+      _writePerformMethod(buffer, info, nativeDuration: nativeDuration);
       return;
     }
 
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
+    _writeDurationSerializations(buffer, info, nativeDuration);
 
     final indent2 = '$_indent$_indent';
     final indent3 = '$_indent$_indent$_indent';
@@ -428,9 +520,14 @@ class SwiftGenerator {
   /// Caches intent parameters to UserDefaults via `setPendingAction()`,
   /// then returns `.result()`. The app opens in foreground, Flutter starts,
   /// and `processPendingActions()` delivers the cached action.
-  void _writeCachePerformMethod(StringBuffer buffer, IntentInfo info) {
+  void _writeCachePerformMethod(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeDuration,
+  ) {
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
+    _writeDurationSerializations(buffer, info, nativeDuration);
 
     final indent2 = '$_indent$_indent';
 
@@ -470,7 +567,11 @@ class SwiftGenerator {
   }
 
   /// Writes the perform method using URL scheme execution.
-  void _writeUrlSchemePerformMethod(StringBuffer buffer, IntentInfo info) {
+  void _writeUrlSchemePerformMethod(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeDuration,
+  ) {
     final scheme = info.urlScheme!;
     final action = info.urlAction ?? _defaultAction(info.identifier);
     final indent2 = '$_indent$_indent';
@@ -490,6 +591,7 @@ class SwiftGenerator {
       buffer.writeln('${indent2}components.scheme = "$scheme"');
       buffer.writeln('${indent2}components.host = "$action"');
       buffer.writeln();
+      _writeDurationSerializations(buffer, info, nativeDuration);
       buffer.writeln('${indent2}var queryItems = [URLQueryItem]()');
 
       for (final param in info.parameters) {
@@ -535,6 +637,23 @@ class SwiftGenerator {
       buffer.writeln(
         '$_indent${_indent}queryItems.append(URLQueryItem(name: "${param.fieldName}", value: ${param.fieldName}.rawValue))',
       );
+      return;
+    }
+
+    // Duration types: use the pre-serialized microseconds local.
+    if (_isDurationParam(param)) {
+      final name = param.fieldName;
+      if (isNullable) {
+        buffer.writeln('$_indent${_indent}if let ${name}Micros {');
+        buffer.writeln(
+          '$_indent$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: String(${name}Micros)))',
+        );
+        buffer.writeln('$_indent$_indent}');
+      } else {
+        buffer.writeln(
+          '$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: String(${name}Micros)))',
+        );
+      }
       return;
     }
 
@@ -1294,7 +1413,17 @@ class SwiftGenerator {
   /// Whether [info] uses any experimental WWDC26 feature (execution control or
   /// App Schema), which triggers dual-branch emission.
   bool _usesExperimentalIntent(IntentInfo info) =>
-      _usesExperimentalExecution(info) || _usesExperimentalSchema(info);
+      _usesExperimentalExecution(info) ||
+      _usesExperimentalSchema(info) ||
+      _usesExperimentalRichTypes(info);
+
+  /// Whether [info] should emit the native `Duration` parameter form
+  /// (`rich-types` feature enabled and at least one Duration parameter). This
+  /// triggers dual-branch emission so the stable `#else` keeps the
+  /// `Measurement<UnitDuration>` fallback.
+  bool _usesExperimentalRichTypes(IntentInfo info) =>
+      experimental.isEnabled(ExperimentalFeature.richTypes) &&
+      _hasDurationParams(info);
 
   /// Whether [info] should emit the experimental WWDC26 execution-control form.
   ///
@@ -1340,6 +1469,10 @@ class SwiftGenerator {
 
     buffer.write('}');
   }
+  // NOTE: the stable body never emits native Duration; a Duration parameter
+  // here is always the `Measurement<UnitDuration>` fallback (nativeDuration
+  // defaults to false), so the default and `#else` output compiles on the
+  // released SDK.
 
   /// Generates the experimental WWDC26 intent struct.
   ///
@@ -1352,14 +1485,20 @@ class SwiftGenerator {
     final hasExecutionTargets =
         info.executionTargets != null && info.executionTargets!.isNotEmpty;
     final hasSchema = _usesExperimentalSchema(info);
+    final nativeDuration = _usesExperimentalRichTypes(info);
 
     final conformances = <String>['AppIntent'];
     if (info.longRunning) conformances.add('LongRunningIntent');
     if (info.cancellable) conformances.add('CancellableIntent');
 
-    // LongRunningIntent, IntentExecutionTargets and App Schema are iOS 27+;
-    // CancellableIntent on its own is iOS 26.4+.
-    final minVersion = (info.longRunning || hasExecutionTargets || hasSchema)
+    // LongRunningIntent, IntentExecutionTargets, App Schema and native
+    // `Duration` parameters are iOS 27+; CancellableIntent on its own is
+    // iOS 26.4+.
+    final minVersion =
+        (info.longRunning ||
+            hasExecutionTargets ||
+            hasSchema ||
+            nativeDuration)
         ? '27.0'
         : '26.4';
 
@@ -1386,10 +1525,10 @@ class SwiftGenerator {
     }
 
     _writeParameterSummary(buffer, info);
-    _writeIntentParameters(buffer, info);
+    _writeIntentParameters(buffer, info, nativeDuration: nativeDuration);
 
     buffer.writeln();
-    _writeExperimentalPerformMethod(buffer, info);
+    _writeExperimentalPerformMethod(buffer, info, nativeDuration);
 
     buffer.write('}');
   }
@@ -1429,11 +1568,15 @@ class SwiftGenerator {
   }
 
   /// Writes the `@Parameter` declarations when present.
-  void _writeIntentParameters(StringBuffer buffer, IntentInfo info) {
+  void _writeIntentParameters(
+    StringBuffer buffer,
+    IntentInfo info, {
+    bool nativeDuration = false,
+  }) {
     if (info.parameters.isEmpty) return;
     buffer.writeln();
     for (final param in info.parameters) {
-      _writeParameter(buffer, param);
+      _writeParameter(buffer, param, nativeDuration: nativeDuration);
     }
   }
 

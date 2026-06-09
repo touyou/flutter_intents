@@ -19,7 +19,12 @@ enum ExperimentalFeature {
   appSchema('app-schema'),
 
   /// Entity ownership (#55): `OwnershipProvidingEntity` conformance.
-  ownership('ownership');
+  ownership('ownership'),
+
+  /// Richer parameter types (#53): native `Duration` parameters. Without this
+  /// feature a `Duration` parameter falls back to `Measurement<UnitDuration>`,
+  /// which the stable SDK supports.
+  richTypes('rich-types');
 
   const ExperimentalFeature(this.flag);
 

@@ -129,6 +129,36 @@ void main() {
         expect(messageParam.description, equals('The message to display'));
       });
 
+      test('captures Duration parameter types (#53)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.startTimer',
+            title: 'Start Timer',
+          )
+          class StartTimerIntent extends IntentSpecBase {
+            @IntentParam(title: 'Timer')
+            final Duration timer;
+
+            @IntentParam(title: 'Snooze', isOptional: true)
+            final Duration? snooze;
+
+            StartTimerIntent({required this.timer, this.snooze});
+          }
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'StartTimerIntent'));
+
+        expect(result, isNotNull);
+        final timer = result!.parameters.firstWhere((p) => p.fieldName == 'timer');
+        expect(timer.dartType, equals('Duration'));
+        final snooze = result.parameters.firstWhere(
+          (p) => p.fieldName == 'snooze',
+        );
+        expect(snooze.dartType, equals('Duration?'));
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

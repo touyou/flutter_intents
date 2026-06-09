@@ -56,7 +56,13 @@ docs/
 - **WWDC26 enum schema (#49) + entity ownership (#55)**
   - `@EnumSpec(schema:)` → dual-branch `@AppEnum(schema: .messages.messageType)` (gated by the `app-schema` feature, iOS 27). The `@AppEnum(schema:)` macro is lenient like the entity/intent variants.
   - `@EntitySpec(ownership:)` (`EntityOwnershipState.unknown/.shared/.public`) → an additive `OwnershipProvidingEntity` conformance extension (`var ownership: EntityOwnership { .shared }`) in its own `#if APP_INTENTS_WWDC26` block (no `#else` — without the flag the entity simply isn't ownership-aware). Gated by the new `ownership` experimental feature (iOS 27).
-  - Verified: 296 codegen + 8 annotation tests green; dual-branch `swiftc -typecheck` green (stable @ iOS 17, experimental @ iOS 27).
+  - Verified: dual-branch `swiftc -typecheck` green (stable @ iOS 17, experimental @ iOS 27).
+- **WWDC26 richer parameter types (#53, partial — `Duration` only)**
+  - A Dart `Duration` `@IntentParam` now generates a real duration parameter. **By default (and in the `#else` fallback)** it maps to `Measurement<UnitDuration>` (which the stable SDK supports, so it compiles everywhere and Shortcuts shows a duration picker). With the new `rich-types` experimental feature it upgrades to the **native iOS 27 `Duration`** type inside `#if APP_INTENTS_WWDC26` (dual-branch).
+  - Both branches pre-serialize to a normalized `<field>Micros: Int` local (native `Duration` via `.components.seconds`/`.attoseconds`; `Measurement` via `.converted(to: .seconds).value`), so the params dict / URL query / Dart side stay branch-agnostic. Dart deserializes with `Duration(microseconds:)`. Same `<field>Micros` pattern as IntentFile's `<field>FileInfo`.
+  - Triggers dual-branch only when `rich-types` is enabled **and** the intent has a `Duration` param; the native `Duration` type must never leak into the default/`#else` output (it has no `_IntentValue` conformance on the stable SDK → would not compile).
+  - Verified: dual-branch `swiftc -typecheck` green for a FlutterBridge `Duration` intent (fallback @ iOS 17, native @ iOS 27).
+  - **Deferred (need a Dart representation / handler-I/F design, not pure codegen)**: `PersonNameComponents` params (no equivalent Dart type), `@UnionValue`, `EntityCollection<T>`.
 - `app_intents_annotations`: All annotations defined
   - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
   - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)
@@ -241,6 +247,8 @@ MethodChannel only supports specific types. Non-supported types need conversion:
 | `DateTime?` | `Date?` | `.map { ISO8601DateFormatter().string(from: $0) }` |
 | `IntentFile` | `IntentFile` | Write data to temp file, serialize path/mimeType/filename to Map |
 | `IntentFile?` | `IntentFile?` | Same, wrapped in `if let` null check |
+| `Duration` | `Measurement<UnitDuration>` (default/`#else`) or native `Duration` (`#if`, `rich-types`) | Pre-serialize to `<field>Micros: Int` microseconds; Dart side `Duration(microseconds:)`. See WWDC26 #53. |
+| `Duration?` | `Measurement<UnitDuration>?` / `Duration?` | `<field>Micros: Int? = <field>.map { ... }` |
 
 SwiftGenerator automatically handles this conversion in generated code.
 
@@ -261,8 +269,9 @@ not emit those lines" is mandatory.
 
 **Flag mechanism** (`ExperimentalFeatures`):
 - `--experimental-wwdc26` master switch (OFF → nothing experimental is emitted).
-- `--experimental=<flag>` per-feature (`long-running`, `app-schema`). Master ON with
-  no per-feature flag = all features; with flags = only those.
+- `--experimental=<flag>` per-feature (`long-running`, `app-schema`, `ownership`,
+  `rich-types`). Master ON with no per-feature flag = all features; with flags = only
+  those.
 - Thread the flag through the **CLI + SwiftGenerator only** until a feature changes
   Dart output (then also wire `build.yaml`/`builder.dart`). #52 is Swift-only.
 
@@ -292,6 +301,7 @@ the `APP_INTENTS_WWDC26` build flag must still get compiling (stable) Swift.
 - **App Schema (#49)** macros `@AppEntity(schema:)` / `@AppIntent(schema:)` / `@AppEnum(schema:)` are **iOS 27** external macros (`AppIntentsMacros`). The macro is lenient: it adds the conformance (`@attached(extension, conformances: AppEntity, …)`) and tolerates a minimal entity body + a redundant explicit `: AppEntity`. Schema-specific properties are optional/synthesized, so an existing generated entity compiles by just prefixing the macro. Schema accessor form is `.<domain>.<schema>` (e.g. `.messages.message`, `.messages.setMessageReadStatus`).
 - **Semantic indexing (#50)**: `@Property(indexingKey:)` takes a `PartialKeyPath<CSSearchableItemAttributeSet>` (e.g. `\.contentDescription`) and is **iOS 18.4** (stable SDK, not iOS 27) — so it ships as a normal `@available(iOS 18.4, *)` feature, not behind `#if`. `@Property` ≡ `EntityProperty` (typealias); its bare `init()` is `@available(*, unavailable)`, so always emit at least `@Property(title:)`.
 - `IndexedEntityQuery` (re-indexing: `reindexEntities`/`reindexAllEntities`) is iOS 27 (deferred). `@ComputedProperty`/`@DeferredProperty` are iOS 26 macros (deferred).
+- **Richer parameter types (#53)**: `Swift.Duration` and `Foundation.PersonNameComponents` gain their `AppIntents._IntentValue` conformance (`extension … : @retroactive …, AppIntents._IntentValue`) **only in the iOS 27 SDK** — absent from the stable SDK (verified by diffing the Xcode 27 beta vs Xcode 26 `.swiftinterface`). So native `Duration` params **must** be `#if`-gated (no `@available` — the conformance symbol doesn't exist on stable). The compile-everywhere fallback is `Measurement<UnitDuration>`, which *does* carry an `IntentParameter` initializer on both SDKs. `Duration.components` is `(seconds: Int64, attoseconds: Int64)`; 1 µs == 1e12 attoseconds. `@Parameter(title:)` alone is valid for both `Duration` and `Measurement<UnitDuration>`. `PersonNameComponents`/`@UnionValue`/`EntityCollection` deferred (need a Dart-side representation, not pure codegen).
 
 **How to verify (the load-bearing check)**: golden/unit tests only assert "the strings
 I emitted came out"; they pass while emitting Swift that won't compile. Always

@@ -187,6 +187,52 @@ void main() {
         expect(result, contains("DateTime.tryParse(params['dueDate']!)"));
       });
 
+      test('generates Params class with Duration parameters (#53)', () {
+        final intents = [
+          const IntentInfo(
+            className: 'StartTimerIntent',
+            identifier: 'com.example.startTimer',
+            title: 'Start Timer',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'timer',
+                dartType: 'Duration',
+                title: 'Timer',
+                isOptional: false,
+              ),
+              IntentParamInfo(
+                fieldName: 'snooze',
+                dartType: 'Duration?',
+                title: 'Snooze',
+                isOptional: true,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, contains('final Duration timer'));
+        expect(result, contains('final Duration? snooze'));
+        // Swift serializes Duration as an Int of microseconds.
+        expect(
+          result,
+          contains("Duration(microseconds: map['timer'] as int)"),
+        );
+        expect(result, contains("map['snooze'] != null"));
+        expect(
+          result,
+          contains("Duration(microseconds: map['snooze'] as int)"),
+        );
+        // fromQueryParameters
+        expect(
+          result,
+          contains("Duration(microseconds: int.parse(params['timer']!))"),
+        );
+        expect(result, contains("params['snooze'] != null"));
+      });
+
       test('generates handler using Params class with named parameters', () {
         final intents = [
           const IntentInfo(

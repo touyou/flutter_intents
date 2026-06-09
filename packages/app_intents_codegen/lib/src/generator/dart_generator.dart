@@ -189,6 +189,17 @@ $fromMapParams    );
       }
     }
 
+    // Duration is serialized on the Swift side as an Int of microseconds (the
+    // native `Duration` and the `Measurement<UnitDuration>` fallback both reduce
+    // to the same value), so the Dart side is branch-agnostic.
+    if (baseType == 'Duration') {
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? Duration(microseconds: map['${param.fieldName}'] as int) : null";
+      } else {
+        return "Duration(microseconds: map['${param.fieldName}'] as int)";
+      }
+    }
+
     if (baseType == 'double') {
       if (isNullable) {
         return "(map['${param.fieldName}'] as num?)?.toDouble()";
@@ -215,6 +226,14 @@ $fromMapParams    );
         return "params['${param.fieldName}'] != null ? DateTime.tryParse(params['${param.fieldName}']!) : null";
       } else {
         return "DateTime.parse(params['${param.fieldName}']!)";
+      }
+    }
+
+    if (baseType == 'Duration') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? Duration(microseconds: int.parse(params['${param.fieldName}']!)) : null";
+      } else {
+        return "Duration(microseconds: int.parse(params['${param.fieldName}']!))";
       }
     }
 
