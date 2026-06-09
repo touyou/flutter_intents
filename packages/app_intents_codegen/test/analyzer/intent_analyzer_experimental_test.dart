@@ -13,9 +13,10 @@ void main() {
       analyzer = IntentAnalyzer();
     });
 
-    test('defaults longRunning/cancellable to false and targets to null',
-        () async {
-      final library = await resolveSource('''
+    test(
+      'defaults longRunning/cancellable to false and targets to null',
+      () async {
+        final library = await resolveSource('''
         import 'package:app_intents_annotations/app_intents_annotations.dart';
 
         @IntentSpec(
@@ -25,12 +26,13 @@ void main() {
         class GreetIntent extends IntentSpecBase {}
       ''');
 
-      final result = analyzer.analyze(findClass(library, 'GreetIntent'));
+        final result = analyzer.analyze(findClass(library, 'GreetIntent'));
 
-      expect(result!.longRunning, isFalse);
-      expect(result.cancellable, isFalse);
-      expect(result.executionTargets, isNull);
-    });
+        expect(result!.longRunning, isFalse);
+        expect(result.cancellable, isFalse);
+        expect(result.executionTargets, isNull);
+      },
+    );
 
     test('parses longRunning and cancellable flags', () async {
       final library = await resolveSource('''

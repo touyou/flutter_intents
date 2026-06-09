@@ -80,10 +80,8 @@ class ExperimentalFeatures {
       _setEquals(other.enabled, enabled);
 
   @override
-  int get hashCode => Object.hash(
-    masterEnabled,
-    Object.hashAllUnordered(enabled),
-  );
+  int get hashCode =>
+      Object.hash(masterEnabled, Object.hashAllUnordered(enabled));
 
   @override
   String toString() =>

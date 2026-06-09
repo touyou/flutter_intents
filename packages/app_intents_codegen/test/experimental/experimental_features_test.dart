@@ -60,11 +60,17 @@ void main() {
     test('value equality is order-independent for the enabled set', () {
       const a = ExperimentalFeatures(
         masterEnabled: true,
-        enabled: {ExperimentalFeature.longRunning, ExperimentalFeature.appSchema},
+        enabled: {
+          ExperimentalFeature.longRunning,
+          ExperimentalFeature.appSchema,
+        },
       );
       const b = ExperimentalFeatures(
         masterEnabled: true,
-        enabled: {ExperimentalFeature.appSchema, ExperimentalFeature.longRunning},
+        enabled: {
+          ExperimentalFeature.appSchema,
+          ExperimentalFeature.longRunning,
+        },
       );
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));

@@ -353,7 +353,9 @@ class SwiftGenerator {
     IntentInfo info,
     String baseIndent,
   ) {
-    buffer.writeln('${baseIndent}let _ = try await FlutterBridge.shared.invoke(');
+    buffer.writeln(
+      '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+    );
     buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
     if (info.parameters.isEmpty) {
       buffer.writeln('$baseIndent${_indent}params: [:]');

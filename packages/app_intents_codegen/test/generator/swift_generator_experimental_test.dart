@@ -4,8 +4,9 @@ import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:test/test.dart';
 
 /// A generator with every WWDC26 experimental feature enabled.
-SwiftGenerator _experimentalGenerator() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
+SwiftGenerator _experimentalGenerator() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
+);
 
 IntentInfo _intent({
   bool longRunning = false,
@@ -30,7 +31,9 @@ void main() {
     group('opt-in gating', () {
       test('default generator emits no experimental code', () {
         final stable = const SwiftGenerator();
-        final result = stable.generateAll(intents: [_intent(longRunning: true)]);
+        final result = stable.generateAll(
+          intents: [_intent(longRunning: true)],
+        );
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
         expect(result, isNot(contains('LongRunningIntent')));
