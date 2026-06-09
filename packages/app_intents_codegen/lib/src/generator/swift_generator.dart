@@ -1495,10 +1495,7 @@ class SwiftGenerator {
     // `Duration` parameters are iOS 27+; CancellableIntent on its own is
     // iOS 26.4+.
     final minVersion =
-        (info.longRunning ||
-            hasExecutionTargets ||
-            hasSchema ||
-            nativeDuration)
+        (info.longRunning || hasExecutionTargets || hasSchema || nativeDuration)
         ? '27.0'
         : '26.4';
 

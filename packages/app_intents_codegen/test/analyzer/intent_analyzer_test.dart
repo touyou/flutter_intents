@@ -151,7 +151,9 @@ void main() {
         final result = analyzer.analyze(findClass(library, 'StartTimerIntent'));
 
         expect(result, isNotNull);
-        final timer = result!.parameters.firstWhere((p) => p.fieldName == 'timer');
+        final timer = result!.parameters.firstWhere(
+          (p) => p.fieldName == 'timer',
+        );
         expect(timer.dartType, equals('Duration'));
         final snooze = result.parameters.firstWhere(
           (p) => p.fieldName == 'snooze',

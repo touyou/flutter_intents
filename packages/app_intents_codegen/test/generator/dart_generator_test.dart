@@ -216,10 +216,7 @@ void main() {
         expect(result, contains('final Duration timer'));
         expect(result, contains('final Duration? snooze'));
         // Swift serializes Duration as an Int of microseconds.
-        expect(
-          result,
-          contains("Duration(microseconds: map['timer'] as int)"),
-        );
+        expect(result, contains("Duration(microseconds: map['timer'] as int)"));
         expect(result, contains("map['snooze'] != null"));
         expect(
           result,

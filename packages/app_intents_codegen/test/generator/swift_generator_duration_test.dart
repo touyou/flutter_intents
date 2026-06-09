@@ -4,8 +4,9 @@ import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:test/test.dart';
 
 /// A generator with every WWDC26 experimental feature enabled.
-SwiftGenerator _experimentalGenerator() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
+SwiftGenerator _experimentalGenerator() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
+);
 
 IntentInfo _intent({List<IntentParamInfo> parameters = const []}) => IntentInfo(
   className: 'StartTimerIntent',
@@ -40,7 +41,9 @@ void main() {
     group('default / fallback (rich-types OFF)', () {
       test('emits Measurement<UnitDuration> in a single struct, no #if', () {
         final result = const SwiftGenerator().generateAll(
-          intents: [_intent(parameters: [_duration])],
+          intents: [
+            _intent(parameters: [_duration]),
+          ],
         );
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
@@ -59,7 +62,9 @@ void main() {
           ),
         );
         final result = generator.generateAll(
-          intents: [_intent(parameters: [_duration])],
+          intents: [
+            _intent(parameters: [_duration]),
+          ],
         );
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
@@ -69,7 +74,9 @@ void main() {
 
       test('nullable Duration falls back to optional Measurement', () {
         final result = const SwiftGenerator().generateAll(
-          intents: [_intent(parameters: [_nullableDuration])],
+          intents: [
+            _intent(parameters: [_nullableDuration]),
+          ],
         );
 
         expect(result, contains('var timer: Measurement<UnitDuration>?'));
@@ -86,7 +93,9 @@ void main() {
     group('rich-types ON (dual-branch)', () {
       test('native Duration in #if, Measurement fallback in #else', () {
         final result = _experimentalGenerator().generateAll(
-          intents: [_intent(parameters: [_duration])],
+          intents: [
+            _intent(parameters: [_duration]),
+          ],
         );
 
         expect(result, contains('#if APP_INTENTS_WWDC26'));
