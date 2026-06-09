@@ -46,8 +46,13 @@ docs/
   - CLI `generate_swift`: `--experimental-wwdc26` (master) + `--experimental=long-running,app-schema` (per-feature)
   - `@IntentSpec(longRunning:, cancellable:, executionTargets:)` + `IntentExecutionTarget` enum
   - `SwiftGenerator` emits **two struct variants per intent**: WWDC26 form in `#if APP_INTENTS_WWDC26`, stable form in `#else` (so released-SDK builds without the flag still compile)
-  - Verified: 271 codegen + 8 annotation tests green; **dual-branch `swiftc -typecheck` green against Xcode 27 beta iOS 27 SDK** (with and without `-D APP_INTENTS_WWDC26`)
+  - Verified: dual-branch `swiftc -typecheck` green against Xcode 27 beta iOS 27 SDK (with and without `-D APP_INTENTS_WWDC26`)
   - See "WWDC26 Experimental Code Generation" under Code Conventions for the SDK-verified API facts
+- **WWDC26 App Schema (#49) + semantic indexing (#50)**
+  - `@EntitySpec(schema:)` / `@IntentSpec(schema:)` (e.g. `'messages.message'`) → dual-branch `@AppEntity(schema: .messages.message)` / `@AppIntent(schema: .messages.setMessageReadStatus)` gated by the `app-schema` experimental feature (iOS 27). The entity struct, its query and extensions all move to iOS 27 in the `#if` branch.
+  - `@EntityProperty(title:, indexingKey:)` → Swift `@Property(...)`; `indexingKey: 'contentDescription'` emits `@Property(indexingKey: \.contentDescription)` for semantic indexing. **Normal feature (no experimental flag)** gated at `@available(iOS 18.4, *)`.
+  - Entities that expose `@Property` get an explicit initializer (the `@Property`/`EntityProperty` wrapper has **no `init(wrappedValue:)`**), with defaults so the role-only construction in the generated query keeps compiling.
+  - Verified: 286 codegen + 8 annotation tests green; dual-branch `swiftc -typecheck` green for schema × indexed × enumerable × `@Property` combinations (stable @ iOS 18.4, experimental @ iOS 27).
 - `app_intents_annotations`: All annotations defined
   - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
   - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)
@@ -280,6 +285,9 @@ the `APP_INTENTS_WWDC26` build flag must still get compiling (stable) Swift.
 - `IntentExecutionTargets` — **iOS 27.0**; OptionSet with `.main` / `.appIntentsExtension`
   / `.widgetKitExtension` (not `.widget`); used via `static var allowedExecutionTargets`.
 - `ProgressReportingIntent.progress` is **extension-provided** (no member to implement).
+- **App Schema (#49)** macros `@AppEntity(schema:)` / `@AppIntent(schema:)` / `@AppEnum(schema:)` are **iOS 27** external macros (`AppIntentsMacros`). The macro is lenient: it adds the conformance (`@attached(extension, conformances: AppEntity, …)`) and tolerates a minimal entity body + a redundant explicit `: AppEntity`. Schema-specific properties are optional/synthesized, so an existing generated entity compiles by just prefixing the macro. Schema accessor form is `.<domain>.<schema>` (e.g. `.messages.message`, `.messages.setMessageReadStatus`).
+- **Semantic indexing (#50)**: `@Property(indexingKey:)` takes a `PartialKeyPath<CSSearchableItemAttributeSet>` (e.g. `\.contentDescription`) and is **iOS 18.4** (stable SDK, not iOS 27) — so it ships as a normal `@available(iOS 18.4, *)` feature, not behind `#if`. `@Property` ≡ `EntityProperty` (typealias); its bare `init()` is `@available(*, unavailable)`, so always emit at least `@Property(title:)`.
+- `IndexedEntityQuery` (re-indexing: `reindexEntities`/`reindexAllEntities`) is iOS 27 (deferred). `@ComputedProperty`/`@DeferredProperty` are iOS 26 macros (deferred).
 
 **How to verify (the load-bearing check)**: golden/unit tests only assert "the strings
 I emitted came out"; they pass while emitting Swift that won't compile. Always

@@ -47,6 +47,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool longRunning;
           final bool cancellable;
           final List<IntentExecutionTarget>? executionTargets;
+          final String? schema;
 
           const IntentSpec({
             required this.identifier,
@@ -61,6 +62,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.longRunning = false,
             this.cancellable = false,
             this.executionTargets,
+            this.schema,
           });
         }
 
@@ -107,6 +109,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool indexed;
           final bool enumerable;
           final String? persistedCacheKey;
+          final String? schema;
 
           const EntitySpec({
             required this.identifier,
@@ -117,6 +120,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.indexed = false,
             this.enumerable = false,
             this.persistedCacheKey,
+            this.schema,
           });
         }
       ''',
@@ -139,6 +143,12 @@ Future<LibraryElement> resolveSource(String source) async {
 
         class EntityDefaultQuery {
           const EntityDefaultQuery();
+        }
+
+        class EntityProperty {
+          final String? title;
+          final String? indexingKey;
+          const EntityProperty({this.title, this.indexingKey});
         }
       ''',
       'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''

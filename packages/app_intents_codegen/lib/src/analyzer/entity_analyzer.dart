@@ -34,6 +34,11 @@ const _entityDefaultQueryChecker = TypeChecker.fromUrl(
   'package:app_intents_annotations/src/annotations/entity_params.dart#EntityDefaultQuery',
 );
 
+/// Type checker for EntityProperty annotation.
+const _entityPropertyChecker = TypeChecker.fromUrl(
+  'package:app_intents_annotations/src/annotations/entity_params.dart#EntityProperty',
+);
+
 /// Type checker for EntitySpecBase base class.
 const _entitySpecBaseChecker = TypeChecker.fromUrl(
   'package:app_intents_annotations/src/bases/entity_spec_base.dart#EntitySpecBase',
@@ -71,6 +76,7 @@ class EntityAnalyzer {
     final persistedCacheKey = annotation
         .getField('persistedCacheKey')
         ?.toStringValue();
+    final schema = annotation.getField('schema')?.toStringValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -106,6 +112,7 @@ class EntityAnalyzer {
       indexed: indexed,
       enumerable: enumerable,
       persistedCacheKey: persistedCacheKey,
+      schema: schema,
     );
   }
 
@@ -126,13 +133,22 @@ class EntityAnalyzer {
 
     for (final field in element.fields) {
       final role = _determinePropertyRole(field);
-      if (role == EntityPropertyRole.none) continue;
+      final propAnnotation = _entityPropertyChecker.firstAnnotationOfExact(
+        field,
+      );
+      final exposeAsProperty = propAnnotation != null;
+
+      // Include role-annotated fields and @EntityProperty fields; skip the rest.
+      if (role == EntityPropertyRole.none && !exposeAsProperty) continue;
 
       properties.add(
         EntityPropertyInfo(
           fieldName: field.name!,
           dartType: field.type.getDisplayString(),
           role: role,
+          exposeAsProperty: exposeAsProperty,
+          propertyTitle: propAnnotation?.getField('title')?.toStringValue(),
+          indexingKey: propAnnotation?.getField('indexingKey')?.toStringValue(),
         ),
       );
     }

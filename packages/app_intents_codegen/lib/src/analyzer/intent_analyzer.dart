@@ -57,6 +57,7 @@ class IntentAnalyzer {
     final executionTargets = _parseExecutionTargets(
       annotation.getField('executionTargets'),
     );
+    final schema = annotation.getField('schema')?.toStringValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -100,6 +101,7 @@ class IntentAnalyzer {
       longRunning: longRunning,
       cancellable: cancellable,
       executionTargets: executionTargets,
+      schema: schema,
     );
   }
 

@@ -99,6 +99,22 @@ void main() {
       );
     });
 
+    test('parses intent schema field', () async {
+      final library = await resolveSource('''
+        import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+        @IntentSpec(
+          identifier: 'com.example.setRead',
+          title: 'Set Read',
+          schema: 'messages.setMessageReadStatus',
+        )
+        class SetReadIntent extends IntentSpecBase {}
+      ''');
+
+      final result = analyzer.analyze(findClass(library, 'SetReadIntent'));
+      expect(result!.schema, equals('messages.setMessageReadStatus'));
+    });
+
     test('rejects cancellable combined with foreground mode', () async {
       final library = await resolveSource('''
         import 'package:app_intents_annotations/app_intents_annotations.dart';
