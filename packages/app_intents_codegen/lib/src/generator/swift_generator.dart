@@ -1210,8 +1210,12 @@ class SwiftGenerator {
           '$_indent$_indent$_indent${_indent}identifier: .applicationDefined(entity.$idField),',
         );
         buffer.writeln(
-          '$_indent$_indent$_indent${_indent}name: .displayName(entity.$titleField)',
+          '$_indent$_indent$_indent${_indent}name: .displayName(entity.$titleField),',
         );
+        // `handle` has no default in the SDK initializer
+        // (init(identifier:name:handle:aliases:isMe:image:)), so it must be
+        // passed explicitly even when nil.
+        buffer.writeln('$_indent$_indent$_indent${_indent}handle: nil');
         buffer.writeln('$_indent$_indent$_indent)');
         buffer.writeln('$_indent$_indent})');
     }
@@ -1764,11 +1768,21 @@ class SwiftGenerator {
 
     // Build initializer
     final initParts = <String>['$id: $id', '$title: $title'];
+    // subtitle/image are read from the dict as `String?`; coalesce to a
+    // non-optional value when the entity field is declared non-optional (the
+    // local read is always optional, but the struct field type follows the Dart
+    // type). Mirrors the exposed-property handling below.
     if (subtitleProp != null) {
-      initParts.add('${subtitleProp.fieldName}: ${subtitleProp.fieldName}');
+      final value = subtitleProp.dartType.endsWith('?')
+          ? subtitleProp.fieldName
+          : '${subtitleProp.fieldName} ?? ""';
+      initParts.add('${subtitleProp.fieldName}: $value');
     }
     if (imageProp != null) {
-      initParts.add('${imageProp.fieldName}: ${imageProp.fieldName}');
+      final value = imageProp.dartType.endsWith('?')
+          ? imageProp.fieldName
+          : '${imageProp.fieldName} ?? ""';
+      initParts.add('${imageProp.fieldName}: $value');
     }
     for (final prop in exposedStringProps) {
       final value = prop.dartType.endsWith('?')

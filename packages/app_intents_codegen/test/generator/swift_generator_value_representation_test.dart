@@ -58,6 +58,8 @@ void main() {
         // Uses the entity's actual id/title field names, not literal id/title.
         expect(result, contains('identifier: .applicationDefined(entity.uid)'));
         expect(result, contains('name: .displayName(entity.name)'));
+        // handle has no default in the SDK initializer, so it is passed explicitly.
+        expect(result, contains('handle: nil'));
         expect(result, contains('#endif'));
       },
     );

@@ -137,9 +137,11 @@ void main() {
           'init(id: String, title: String, icon: String, body: String = "")',
         ),
       );
+      // The image role `icon` is read from the dict as `String?` and coalesced
+      // to the non-optional field type at the call site.
       expect(
         result,
-        contains('NoteEntity(id: id, title: title, icon: icon, body: '),
+        contains('NoteEntity(id: id, title: title, icon: icon ?? "", body: '),
       );
       // The broken field-order signature must NOT appear.
       expect(
