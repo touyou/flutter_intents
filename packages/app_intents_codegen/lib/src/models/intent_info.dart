@@ -37,6 +37,18 @@ class IntentInfo {
   /// When foreground, both `supportedModes` (iOS 26+) and `openAppWhenRun` are generated.
   final IntentModeType? supportedModes;
 
+  /// Experimental (WWDC26): whether the intent conforms to `LongRunningIntent`.
+  /// Only emitted when the long-running experimental feature is enabled.
+  final bool longRunning;
+
+  /// Experimental (WWDC26): whether the intent conforms to `CancellableIntent`.
+  /// Only emitted when the long-running experimental feature is enabled.
+  final bool cancellable;
+
+  /// Experimental (WWDC26): the targets this intent may execute against.
+  /// When non-empty, generates `allowedExecutionTargets: IntentExecutionTargets`.
+  final List<IntentExecutionTargetType>? executionTargets;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -49,6 +61,9 @@ class IntentInfo {
     this.resultDialogTemplate,
     this.parameterSummary,
     this.supportedModes,
+    this.longRunning = false,
+    this.cancellable = false,
+    this.executionTargets,
   });
 
   @override
@@ -65,7 +80,10 @@ class IntentInfo {
         urlAction == other.urlAction &&
         resultDialogTemplate == other.resultDialogTemplate &&
         parameterSummary == other.parameterSummary &&
-        supportedModes == other.supportedModes;
+        supportedModes == other.supportedModes &&
+        longRunning == other.longRunning &&
+        cancellable == other.cancellable &&
+        _nullableListEquals(executionTargets, other.executionTargets);
   }
 
   @override
@@ -81,6 +99,9 @@ class IntentInfo {
     resultDialogTemplate,
     parameterSummary,
     supportedModes,
+    longRunning,
+    cancellable,
+    executionTargets == null ? null : Object.hashAll(executionTargets!),
   );
 
   @override
@@ -90,7 +111,8 @@ class IntentInfo {
       'parameters: $parameters, '
       'urlScheme: $urlScheme, urlAction: $urlAction, '
       'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
-      'supportedModes: $supportedModes)';
+      'supportedModes: $supportedModes, longRunning: $longRunning, '
+      'cancellable: $cancellable, executionTargets: $executionTargets)';
 }
 
 /// The implementation language for the intent.
@@ -98,6 +120,11 @@ enum IntentImplementationType { dart, swift, kotlin }
 
 /// The execution mode for the intent.
 enum IntentModeType { background, foreground }
+
+/// Experimental (WWDC26): a process target an intent may execute against.
+///
+/// Maps to members of the Swift `IntentExecutionTargets` option set.
+enum IntentExecutionTargetType { main, appIntentsExtension, widgetKitExtension }
 
 /// Represents analyzed information about an intent parameter.
 class IntentParamInfo {
@@ -178,4 +205,9 @@ bool _listEquals<T>(List<T> a, List<T> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+bool _nullableListEquals<T>(List<T>? a, List<T>? b) {
+  if (a == null || b == null) return a == b;
+  return _listEquals(a, b);
 }

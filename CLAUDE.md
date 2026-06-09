@@ -36,10 +36,18 @@ docs/
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha09** |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
+| WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 
 ## Implementation Status
 
 ### Completed
+- **WWDC26 experimental codegen (opt-in, #52 Intent execution control)**
+  - `ExperimentalFeatures` config (`lib/src/experimental/experimental_features.dart`): master switch + per-feature set; default OFF reproduces stable output byte-for-byte
+  - CLI `generate_swift`: `--experimental-wwdc26` (master) + `--experimental=long-running,app-schema` (per-feature)
+  - `@IntentSpec(longRunning:, cancellable:, executionTargets:)` + `IntentExecutionTarget` enum
+  - `SwiftGenerator` emits **two struct variants per intent**: WWDC26 form in `#if APP_INTENTS_WWDC26`, stable form in `#else` (so released-SDK builds without the flag still compile)
+  - Verified: 271 codegen + 8 annotation tests green; **dual-branch `swiftc -typecheck` green against Xcode 27 beta iOS 27 SDK** (with and without `-D APP_INTENTS_WWDC26`)
+  - See "WWDC26 Experimental Code Generation" under Code Conventions for the SDK-verified API facts
 - `app_intents_annotations`: All annotations defined
   - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
   - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)
@@ -235,6 +243,50 @@ The SwiftGenerator auto-selects the execution mode based on `@IntentSpec` config
 | set | any | URL scheme | Opens URL via `UIApplication.shared.open()` |
 | null | `foreground` | Cache | Caches params to UserDefaults, app opens, Flutter reads pending |
 | null | null/`background` | FlutterBridge | Direct MethodChannel via `FlutterBridge.shared.invoke()` |
+
+### WWDC26 Experimental Code Generation
+New WWDC26 App Intents APIs are emitted **opt-in (default OFF)**. They cannot use
+`@available` gating because the symbols **do not exist in the stable SDK at all** —
+`@available` only guards the runtime OS version, not symbol existence. So "OFF = do
+not emit those lines" is mandatory.
+
+**Flag mechanism** (`ExperimentalFeatures`):
+- `--experimental-wwdc26` master switch (OFF → nothing experimental is emitted).
+- `--experimental=<flag>` per-feature (`long-running`, `app-schema`). Master ON with
+  no per-feature flag = all features; with flags = only those.
+- Thread the flag through the **CLI + SwiftGenerator only** until a feature changes
+  Dart output (then also wire `build.yaml`/`builder.dart`). #52 is Swift-only.
+
+**Dual-branch emission**: when an intent uses an experimental execution attribute,
+`SwiftGenerator` emits two whole structs:
+```
+#if APP_INTENTS_WWDC26
+@available(iOS 27.0, *)
+struct Foo: AppIntent, LongRunningIntent, CancellableIntent { ... }   // WWDC26 form
+#else
+@available(iOS 17.0, *)
+struct Foo: AppIntent { ... }                                          // stable fallback
+#endif
+```
+The `#else` is **mandatory**: a user who enables experimental codegen but hasn't set
+the `APP_INTENTS_WWDC26` build flag must still get compiling (stable) Swift.
+
+**SDK-verified API facts** (from Xcode 27 beta `.swiftinterface`, not the issue drafts):
+- Apple jumped to **year-based versioning**: WWDC26 APIs are **iOS 27**, not iOS 26.
+- `LongRunningIntent : ProgressReportingIntent` — **iOS 27.0**; empty protocol;
+  `performBackgroundTask(options:operation:)` and `performBackgroundTask(options:operation:onCancel:)`
+  (the latter requires `Self: CancellableIntent`) come from an extension. `@discardableResult`.
+- `CancellableIntent` — **iOS 26.4**; `withIntentCancellationHandler(operation:onCancel:isolation:)` + `IntentCancellationReason`.
+- `IntentExecutionTargets` — **iOS 27.0**; OptionSet with `.main` / `.appIntentsExtension`
+  / `.widgetKitExtension` (not `.widget`); used via `static var allowedExecutionTargets`.
+- `ProgressReportingIntent.progress` is **extension-provided** (no member to implement).
+
+**How to verify (the load-bearing check)**: golden/unit tests only assert "the strings
+I emitted came out"; they pass while emitting Swift that won't compile. Always
+`swiftc -typecheck` the generated form **twice** (with and without `-D APP_INTENTS_WWDC26`)
+against the beta SDK. Get exact signatures from the SDK directly:
+- Doc search via `xcrun mcpbridge` → `DocumentationSearch` (semantic).
+- Ground truth: `…/AppIntents.framework/Modules/AppIntents.swiftmodule/arm64e-apple-ios.swiftinterface`.
 
 ### TDD Approach
 Follow Red-Green-Refactor:

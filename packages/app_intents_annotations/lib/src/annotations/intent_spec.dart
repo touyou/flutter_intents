@@ -1,3 +1,4 @@
+import 'intent_execution_target.dart';
 import 'intent_mode.dart';
 
 /// Annotation to specify an app intent.
@@ -51,6 +52,33 @@ class IntentSpec {
   /// When [urlScheme] is set, foreground mode is implied automatically.
   final IntentMode? supportedModes;
 
+  /// **Experimental (WWDC26, iOS 27+).** Marks the intent as long-running so it
+  /// can exceed the standard 30-second background limit.
+  ///
+  /// When experimental code generation is enabled, the generated Swift conforms
+  /// to `LongRunningIntent` and wraps the work in `performBackgroundTask(...)`.
+  /// Long-running intents must run in the background (no [urlScheme], no
+  /// [IntentMode.foreground]). Has no effect unless experimental generation is
+  /// enabled.
+  final bool longRunning;
+
+  /// **Experimental (WWDC26, iOS 26.4+).** Marks the intent as cancellable so it
+  /// can respond to graceful cancellation.
+  ///
+  /// When experimental code generation is enabled, the generated Swift conforms
+  /// to `CancellableIntent` and wraps the work in a cancellation handler that
+  /// receives an `IntentCancellationReason`. Cancellable intents must run in the
+  /// background. Has no effect unless experimental generation is enabled.
+  final bool cancellable;
+
+  /// **Experimental (WWDC26, iOS 27+).** Restricts which processes may run this
+  /// intent.
+  ///
+  /// When experimental code generation is enabled, the generated Swift emits
+  /// `static var allowedExecutionTargets: IntentExecutionTargets`. Has no effect
+  /// unless experimental generation is enabled.
+  final List<IntentExecutionTarget>? executionTargets;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -61,6 +89,9 @@ class IntentSpec {
     this.resultDialogTemplate,
     this.parameterSummary,
     this.supportedModes,
+    this.longRunning = false,
+    this.cancellable = false,
+    this.executionTargets,
   });
 }
 

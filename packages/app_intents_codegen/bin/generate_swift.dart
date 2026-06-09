@@ -54,6 +54,21 @@ void main(List<String> arguments) async {
       defaultsTo: 'en',
     )
     ..addFlag(
+      'experimental-wwdc26',
+      negatable: false,
+      help:
+          'Master switch for opt-in WWDC26 experimental code generation '
+          '(default off). Generated code is wrapped in #if APP_INTENTS_WWDC26.',
+    )
+    ..addMultiOption(
+      'experimental',
+      help:
+          'Narrow experimental generation to specific features '
+          '(comma-separated). Requires --experimental-wwdc26. '
+          'When omitted (with the master switch on), all features are emitted.',
+      allowed: ExperimentalFeature.allFlags,
+    )
+    ..addFlag(
       'help',
       abbr: 'h',
       negatable: false,
@@ -81,6 +96,7 @@ void main(List<String> arguments) async {
   final xcstringsPath = results['xcstrings'] as String?;
   final translationsPath = results['translations'] as String?;
   final sourceLanguage = results['source-language'] as String;
+  final experimental = _resolveExperimental(results);
 
   await generateSwift(
     inputDir: inputDir,
@@ -89,7 +105,29 @@ void main(List<String> arguments) async {
     xcstringsPath: xcstringsPath,
     translationsPath: translationsPath,
     sourceLanguage: sourceLanguage,
+    experimental: experimental,
   );
+}
+
+/// Builds the [ExperimentalFeatures] configuration from CLI results.
+ExperimentalFeatures _resolveExperimental(ArgResults results) {
+  final masterEnabled = results['experimental-wwdc26'] as bool;
+  final flags = results['experimental'] as List<String>;
+
+  if (flags.isNotEmpty && !masterEnabled) {
+    stderr.writeln(
+      'Warning: --experimental was given without --experimental-wwdc26; '
+      'no experimental code will be emitted.',
+    );
+  }
+
+  final enabled = <ExperimentalFeature>{};
+  for (final flag in flags) {
+    final feature = ExperimentalFeature.fromFlag(flag);
+    if (feature != null) enabled.add(feature);
+  }
+
+  return ExperimentalFeatures(masterEnabled: masterEnabled, enabled: enabled);
 }
 
 void _printUsage(ArgParser parser) {
@@ -113,6 +151,7 @@ Future<void> generateSwift({
   String? xcstringsPath,
   String? translationsPath,
   String sourceLanguage = 'en',
+  ExperimentalFeatures experimental = ExperimentalFeatures.none,
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
@@ -124,7 +163,7 @@ Future<void> generateSwift({
   }
 
   // Generate Swift code
-  final generator = SwiftGenerator();
+  final generator = SwiftGenerator(experimental: experimental);
   final swiftCode = generator.generateAll(
     intents: analyzeResult.intents,
     entities: analyzeResult.entities,
