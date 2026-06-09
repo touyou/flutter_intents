@@ -12,6 +12,7 @@ export 'src/annotations/intent_mode.dart';
 export 'src/annotations/intent_param.dart';
 export 'src/annotations/intent_spec.dart';
 export 'src/annotations/union_value.dart';
+export 'src/schema/app_schema.dart';
 export 'src/bases/entity_spec_base.dart';
 export 'src/bases/intent_spec_base.dart';
 export 'src/models/intent_file.dart';
