@@ -1,5 +1,8 @@
 # Architecture
 
+> Design decisions for the remaining WWDC26 bridge/runtime work (issues #51 / #54 / #55 / #56)
+> are recorded as ADRs under [`docs/adr/`](adr/README.md).
+
 ## Design Philosophy
 
 Flutter Intents provides a bridge to the iOS App Intents and Android AppFunctions frameworks, enabling Flutter apps to integrate with Siri, Shortcuts, Spotlight, and AI agents (Gemini etc.).

@@ -805,6 +805,7 @@ When adding new content:
 |--------------|----------|
 | API gotchas (e.g., TypeChecker usage) | CLAUDE.md → Code Conventions |
 | Design rationale | `docs/architecture.md` |
+| Design decisions (bridge/runtime) | `docs/adr/` (ADR; WWDC26 残課題 #51/#54/#55/#56 の設計案) |
 | User-facing guides | `docs/usage.md` |
 | Package dependencies | `docs/packages.md` |
 | Allowed shell commands | `.claude/settings.local.json` |
