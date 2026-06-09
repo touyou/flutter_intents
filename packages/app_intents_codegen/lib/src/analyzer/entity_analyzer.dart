@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use, unnecessary_non_null_assertion
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 
@@ -77,6 +78,7 @@ class EntityAnalyzer {
         .getField('persistedCacheKey')
         ?.toStringValue();
     final schema = annotation.getField('schema')?.toStringValue();
+    final ownership = _parseOwnership(annotation.getField('ownership'));
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -113,7 +115,25 @@ class EntityAnalyzer {
       enumerable: enumerable,
       persistedCacheKey: persistedCacheKey,
       schema: schema,
+      ownership: ownership,
     );
+  }
+
+  /// Parses the `ownership` enum value (`EntityOwnershipState`) into the model
+  /// type, or `null` when absent.
+  EntityOwnershipType? _parseOwnership(DartObject? field) {
+    if (field == null || field.isNull) return null;
+    final index = field.getField('index')?.toIntValue();
+    switch (index) {
+      case 0:
+        return EntityOwnershipType.unknown;
+      case 1:
+        return EntityOwnershipType.shared;
+      case 2:
+        return EntityOwnershipType.public;
+      default:
+        return null;
+    }
   }
 
   String? _extractModelType(ClassElement element) {

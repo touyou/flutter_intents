@@ -52,7 +52,11 @@ docs/
   - `@EntitySpec(schema:)` / `@IntentSpec(schema:)` (e.g. `'messages.message'`) → dual-branch `@AppEntity(schema: .messages.message)` / `@AppIntent(schema: .messages.setMessageReadStatus)` gated by the `app-schema` experimental feature (iOS 27). The entity struct, its query and extensions all move to iOS 27 in the `#if` branch.
   - `@EntityProperty(title:, indexingKey:)` → Swift `@Property(...)`; `indexingKey: 'contentDescription'` emits `@Property(indexingKey: \.contentDescription)` for semantic indexing. **Normal feature (no experimental flag)** gated at `@available(iOS 18.4, *)`.
   - Entities that expose `@Property` get an explicit initializer (the `@Property`/`EntityProperty` wrapper has **no `init(wrappedValue:)`**), with defaults so the role-only construction in the generated query keeps compiling.
-  - Verified: 286 codegen + 8 annotation tests green; dual-branch `swiftc -typecheck` green for schema × indexed × enumerable × `@Property` combinations (stable @ iOS 18.4, experimental @ iOS 27).
+  - Verified: dual-branch `swiftc -typecheck` green for schema × indexed × enumerable × `@Property` combinations (stable @ iOS 18.4, experimental @ iOS 27).
+- **WWDC26 enum schema (#49) + entity ownership (#55)**
+  - `@EnumSpec(schema:)` → dual-branch `@AppEnum(schema: .messages.messageType)` (gated by the `app-schema` feature, iOS 27). The `@AppEnum(schema:)` macro is lenient like the entity/intent variants.
+  - `@EntitySpec(ownership:)` (`EntityOwnershipState.unknown/.shared/.public`) → an additive `OwnershipProvidingEntity` conformance extension (`var ownership: EntityOwnership { .shared }`) in its own `#if APP_INTENTS_WWDC26` block (no `#else` — without the flag the entity simply isn't ownership-aware). Gated by the new `ownership` experimental feature (iOS 27).
+  - Verified: 296 codegen + 8 annotation tests green; dual-branch `swiftc -typecheck` green (stable @ iOS 17, experimental @ iOS 27).
 - `app_intents_annotations`: All annotations defined
   - `@IntentSpec` (with `urlScheme`/`urlAction`, `resultDialogTemplate`, `parameterSummary`)
   - `@IntentParam` (with `entityType` for entity picker, `enumType` for AppEnum parameters)

@@ -44,6 +44,11 @@ class EntityInfo {
   /// `@AppEntity(schema:)` macro (dual-branch).
   final String? schema;
 
+  /// Experimental (WWDC26 #55): the entity's ownership state. When set and the
+  /// `ownership` feature is enabled, adds an `OwnershipProvidingEntity`
+  /// conformance.
+  final EntityOwnershipType? ownership;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -57,6 +62,7 @@ class EntityInfo {
     this.enumerable = false,
     this.persistedCacheKey,
     this.schema,
+    this.ownership,
   });
 
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
@@ -95,6 +101,7 @@ class EntityInfo {
         enumerable == other.enumerable &&
         persistedCacheKey == other.persistedCacheKey &&
         schema == other.schema &&
+        ownership == other.ownership &&
         _listEquals(properties, other.properties);
   }
 
@@ -111,6 +118,7 @@ class EntityInfo {
     enumerable,
     persistedCacheKey,
     schema,
+    ownership,
     Object.hashAll(properties),
   );
 
@@ -119,7 +127,8 @@ class EntityInfo {
       'EntityInfo(className: $className, identifier: $identifier, title: $title, '
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
-      'persistedCacheKey: $persistedCacheKey, schema: $schema, properties: $properties)';
+      'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
+      'properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.
@@ -181,6 +190,10 @@ class EntityPropertyInfo {
       'exposeAsProperty: $exposeAsProperty, propertyTitle: $propertyTitle, '
       'indexingKey: $indexingKey)';
 }
+
+/// Experimental (WWDC26 #55): the ownership state of an entity, mapped to a
+/// member of the Swift `EntityOwnership` option set.
+enum EntityOwnershipType { unknown, shared, public }
 
 /// The role of an entity property.
 enum EntityPropertyRole {

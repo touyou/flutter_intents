@@ -16,7 +16,10 @@ enum ExperimentalFeature {
   longRunning('long-running'),
 
   /// App Schema domain conformance (#49): `@AppEntity(schema:)` and friends.
-  appSchema('app-schema');
+  appSchema('app-schema'),
+
+  /// Entity ownership (#55): `OwnershipProvidingEntity` conformance.
+  ownership('ownership');
 
   const ExperimentalFeature(this.flag);
 
