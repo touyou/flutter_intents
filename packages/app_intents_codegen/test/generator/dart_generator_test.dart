@@ -292,10 +292,7 @@ void main() {
 
         expect(result, contains('final List<String> photos'));
         // fromMap: list of identifier strings.
-        expect(
-          result,
-          contains("(map['photos'] as List).cast<String>()"),
-        );
+        expect(result, contains("(map['photos'] as List).cast<String>()"));
         // fromQueryParameters: comma-joined.
         expect(result, contains("params['photos']!.split(',')"));
       });

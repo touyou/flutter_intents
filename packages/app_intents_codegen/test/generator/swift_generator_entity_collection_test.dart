@@ -3,8 +3,9 @@ import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:test/test.dart';
 
-SwiftGenerator _experimentalGenerator() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
+SwiftGenerator _experimentalGenerator() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
+);
 
 IntentInfo _intent({
   List<IntentParamInfo> parameters = const [],
@@ -31,7 +32,9 @@ void main() {
     group('default / fallback (rich-types OFF)', () {
       test('emits a [Entity] array in a single struct, no #if', () {
         final result = const SwiftGenerator().generateAll(
-          intents: [_intent(parameters: [_collection])],
+          intents: [
+            _intent(parameters: [_collection]),
+          ],
         );
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
@@ -48,7 +51,9 @@ void main() {
     group('rich-types ON (dual-branch)', () {
       test('native EntityCollection in #if, [Entity] array in #else', () {
         final result = _experimentalGenerator().generateAll(
-          intents: [_intent(parameters: [_collection])],
+          intents: [
+            _intent(parameters: [_collection]),
+          ],
         );
 
         expect(result, contains('#if APP_INTENTS_WWDC26'));
@@ -91,7 +96,9 @@ void main() {
           entityCollectionType: 'PhotoEntity',
         );
         final result = _experimentalGenerator().generateAll(
-          intents: [_intent(parameters: [nullable])],
+          intents: [
+            _intent(parameters: [nullable]),
+          ],
         );
         final ifBranch = result.substring(
           result.indexOf('#if'),

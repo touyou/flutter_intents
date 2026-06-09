@@ -164,9 +164,7 @@ class SwiftGenerator {
       // Native EntityCollection<Entity> (iOS 27) vs. a plain [Entity] array
       // fallback. Both yield the same `[String]` identifier wire.
       final entity = param.entityCollectionType!;
-      final base = nativeRichTypes
-          ? 'EntityCollection<$entity>'
-          : '[$entity]';
+      final base = nativeRichTypes ? 'EntityCollection<$entity>' : '[$entity]';
       return nullable ? '$base?' : base;
     }
     return dartTypeToSwiftType(param.dartType);
