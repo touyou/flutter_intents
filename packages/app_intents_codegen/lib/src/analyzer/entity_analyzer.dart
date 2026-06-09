@@ -79,6 +79,8 @@ class EntityAnalyzer {
         ?.toStringValue();
     final schema = annotation.getField('schema')?.toStringValue();
     final ownership = _parseOwnership(annotation.getField('ownership'));
+    final valueQuery =
+        annotation.getField('valueQuery')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -116,6 +118,7 @@ class EntityAnalyzer {
       persistedCacheKey: persistedCacheKey,
       schema: schema,
       ownership: ownership,
+      valueQuery: valueQuery,
     );
   }
 

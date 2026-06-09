@@ -127,4 +127,26 @@ struct FlutterBridgeTests {
         await bridge.unregisterHandler("ToBeRemoved")
         #expect(await bridge.hasHandler(for: "ToBeRemoved") == false)
     }
+
+    @Test("Value query executor forwards input and returns entity dicts (#51)")
+    func valueQueryExecutorForwardsInput() async throws {
+        let bridge = FlutterBridge.shared
+
+        await bridge.setValueQueryExecutor { entityIdentifier, input in
+            #expect(entityIdentifier == "com.example.product")
+            let query = input["query"] as? String
+            return [["id": "p1", "title": "Matched: \(query ?? "")"]]
+        }
+
+        let results = try await bridge.queryValues(
+            queryIdentifier: "com.example.product",
+            input: ["query": "shoes"]
+        )
+
+        #expect(results.count == 1)
+        #expect(results.first?["title"] as? String == "Matched: shoes")
+
+        // Reset shared singleton so later tests see a clean executor slot.
+        await bridge.clearExecutors()
+    }
 }

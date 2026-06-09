@@ -1034,6 +1034,65 @@ class SwiftGenerator {
       buffer.writeln();
       _writeOwnershipExtension(buffer, info);
     }
+
+    // #51 IntentValueQuery: an additive iOS 27 query type, in its own #if block
+    // (no #else needed — without the flag the entity simply has no value query;
+    // its normal EntityQuery is unaffected). See ADR 0001.
+    if (experimental.isEnabled(ExperimentalFeature.valueQuery) &&
+        info.valueQuery) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeValueQueryStruct(buffer, info);
+    }
+  }
+
+  /// Writes the experimental `IntentValueQuery` conforming struct (#51).
+  ///
+  /// Receives a serializable text search input from the system and delegates to
+  /// a Dart handler via `FlutterBridge.shared.queryValues`. Gated by
+  /// `#if APP_INTENTS_WWDC26` with no `#else`: the value query is purely
+  /// additive, so released-SDK builds without the flag just omit it.
+  void _writeValueQueryStruct(StringBuffer buffer, EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+    final subtitleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.subtitle)
+        .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('struct ${info.className}ValueQuery: IntentValueQuery {');
+    buffer.writeln(
+      '${_indent}func values(for input: String) async throws -> [${info.className}] {',
+    );
+    buffer.writeln(
+      '$_indent${_indent}let results = try await FlutterBridge.shared.queryValues(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}queryIdentifier: "${info.identifier}",',
+    );
+    buffer.writeln('$_indent$_indent${_indent}input: ["query": input]');
+    buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
   }
 
   /// Writes the experimental `OwnershipProvidingEntity` conformance extension.

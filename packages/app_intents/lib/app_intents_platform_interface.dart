@@ -131,6 +131,35 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     );
   }
 
+  /// Registers a handler for an `IntentValueQuery` (#51).
+  ///
+  /// An `IntentValueQuery` receives a serializable search input from the system
+  /// (for content that is hard to index ahead of time) and returns matching
+  /// entities. The [handler] receives the input map (e.g. `{'query': 'text'}`)
+  /// and returns a list of entity maps.
+  ///
+  /// Example:
+  /// ```dart
+  /// AppIntentsPlatform.instance.registerValueQueryHandler(
+  ///   'com.example.app.ProductEntity',
+  ///   (input) async {
+  ///     final products = await catalog.search(input['query'] as String? ?? '');
+  ///     return products.map((p) => p.toJson()).toList();
+  ///   },
+  /// );
+  /// ```
+  ///
+  /// See `docs/adr/0001-intent-value-query-bridge.md`.
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input)
+    handler,
+  ) {
+    throw UnimplementedError(
+      'registerValueQueryHandler() has not been implemented.',
+    );
+  }
+
   /// Retrieves a cached value from native storage.
   Future<dynamic> getCachedValue(String key) {
     throw UnimplementedError('getCachedValue() has not been implemented.');

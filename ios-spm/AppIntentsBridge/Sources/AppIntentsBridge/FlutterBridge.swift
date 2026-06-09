@@ -33,6 +33,15 @@ public actor FlutterBridge {
     /// Executor for getting suggested entities from Flutter
     private var suggestedEntitiesExecutor: (@Sendable (sending String) async throws -> sending [[String: Any]])?
 
+    /// Executor for running an IntentValueQuery in Flutter (#51).
+    ///
+    /// The closure is intentionally generic — it forwards the entity identifier
+    /// and a serializable input dictionary to Flutter and returns entity maps.
+    /// It never names an iOS-27 `IntentValueQuery` symbol, so this plugin
+    /// compiles against the stable SDK; the iOS-27 type lives only in the
+    /// `#if`-gated generated `IntentValueQuery` struct that calls `queryValues`.
+    private var valueQueryExecutor: (@Sendable (sending String, sending [String: Any]) async throws -> sending [[String: Any]])?
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
@@ -45,6 +54,7 @@ public actor FlutterBridge {
         intentExecutor = nil
         entityQueryExecutor = nil
         suggestedEntitiesExecutor = nil
+        valueQueryExecutor = nil
     }
 
     /// Sets the intent executor that handles communication with Flutter.
@@ -75,6 +85,16 @@ public actor FlutterBridge {
         _ executor: @escaping @Sendable (sending String) async throws -> sending [[String: Any]]
     ) {
         suggestedEntitiesExecutor = executor
+    }
+
+    /// Sets the value query executor that runs an IntentValueQuery in Flutter (#51).
+    ///
+    /// - Parameter executor: An async closure that takes the entity identifier
+    ///   and a serializable input dictionary and returns entity dictionaries.
+    public func setValueQueryExecutor(
+        _ executor: @escaping @Sendable (sending String, sending [String: Any]) async throws -> sending [[String: Any]]
+    ) {
+        valueQueryExecutor = executor
     }
 
     /// Maximum time to wait for executor to be set (in seconds)
@@ -209,6 +229,40 @@ public actor FlutterBridge {
         for _ in 0..<maxRetries {
             try await Task.sleep(nanoseconds: 100_000_000)
             if let executor = suggestedEntitiesExecutor {
+                return executor
+            }
+        }
+
+        throw AppIntentError.entityQueryNotConfigured
+    }
+
+    // MARK: - Value Queries (#51)
+
+    /// Runs an IntentValueQuery for the given entity type.
+    ///
+    /// - Parameters:
+    ///   - queryIdentifier: The type identifier of the entity to return.
+    ///   - input: A serializable search input (e.g. `["query": "text"]`).
+    /// - Returns: An array of entity dictionaries.
+    /// - Throws: `AppIntentError.entityQueryNotConfigured` if no executor is set within timeout.
+    public func queryValues(
+        queryIdentifier: String,
+        input: sending [String: Any]
+    ) async throws -> sending [[String: Any]] {
+        let executor = try await waitForValueQueryExecutor()
+        return try await executor(queryIdentifier, input)
+    }
+
+    /// Waits for the value query executor to be set with timeout
+    private func waitForValueQueryExecutor() async throws -> @Sendable (sending String, sending [String: Any]) async throws -> sending [[String: Any]] {
+        if let executor = valueQueryExecutor {
+            return executor
+        }
+
+        let maxRetries = Int(executorWaitTimeout * 10)
+        for _ in 0..<maxRetries {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            if let executor = valueQueryExecutor {
                 return executor
             }
         }

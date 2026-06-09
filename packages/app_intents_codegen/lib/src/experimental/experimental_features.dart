@@ -24,7 +24,14 @@ enum ExperimentalFeature {
   /// Richer parameter types (#53): native `Duration` parameters. Without this
   /// feature a `Duration` parameter falls back to `Measurement<UnitDuration>`,
   /// which the stable SDK supports.
-  richTypes('rich-types');
+  richTypes('rich-types'),
+
+  /// IntentValueQuery structured search (#51): generates an
+  /// `IntentValueQuery`-conforming type that receives a serializable search
+  /// input from the system and delegates to a Dart handler via FlutterBridge.
+  /// See `docs/adr/0001-intent-value-query-bridge.md`. The visual
+  /// (`SemanticContentDescriptor`) variant is out of scope here (#58).
+  valueQuery('value-query');
 
   const ExperimentalFeature(this.flag);
 

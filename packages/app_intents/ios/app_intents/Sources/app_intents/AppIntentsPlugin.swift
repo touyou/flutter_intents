@@ -345,6 +345,31 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         }
     }
 
+    /// Runs an IntentValueQuery asynchronously for use with FlutterBridge (#51).
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity to return.
+    ///   - input: A serializable search input (e.g. `["query": "text"]`).
+    /// - Returns: The list of entities from the Dart value-query handler.
+    /// - Throws: An error if the query fails.
+    @available(iOS 13.0, *)
+    @MainActor
+    public func queryValuesAsync(
+        entityIdentifier: String,
+        input: [String: Any]
+    ) async throws -> [[String: Any]] {
+        return try await withCheckedThrowingContinuation { continuation in
+            queryValues(entityIdentifier: entityIdentifier, input: input) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     // MARK: - Intent Execution
 
     /// Executes an intent by invoking the Dart handler.
@@ -444,6 +469,46 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         ]
 
         channel.invokeMethod("getSuggestedEntities", arguments: arguments) { result in
+            if let error = result as? FlutterError {
+                completion(.failure(AppIntentsError.flutterError(
+                    code: error.code,
+                    message: error.message ?? "Unknown error",
+                    details: error.details
+                )))
+            } else if let resultList = result as? [[String: Any]] {
+                completion(.success(resultList))
+            } else if result == nil || result is NSNull {
+                completion(.success([]))
+            } else {
+                completion(.failure(AppIntentsError.invalidResult))
+            }
+        }
+    }
+
+    // MARK: - Value Queries (#51)
+
+    /// Runs an IntentValueQuery by invoking the Dart handler.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity to return.
+    ///   - input: A serializable search input (e.g. `["query": "text"]`).
+    ///   - completion: Called with the list of entities or an error.
+    public func queryValues(
+        entityIdentifier: String,
+        input: [String: Any],
+        completion: @escaping (Result<[[String: Any]], Error>) -> Void
+    ) {
+        guard let channel = channel else {
+            completion(.failure(AppIntentsError.channelNotAvailable))
+            return
+        }
+
+        let arguments: [String: Any] = [
+            "entityIdentifier": entityIdentifier,
+            "input": input
+        ]
+
+        channel.invokeMethod("queryValues", arguments: arguments) { result in
             if let error = result as? FlutterError {
                 completion(.failure(AppIntentsError.flutterError(
                     code: error.code,

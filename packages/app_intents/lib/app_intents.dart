@@ -7,7 +7,11 @@ library;
 export 'src/models/models.dart';
 export 'app_intents_platform_interface.dart' show AppIntentsPlatform;
 export 'app_intents_method_channel.dart'
-    show IntentHandler, EntityQueryHandler, SuggestedEntitiesHandler;
+    show
+        IntentHandler,
+        EntityQueryHandler,
+        SuggestedEntitiesHandler,
+        ValueQueryHandler;
 
 import 'app_intents_platform_interface.dart';
 import 'src/models/models.dart';
@@ -144,6 +148,34 @@ class AppIntents {
     Future<List<Map<String, dynamic>>> Function() handler,
   ) {
     AppIntentsPlatform.instance.registerSuggestedEntitiesHandler(
+      entityIdentifier,
+      handler,
+    );
+  }
+
+  /// Registers a handler for an `IntentValueQuery` (#51).
+  ///
+  /// The [handler] receives the system's serializable search input (e.g.
+  /// `{'query': 'text'}`) and returns matching entities as maps. Used for
+  /// content that is hard to index ahead of time (large, server-side, or
+  /// fast-changing). See `docs/adr/0001-intent-value-query-bridge.md`.
+  ///
+  /// Example:
+  /// ```dart
+  /// appIntents.registerValueQueryHandler(
+  ///   'com.example.app.ProductEntity',
+  ///   (input) async {
+  ///     final products = await catalog.search(input['query'] as String? ?? '');
+  ///     return products.map((p) => p.toJson()).toList();
+  ///   },
+  /// );
+  /// ```
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input)
+    handler,
+  ) {
+    AppIntentsPlatform.instance.registerValueQueryHandler(
       entityIdentifier,
       handler,
     );

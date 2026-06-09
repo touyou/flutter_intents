@@ -49,6 +49,12 @@ class EntityInfo {
   /// conformance.
   final EntityOwnershipType? ownership;
 
+  /// Experimental (WWDC26 #51): whether to generate an `IntentValueQuery`
+  /// conforming type for this entity. When true and the `value-query` feature
+  /// is enabled, the Swift output adds a `<Entity>ValueQuery` struct
+  /// (`#if`-gated) delegating to a Dart value-query handler.
+  final bool valueQuery;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -63,6 +69,7 @@ class EntityInfo {
     this.persistedCacheKey,
     this.schema,
     this.ownership,
+    this.valueQuery = false,
   });
 
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
@@ -102,6 +109,7 @@ class EntityInfo {
         persistedCacheKey == other.persistedCacheKey &&
         schema == other.schema &&
         ownership == other.ownership &&
+        valueQuery == other.valueQuery &&
         _listEquals(properties, other.properties);
   }
 
@@ -119,6 +127,7 @@ class EntityInfo {
     persistedCacheKey,
     schema,
     ownership,
+    valueQuery,
     Object.hashAll(properties),
   );
 
@@ -128,7 +137,7 @@ class EntityInfo {
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
       'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
-      'properties: $properties)';
+      'valueQuery: $valueQuery, properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.

@@ -18,6 +18,14 @@ typedef EntityQueryHandler =
 typedef SuggestedEntitiesHandler =
     Future<List<Map<String, dynamic>>> Function();
 
+/// Type definition for value query handler functions (#51).
+///
+/// Receives a serializable search [input] (e.g. `{'query': 'text'}`) forwarded
+/// from the system's `IntentValueQuery` and returns the matching entities as
+/// serialized maps. See `docs/adr/0001-intent-value-query-bridge.md`.
+typedef ValueQueryHandler =
+    Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input);
+
 /// An implementation of [AppIntentsPlatform] that uses method channels.
 class MethodChannelAppIntents extends AppIntentsPlatform {
   /// The method channel used to interact with the native platform.
@@ -38,6 +46,9 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   /// Registered suggested entities handlers, keyed by entity identifier.
   final Map<String, SuggestedEntitiesHandler> _suggestedEntitiesHandlers = {};
+
+  /// Registered value query handlers, keyed by entity identifier (#51).
+  final Map<String, ValueQueryHandler> _valueQueryHandlers = {};
 
   /// Stream controller for intent execution events.
   final StreamController<IntentExecutionRequest> _intentExecutionController =
@@ -68,6 +79,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
         return _onQueryEntities(call.arguments as Map<Object?, Object?>);
       case 'getSuggestedEntities':
         return _onGetSuggestedEntities(call.arguments as Map<Object?, Object?>);
+      case 'queryValues':
+        return _onQueryValues(call.arguments as Map<Object?, Object?>);
       default:
         throw PlatformException(
           code: 'UNIMPLEMENTED',
@@ -135,6 +148,22 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return handleSuggestedEntitiesQuery(entityIdentifier);
   }
 
+  /// Handles value query requests from iOS (#51).
+  Future<List<Map<String, dynamic>>> _onQueryValues(
+    Map<Object?, Object?> arguments,
+  ) async {
+    final entityIdentifier = arguments['entityIdentifier'] as String?;
+    if (entityIdentifier == null) {
+      throw PlatformException(
+        code: 'INVALID_ARGS',
+        message: 'entityIdentifier is required',
+      );
+    }
+    final input = _convertToStringDynamicMap(arguments['input']);
+
+    return handleValueQuery(entityIdentifier, input);
+  }
+
   /// Converts a dynamic map to `Map<String, dynamic>`.
   Map<String, dynamic> _convertToStringDynamicMap(Object? value) {
     if (value == null) return {};
@@ -172,6 +201,14 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     SuggestedEntitiesHandler handler,
   ) {
     _suggestedEntitiesHandlers[entityIdentifier] = handler;
+  }
+
+  @override
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    ValueQueryHandler handler,
+  ) {
+    _valueQueryHandlers[entityIdentifier] = handler;
   }
 
   @override
@@ -321,6 +358,33 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       throw AppIntentError(
         code: 'query_error',
         message: 'An error occurred while getting suggested entities.',
+        details: {'entityIdentifier': entityIdentifier},
+      );
+    }
+  }
+
+  /// Runs the registered value query handler for the given entity type (#51).
+  ///
+  /// Called internally when an `IntentValueQuery` request arrives from iOS, and
+  /// can also be called directly for testing. Returns an empty list when no
+  /// handler is registered (the entity simply has no value query).
+  Future<List<Map<String, dynamic>>> handleValueQuery(
+    String entityIdentifier,
+    Map<String, dynamic> input,
+  ) async {
+    final handler = _valueQueryHandlers[entityIdentifier];
+    if (handler == null) {
+      return <Map<String, dynamic>>[];
+    }
+
+    try {
+      return await handler(input);
+    } catch (e) {
+      if (e is AppIntentError) rethrow;
+      debugPrint('Value query error for $entityIdentifier: $e');
+      throw AppIntentError(
+        code: 'query_error',
+        message: 'An error occurred while running the value query.',
         details: {'entityIdentifier': entityIdentifier},
       );
     }

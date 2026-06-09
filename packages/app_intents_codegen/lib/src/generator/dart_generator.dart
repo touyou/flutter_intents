@@ -470,6 +470,13 @@ AppIntents().registerIntentHandler(
     for (final entity in entities) {
       statements.add(_buildEntityQueryHandlerRegistration(entity));
       statements.add(_buildSuggestedEntitiesHandlerRegistration(entity));
+      // #51: register a value-query handler when the entity opts in. The call
+      // references no iOS-version-specific symbol, so it is safe to emit
+      // unconditionally; it stays unused until the Swift IntentValueQuery type
+      // is enabled via `--experimental=value-query`. See ADR 0001.
+      if (entity.valueQuery) {
+        statements.add(_buildValueQueryHandlerRegistration(entity));
+      }
     }
 
     return Method(
@@ -506,6 +513,26 @@ AppIntents().registerSuggestedEntitiesHandler(
   '${entity.identifier}',
   () async {
     final entities = await $suggestedHandlerName();
+    return entities.map((e) => e.toJson()).toList();
+  },
+);
+''');
+  }
+
+  /// Builds an IntentValueQuery handler registration (#51).
+  ///
+  /// The generated Swift `IntentValueQuery` sends a `{"query": <text>}` input;
+  /// the user-defined `<entity>ValueQuery(String input)` handler returns the
+  /// matching entities, which are serialized back to the system.
+  Code _buildValueQueryHandlerRegistration(EntityInfo entity) {
+    final cleanName = _cleanClassName(entity.className);
+    final valueQueryHandlerName = '${_toCamelCase(cleanName)}ValueQuery';
+
+    return Code('''
+AppIntents().registerValueQueryHandler(
+  '${entity.identifier}',
+  (input) async {
+    final entities = await $valueQueryHandlerName(input['query'] as String? ?? '');
     return entities.map((e) => e.toJson()).toList();
   },
 );

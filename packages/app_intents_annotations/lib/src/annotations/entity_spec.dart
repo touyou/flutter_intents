@@ -84,6 +84,28 @@ class EntitySpec {
   /// generation is enabled.
   final EntityOwnershipState? ownership;
 
+  /// **Experimental (WWDC26, iOS 27+).** Whether to generate an
+  /// `IntentValueQuery`-conforming type for this entity (#51).
+  ///
+  /// An `IntentValueQuery` receives a serializable search input (e.g. a text
+  /// query) from the system — for content that is hard to index ahead of time
+  /// (large, server-side, or fast-changing) — and returns matching entities.
+  /// Unlike [enumerable]/the default `EntityQuery`, it can take an arbitrary
+  /// search input.
+  ///
+  /// When the `value-query` experimental feature is enabled, the generated
+  /// Swift adds a `<Entity>ValueQuery: IntentValueQuery` struct (in a
+  /// `#if APP_INTENTS_WWDC26` block) whose `values(for:)` delegates to a Dart
+  /// handler via `FlutterBridge.shared.queryValues`. The Dart side registers
+  /// the handler with `AppIntents().registerValueQueryHandler` — emitted
+  /// whenever this flag is set (it references no iOS-version-specific symbol,
+  /// so it is safe to ship unconditionally; an unused registration is
+  /// harmless until the Swift side is enabled).
+  ///
+  /// The visual (`SemanticContentDescriptor`/pixel-buffer) variant is out of
+  /// scope (#58, native-only). See `docs/adr/0001-intent-value-query-bridge.md`.
+  final bool valueQuery;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -95,5 +117,6 @@ class EntitySpec {
     this.persistedCacheKey,
     this.schema,
     this.ownership,
+    this.valueQuery = false,
   });
 }
