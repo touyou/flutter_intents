@@ -13,3 +13,4 @@ export 'src/annotations/intent_spec.dart';
 export 'src/bases/entity_spec_base.dart';
 export 'src/bases/intent_spec_base.dart';
 export 'src/models/intent_file.dart';
+export 'src/models/person_name.dart';

@@ -103,15 +103,16 @@ class SwiftGenerator {
 
   /// Writes a parameter declaration to the buffer.
   ///
-  /// When [nativeDuration] is true (the experimental WWDC26 `#if` branch with
-  /// the `rich-types` feature enabled), a Dart `Duration` parameter is emitted
-  /// as the native iOS 27 `Duration` type. Otherwise it falls back to
-  /// `Measurement<UnitDuration>`, which the stable SDK supports — so the default
-  /// and `#else` output always compiles.
+  /// When [nativeRichTypes] is true (the experimental WWDC26 `#if` branch with
+  /// the `rich-types` feature enabled), the "rich" Dart types are emitted as
+  /// their native iOS 27 equivalents (`Duration`, `PersonNameComponents`).
+  /// Otherwise they fall back to types the stable SDK supports
+  /// (`Measurement<UnitDuration>`, `String`) — so the default and `#else`
+  /// output always compiles.
   void _writeParameter(
     StringBuffer buffer,
     IntentParamInfo param, {
-    bool nativeDuration = false,
+    bool nativeRichTypes = false,
   }) {
     // File type parameters use IntentFile
     if (param.fileType != null) {
@@ -131,7 +132,7 @@ class SwiftGenerator {
     final swiftType =
         param.entityType ??
         param.enumType ??
-        _swiftParameterType(param, nativeDuration: nativeDuration);
+        _swiftParameterType(param, nativeRichTypes: nativeRichTypes);
 
     // Build @Parameter annotation
     final paramParts = <String>['title: "${param.title}"'];
@@ -142,15 +143,22 @@ class SwiftGenerator {
     buffer.writeln('${_indent}var ${param.fieldName}: $swiftType');
   }
 
-  /// The Swift `@Parameter` type for [param], accounting for the Duration
-  /// fallback. See [_writeParameter] for the [nativeDuration] semantics.
+  /// The Swift `@Parameter` type for [param], accounting for the rich-type
+  /// fallbacks. See [_writeParameter] for the [nativeRichTypes] semantics.
   String _swiftParameterType(
     IntentParamInfo param, {
-    required bool nativeDuration,
+    required bool nativeRichTypes,
   }) {
+    final nullable = param.dartType.endsWith('?');
     if (_isDurationParam(param)) {
-      final base = nativeDuration ? 'Duration' : 'Measurement<UnitDuration>';
-      return param.dartType.endsWith('?') ? '$base?' : base;
+      final base = nativeRichTypes ? 'Duration' : 'Measurement<UnitDuration>';
+      return nullable ? '$base?' : base;
+    }
+    if (_isPersonNameParam(param)) {
+      // No PersonNameComponents @Parameter conformance on the stable SDK, so
+      // the fallback is a plain formatted String.
+      final base = nativeRichTypes ? 'PersonNameComponents' : 'String';
+      return nullable ? '$base?' : base;
     }
     return dartTypeToSwiftType(param.dartType);
   }
@@ -159,9 +167,17 @@ class SwiftGenerator {
   bool _isDurationParam(IntentParamInfo param) =>
       param.dartType == 'Duration' || param.dartType == 'Duration?';
 
-  /// Whether [info] has any Duration parameter.
-  bool _hasDurationParams(IntentInfo info) =>
-      info.parameters.any(_isDurationParam);
+  /// Whether [param] is a Dart `PersonName` (nullable or not).
+  bool _isPersonNameParam(IntentParamInfo param) =>
+      param.dartType == 'PersonName' || param.dartType == 'PersonName?';
+
+  /// Whether [param] is a WWDC26 "rich" parameter type (#53).
+  bool _isRichTypeParam(IntentParamInfo param) =>
+      _isDurationParam(param) || _isPersonNameParam(param);
+
+  /// Whether [info] has any rich (#53) parameter.
+  bool _hasRichTypeParams(IntentInfo info) =>
+      info.parameters.any(_isRichTypeParam);
 
   /// Returns the Swift expression to convert a parameter value for MethodChannel.
   ///
@@ -179,6 +195,12 @@ class SwiftGenerator {
     // [_writeDurationSerializations]), so both Swift type branches agree.
     if (_isDurationParam(param)) {
       return '${param.fieldName}Micros';
+    }
+
+    // PersonName types: use pre-serialized component-map local (see
+    // [_writePersonNameSerializations]).
+    if (_isPersonNameParam(param)) {
+      return '${param.fieldName}Name';
     }
 
     // Entity types: use .id
@@ -321,14 +343,14 @@ class SwiftGenerator {
   void _writePerformMethod(
     StringBuffer buffer,
     IntentInfo info, {
-    bool nativeDuration = false,
+    bool nativeRichTypes = false,
   }) {
     if (info.urlScheme != null) {
-      _writeUrlSchemePerformMethod(buffer, info, nativeDuration);
+      _writeUrlSchemePerformMethod(buffer, info, nativeRichTypes);
     } else if (info.supportedModes == IntentModeType.foreground) {
-      _writeCachePerformMethod(buffer, info, nativeDuration);
+      _writeCachePerformMethod(buffer, info, nativeRichTypes);
     } else {
-      _writeFlutterBridgePerformMethod(buffer, info, nativeDuration);
+      _writeFlutterBridgePerformMethod(buffer, info, nativeRichTypes);
     }
   }
 
@@ -368,7 +390,7 @@ class SwiftGenerator {
   void _writeDurationSerializations(
     StringBuffer buffer,
     IntentInfo info,
-    bool nativeDuration,
+    bool nativeRichTypes,
   ) {
     final indent2 = '$_indent$_indent';
     for (final param in info.parameters) {
@@ -376,26 +398,94 @@ class SwiftGenerator {
       final name = param.fieldName;
       final isNullable = param.isOptional || param.dartType.endsWith('?');
       if (isNullable) {
-        final conv = _durationToMicrosExpression(r'$0', nativeDuration);
+        final conv = _durationToMicrosExpression(r'$0', nativeRichTypes);
         buffer.writeln(
           '${indent2}let ${name}Micros: Int? = $name.map { $conv }',
         );
       } else {
-        final conv = _durationToMicrosExpression(name, nativeDuration);
+        final conv = _durationToMicrosExpression(name, nativeRichTypes);
         buffer.writeln('${indent2}let ${name}Micros: Int = $conv');
       }
     }
   }
 
-  /// The Swift expression converting [ref] (a `Duration` when [nativeDuration],
+  /// The Swift expression converting [ref] (a `Duration` when [nativeRichTypes],
   /// otherwise a `Measurement<UnitDuration>`) to an `Int` of microseconds.
-  String _durationToMicrosExpression(String ref, bool nativeDuration) {
-    if (nativeDuration) {
+  String _durationToMicrosExpression(String ref, bool nativeRichTypes) {
+    if (nativeRichTypes) {
       // 1 microsecond == 1_000_000_000_000 attoseconds.
       return 'Int($ref.components.seconds) * 1_000_000 + '
           'Int($ref.components.attoseconds / 1_000_000_000_000)';
     }
     return 'Int($ref.converted(to: .seconds).value * 1_000_000)';
+  }
+
+  /// The `PersonNameComponents` properties carried over the wire, in order.
+  static const _personNameComponents = <String>[
+    'givenName',
+    'familyName',
+    'middleName',
+    'namePrefix',
+    'nameSuffix',
+    'nickname',
+  ];
+
+  /// Writes `<field>Name` locals converting PersonName parameters to a
+  /// `[String: String]` map of the non-null components.
+  ///
+  /// The native `PersonNameComponents` (`#if` branch) reads each component; the
+  /// `String` fallback (`#else` / default) carries only `givenName`. Both reduce
+  /// to the same `[String: String]` shape so the params dictionary stays
+  /// branch-agnostic and the Dart handler always uses `PersonName.fromMap`.
+  void _writePersonNameSerializations(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeRichTypes,
+  ) {
+    final indent2 = '$_indent$_indent';
+    final indent3 = '$_indent$_indent$_indent';
+    for (final param in info.parameters) {
+      if (!_isPersonNameParam(param)) continue;
+      final name = param.fieldName;
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+
+      if (!nativeRichTypes) {
+        // Fallback: the Swift parameter is a plain formatted String.
+        if (isNullable) {
+          buffer.writeln(
+            '${indent2}let ${name}Name: [String: String]? = '
+            '$name.map { ["givenName": \$0] }',
+          );
+        } else {
+          buffer.writeln(
+            '${indent2}let ${name}Name: [String: String] = '
+            '["givenName": $name]',
+          );
+        }
+        continue;
+      }
+
+      // Native PersonNameComponents: collect every non-null component.
+      if (isNullable) {
+        buffer.writeln('${indent2}var ${name}Name: [String: String]? = nil');
+        buffer.writeln('${indent2}if let $name {');
+        buffer.writeln('${indent3}var components: [String: String] = [:]');
+        for (final c in _personNameComponents) {
+          buffer.writeln(
+            '${indent3}if let v = $name.$c { components["$c"] = v }',
+          );
+        }
+        buffer.writeln('$indent3${name}Name = components');
+        buffer.writeln('$indent2}');
+      } else {
+        buffer.writeln('${indent2}var ${name}Name: [String: String] = [:]');
+        for (final c in _personNameComponents) {
+          buffer.writeln(
+            '${indent2}if let v = $name.$c { ${name}Name["$c"] = v }',
+          );
+        }
+      }
+    }
   }
 
   /// Writes the return statement (with optional dialog).
@@ -415,11 +505,12 @@ class SwiftGenerator {
   void _writeFlutterBridgePerformMethod(
     StringBuffer buffer,
     IntentInfo info,
-    bool nativeDuration,
+    bool nativeRichTypes,
   ) {
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
-    _writeDurationSerializations(buffer, info, nativeDuration);
+    _writeDurationSerializations(buffer, info, nativeRichTypes);
+    _writePersonNameSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -472,16 +563,17 @@ class SwiftGenerator {
   void _writeExperimentalPerformMethod(
     StringBuffer buffer,
     IntentInfo info,
-    bool nativeDuration,
+    bool nativeRichTypes,
   ) {
     if (!info.longRunning && !info.cancellable) {
-      _writePerformMethod(buffer, info, nativeDuration: nativeDuration);
+      _writePerformMethod(buffer, info, nativeRichTypes: nativeRichTypes);
       return;
     }
 
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
-    _writeDurationSerializations(buffer, info, nativeDuration);
+    _writeDurationSerializations(buffer, info, nativeRichTypes);
+    _writePersonNameSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
     final indent3 = '$_indent$_indent$_indent';
@@ -523,11 +615,12 @@ class SwiftGenerator {
   void _writeCachePerformMethod(
     StringBuffer buffer,
     IntentInfo info,
-    bool nativeDuration,
+    bool nativeRichTypes,
   ) {
     _writePerformSignature(buffer, info);
     _writeFileParamSerializations(buffer, info);
-    _writeDurationSerializations(buffer, info, nativeDuration);
+    _writeDurationSerializations(buffer, info, nativeRichTypes);
+    _writePersonNameSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -570,7 +663,7 @@ class SwiftGenerator {
   void _writeUrlSchemePerformMethod(
     StringBuffer buffer,
     IntentInfo info,
-    bool nativeDuration,
+    bool nativeRichTypes,
   ) {
     final scheme = info.urlScheme!;
     final action = info.urlAction ?? _defaultAction(info.identifier);
@@ -591,7 +684,8 @@ class SwiftGenerator {
       buffer.writeln('${indent2}components.scheme = "$scheme"');
       buffer.writeln('${indent2}components.host = "$action"');
       buffer.writeln();
-      _writeDurationSerializations(buffer, info, nativeDuration);
+      _writeDurationSerializations(buffer, info, nativeRichTypes);
+      _writePersonNameSerializations(buffer, info, nativeRichTypes);
       buffer.writeln('${indent2}var queryItems = [URLQueryItem]()');
 
       for (final param in info.parameters) {
@@ -654,6 +748,23 @@ class SwiftGenerator {
           '$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: String(${name}Micros)))',
         );
       }
+      return;
+    }
+
+    // PersonName types: a URL query value can't carry a structured name, so
+    // carry the given name only (degraded — the structured channels are
+    // FlutterBridge/cache). Reads from the pre-serialized component map.
+    if (_isPersonNameParam(param)) {
+      final name = param.fieldName;
+      final indent3 = '$_indent$_indent$_indent';
+      final guard = isNullable
+          ? 'if let ${name}Name, let ${name}Given = ${name}Name["givenName"] {'
+          : 'if let ${name}Given = ${name}Name["givenName"] {';
+      buffer.writeln('$_indent$_indent$guard');
+      buffer.writeln(
+        '${indent3}queryItems.append(URLQueryItem(name: "$name", value: ${name}Given))',
+      );
+      buffer.writeln('$_indent$_indent}');
       return;
     }
 
@@ -1417,13 +1528,13 @@ class SwiftGenerator {
       _usesExperimentalSchema(info) ||
       _usesExperimentalRichTypes(info);
 
-  /// Whether [info] should emit the native `Duration` parameter form
-  /// (`rich-types` feature enabled and at least one Duration parameter). This
+  /// Whether [info] should emit the native rich (#53) parameter forms
+  /// (`rich-types` feature enabled and at least one rich parameter). This
   /// triggers dual-branch emission so the stable `#else` keeps the
-  /// `Measurement<UnitDuration>` fallback.
+  /// `Measurement<UnitDuration>` / `String` fallbacks.
   bool _usesExperimentalRichTypes(IntentInfo info) =>
       experimental.isEnabled(ExperimentalFeature.richTypes) &&
-      _hasDurationParams(info);
+      _hasRichTypeParams(info);
 
   /// Whether [info] should emit the experimental WWDC26 execution-control form.
   ///
@@ -1470,7 +1581,7 @@ class SwiftGenerator {
     buffer.write('}');
   }
   // NOTE: the stable body never emits native Duration; a Duration parameter
-  // here is always the `Measurement<UnitDuration>` fallback (nativeDuration
+  // here is always the `Measurement<UnitDuration>` fallback (nativeRichTypes
   // defaults to false), so the default and `#else` output compiles on the
   // released SDK.
 
@@ -1485,7 +1596,7 @@ class SwiftGenerator {
     final hasExecutionTargets =
         info.executionTargets != null && info.executionTargets!.isNotEmpty;
     final hasSchema = _usesExperimentalSchema(info);
-    final nativeDuration = _usesExperimentalRichTypes(info);
+    final nativeRichTypes = _usesExperimentalRichTypes(info);
 
     final conformances = <String>['AppIntent'];
     if (info.longRunning) conformances.add('LongRunningIntent');
@@ -1495,7 +1606,10 @@ class SwiftGenerator {
     // `Duration` parameters are iOS 27+; CancellableIntent on its own is
     // iOS 26.4+.
     final minVersion =
-        (info.longRunning || hasExecutionTargets || hasSchema || nativeDuration)
+        (info.longRunning ||
+            hasExecutionTargets ||
+            hasSchema ||
+            nativeRichTypes)
         ? '27.0'
         : '26.4';
 
@@ -1522,10 +1636,10 @@ class SwiftGenerator {
     }
 
     _writeParameterSummary(buffer, info);
-    _writeIntentParameters(buffer, info, nativeDuration: nativeDuration);
+    _writeIntentParameters(buffer, info, nativeRichTypes: nativeRichTypes);
 
     buffer.writeln();
-    _writeExperimentalPerformMethod(buffer, info, nativeDuration);
+    _writeExperimentalPerformMethod(buffer, info, nativeRichTypes);
 
     buffer.write('}');
   }
@@ -1568,12 +1682,12 @@ class SwiftGenerator {
   void _writeIntentParameters(
     StringBuffer buffer,
     IntentInfo info, {
-    bool nativeDuration = false,
+    bool nativeRichTypes = false,
   }) {
     if (info.parameters.isEmpty) return;
     buffer.writeln();
     for (final param in info.parameters) {
-      _writeParameter(buffer, param, nativeDuration: nativeDuration);
+      _writeParameter(buffer, param, nativeRichTypes: nativeRichTypes);
     }
   }
 

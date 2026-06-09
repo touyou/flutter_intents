@@ -230,6 +230,45 @@ void main() {
         expect(result, contains("params['snooze'] != null"));
       });
 
+      test('generates Params class with PersonName parameters (#53)', () {
+        final intents = [
+          const IntentInfo(
+            className: 'SetAuthorIntent',
+            identifier: 'com.example.setAuthor',
+            title: 'Set Author',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'author',
+                dartType: 'PersonName',
+                title: 'Author',
+                isOptional: false,
+              ),
+              IntentParamInfo(
+                fieldName: 'editor',
+                dartType: 'PersonName?',
+                title: 'Editor',
+                isOptional: true,
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, contains('final PersonName author'));
+        expect(result, contains('final PersonName? editor'));
+        // fromMap: PersonName arrives as a component Map (assert on substrings
+        // that survive dart format's line wrapping).
+        expect(result, contains('PersonName.fromMap('));
+        expect(result, contains("map['author'] as Map"));
+        expect(result, contains("map['editor'] != null"));
+        expect(result, contains("map['editor'] as Map"));
+        // fromQueryParameters: URL carries only the given name.
+        expect(result, contains("PersonName(givenName: params['author']!)"));
+        expect(result, contains("PersonName(givenName: params['editor'])"));
+      });
+
       test('generates handler using Params class with named parameters', () {
         final intents = [
           const IntentInfo(
