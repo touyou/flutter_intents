@@ -1161,6 +1161,11 @@ class SwiftGenerator {
     buffer.writeln(
       '$_indent$_indent case "audio.nowPlaying": return .audio(.nowPlaying)',
     );
+    // MVP: only `audio.nowPlaying` is mapped. An unknown/nil token falls back to
+    // it rather than erroring; expand this switch as the context catalog grows.
+    buffer.writeln(
+      '$_indent$_indent // Unknown/nil tokens fall back to now-playing (only context in the MVP).',
+    );
     buffer.writeln('$_indent$_indent default: return .audio(.nowPlaying)');
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
