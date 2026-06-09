@@ -200,6 +200,16 @@ $fromMapParams    );
       }
     }
 
+    // PersonName arrives as a Map of name components (native PersonNameComponents
+    // or the String fallback both reduce to this shape).
+    if (baseType == 'PersonName') {
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? PersonName.fromMap(Map<String, dynamic>.from(map['${param.fieldName}'] as Map)) : null";
+      } else {
+        return "PersonName.fromMap(Map<String, dynamic>.from(map['${param.fieldName}'] as Map))";
+      }
+    }
+
     if (baseType == 'double') {
       if (isNullable) {
         return "(map['${param.fieldName}'] as num?)?.toDouble()";
@@ -234,6 +244,16 @@ $fromMapParams    );
         return "params['${param.fieldName}'] != null ? Duration(microseconds: int.parse(params['${param.fieldName}']!)) : null";
       } else {
         return "Duration(microseconds: int.parse(params['${param.fieldName}']!))";
+      }
+    }
+
+    // URL scheme carries only the given name (see SwiftGenerator); rebuild a
+    // best-effort PersonName from it.
+    if (baseType == 'PersonName') {
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? PersonName(givenName: params['${param.fieldName}']) : null";
+      } else {
+        return "PersonName(givenName: params['${param.fieldName}']!)";
       }
     }
 

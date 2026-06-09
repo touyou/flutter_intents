@@ -161,6 +161,38 @@ void main() {
         expect(snooze.dartType, equals('Duration?'));
       });
 
+      test('captures PersonName parameter types (#53)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.setAuthor',
+            title: 'Set Author',
+          )
+          class SetAuthorIntent extends IntentSpecBase {
+            @IntentParam(title: 'Author')
+            final PersonName author;
+
+            @IntentParam(title: 'Editor', isOptional: true)
+            final PersonName? editor;
+
+            SetAuthorIntent({required this.author, this.editor});
+          }
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'SetAuthorIntent'));
+
+        expect(result, isNotNull);
+        final author = result!.parameters.firstWhere(
+          (p) => p.fieldName == 'author',
+        );
+        expect(author.dartType, equals('PersonName'));
+        final editor = result.parameters.firstWhere(
+          (p) => p.fieldName == 'editor',
+        );
+        expect(editor.dartType, equals('PersonName?'));
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

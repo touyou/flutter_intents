@@ -32,6 +32,7 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/annotations/enum_spec.dart';
         export 'src/bases/intent_spec_base.dart';
         export 'src/bases/entity_spec_base.dart';
+        export 'src/models/person_name.dart';
       ''',
       'app_intents_annotations|lib/src/annotations/intent_spec.dart': '''
         class IntentSpec {
@@ -185,6 +186,24 @@ Future<LibraryElement> resolveSource(String source) async {
           const EnumCaseDisplay({
             required this.title,
             this.imageName,
+          });
+        }
+      ''',
+      'app_intents_annotations|lib/src/models/person_name.dart': '''
+        class PersonName {
+          final String? givenName;
+          final String? familyName;
+          final String? middleName;
+          final String? namePrefix;
+          final String? nameSuffix;
+          final String? nickname;
+          const PersonName({
+            this.givenName,
+            this.familyName,
+            this.middleName,
+            this.namePrefix,
+            this.nameSuffix,
+            this.nickname,
           });
         }
       ''',

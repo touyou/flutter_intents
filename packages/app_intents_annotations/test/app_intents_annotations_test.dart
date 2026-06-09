@@ -71,6 +71,31 @@ void main() {
       expect(annotation, isA<AppShortcutsProvider>());
     });
   });
+
+  group('PersonName', () {
+    test('round-trips through a component map', () {
+      const name = PersonName(givenName: 'Ada', familyName: 'Lovelace');
+      final map = name.toMap();
+      expect(map, equals({'givenName': 'Ada', 'familyName': 'Lovelace'}));
+      expect(PersonName.fromMap(map), equals(name));
+    });
+
+    test('toMap omits null components', () {
+      const name = PersonName(givenName: 'Grace');
+      expect(name.toMap(), equals({'givenName': 'Grace'}));
+    });
+
+    test('fromMap tolerates missing components', () {
+      final name = PersonName.fromMap({'nickname': 'Amazing Grace'});
+      expect(name.givenName, isNull);
+      expect(name.nickname, equals('Amazing Grace'));
+    });
+
+    test('is const constructible', () {
+      const name = PersonName(givenName: 'Alan', familyName: 'Turing');
+      expect(name, isA<PersonName>());
+    });
+  });
 }
 
 class MyIntentSpec extends IntentSpecBase {
