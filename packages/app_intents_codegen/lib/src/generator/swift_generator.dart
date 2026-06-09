@@ -1,3 +1,5 @@
+import 'package:source_gen/source_gen.dart';
+
 import '../experimental/experimental_features.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
@@ -377,11 +379,12 @@ class SwiftGenerator {
   /// Writes the experimental perform() that wraps the background invoke in
   /// `performBackgroundTask` and/or `withIntentCancellationHandler`.
   ///
-  /// An intent that only restricts `executionTargets` (without long-running or
-  /// cancellable) keeps the standard background perform().
+  /// An intent that only restricts `executionTargets` or conforms to a schema
+  /// (without long-running or cancellable) keeps its standard perform() for the
+  /// configured execution mode.
   void _writeExperimentalPerformMethod(StringBuffer buffer, IntentInfo info) {
     if (!info.longRunning && !info.cancellable) {
-      _writeFlutterBridgePerformMethod(buffer, info);
+      _writePerformMethod(buffer, info);
       return;
     }
 
@@ -573,7 +576,7 @@ class SwiftGenerator {
 
     // Import statements
     buffer.writeln('import AppIntents');
-    if (info.indexed) {
+    if (info.indexed || info.hasIndexingKeys) {
       buffer.writeln('import CoreSpotlight');
     }
     if (info.effectiveCacheKey != null) {
@@ -588,11 +591,63 @@ class SwiftGenerator {
   }
 
   void _generateEntityBody(StringBuffer buffer, EntityInfo info) {
-    // Availability and struct declaration
-    buffer.writeln('@available(iOS 17.0, *)');
+    if (_usesExperimentalEntitySchema(info)) {
+      // App Schema (#49) is iOS 27+: the entity, its query and extensions all
+      // move to iOS 27 in the experimental branch. The #else branch keeps the
+      // stable form so released-SDK builds without the flag still compile.
+      buffer.writeln('#if APP_INTENTS_WWDC26');
+      _writeEntityAndQuery(
+        buffer,
+        info,
+        availability: 'iOS 27.0',
+        indexedAvailability: 'iOS 27.0',
+        schemaMacro: '@AppEntity(schema: .${info.schema})',
+      );
+      buffer.writeln();
+      buffer.writeln('#else');
+      _writeEntityAndQuery(
+        buffer,
+        info,
+        availability: _stableEntityAvailability(info),
+        indexedAvailability: 'iOS 26.0',
+      );
+      buffer.writeln();
+      buffer.write('#endif');
+    } else {
+      _writeEntityAndQuery(
+        buffer,
+        info,
+        availability: _stableEntityAvailability(info),
+        indexedAvailability: 'iOS 26.0',
+      );
+    }
+  }
+
+  /// Whether [info] should emit the `@AppEntity(schema:)` macro.
+  bool _usesExperimentalEntitySchema(EntityInfo info) =>
+      experimental.isEnabled(ExperimentalFeature.appSchema) &&
+      info.schema != null;
+
+  /// Stable-SDK availability for an entity. Bumped to iOS 18.4 when any property
+  /// uses semantic `indexingKey` (the `@Property(indexingKey:)` init is 18.4+).
+  String _stableEntityAvailability(EntityInfo info) =>
+      info.hasIndexingKeys ? 'iOS 18.4' : 'iOS 17.0';
+
+  /// Emits the entity struct, its query struct and any extensions at the given
+  /// availability, optionally prefixing the struct with an App Schema macro.
+  void _writeEntityAndQuery(
+    StringBuffer buffer,
+    EntityInfo info, {
+    required String availability,
+    required String indexedAvailability,
+    String? schemaMacro,
+  }) {
+    buffer.writeln('@available($availability, *)');
+    if (schemaMacro != null) {
+      buffer.writeln(schemaMacro);
+    }
     buffer.writeln('struct ${info.className}: AppEntity {');
 
-    // Type display representation
     buffer.writeln(
       '$_indent'
       'static var typeDisplayRepresentation: TypeDisplayRepresentation =',
@@ -603,36 +658,150 @@ class SwiftGenerator {
     );
     buffer.writeln();
 
-    // Default query
     buffer.writeln(
       '${_indent}static var defaultQuery = ${info.className}Query()',
     );
     buffer.writeln();
 
-    // Properties
-    for (final prop in info.properties) {
-      final swiftType = dartTypeToSwiftType(prop.dartType);
-      buffer.writeln('${_indent}var ${prop.fieldName}: $swiftType');
+    _writeEntityProperties(buffer, info);
+
+    // The @Property wrapper has no init(wrappedValue:), so an entity that
+    // exposes properties needs an explicit initializer; exposed properties get
+    // defaults so the role-only construction in the query keeps compiling.
+    if (info.hasExposedProperties) {
+      buffer.writeln();
+      _writeEntityInit(buffer, info);
     }
 
-    // Display representation
     buffer.writeln();
     _writeDisplayRepresentation(buffer, info);
 
     buffer.writeln('}');
     buffer.writeln();
 
-    // Generate query struct
-    _writeQueryStruct(buffer, info);
+    _writeQueryStruct(buffer, info, availability);
 
-    // Generate EnumerableEntityQuery extension
     if (info.enumerable) {
-      _writeEnumerableQueryExtension(buffer, info);
+      _writeEnumerableQueryExtension(buffer, info, availability);
     }
 
-    // Generate IndexedEntity extension
     if (info.indexed) {
-      _writeIndexedEntityExtension(buffer, info);
+      _writeIndexedEntityExtension(buffer, info, indexedAvailability);
+    }
+  }
+
+  /// Writes the entity's stored properties, using `@Property(...)` for fields
+  /// marked with `@EntityProperty`.
+  void _writeEntityProperties(StringBuffer buffer, EntityInfo info) {
+    for (final prop in info.properties) {
+      final swiftType = dartTypeToSwiftType(prop.dartType);
+      if (prop.exposeAsProperty) {
+        buffer.writeln('$_indent${_propertyAttribute(prop)}');
+      }
+      buffer.writeln('${_indent}var ${prop.fieldName}: $swiftType');
+    }
+  }
+
+  /// Builds the `@Property(...)` attribute for an exposed property. Falls back
+  /// to `@Property(title:)` (the bare `@Property` init is unavailable).
+  String _propertyAttribute(EntityPropertyInfo prop) {
+    final args = <String>[];
+    if (prop.propertyTitle != null) {
+      args.add('title: "${prop.propertyTitle}"');
+    }
+    if (prop.indexingKey != null) {
+      args.add('indexingKey: \\.${prop.indexingKey}');
+    }
+    if (args.isEmpty) {
+      args.add('title: "${prop.fieldName}"');
+    }
+    return '@Property(${args.join(', ')})';
+  }
+
+  /// Writes an explicit initializer covering all properties. Exposed properties
+  /// receive type-appropriate defaults so callers that only pass the role
+  /// fields still compile.
+  void _writeEntityInit(StringBuffer buffer, EntityInfo info) {
+    // The initializer's parameter order MUST match the construction call site
+    // (`_writeEntityDictMapping`), which lists role fields first
+    // (id, title, subtitle, image) then exposed properties. Swift requires the
+    // labeled arguments a caller *does* provide to appear in declaration order
+    // even when the omitted ones have defaults, so emitting parameters in Dart
+    // field-declaration order would produce non-compiling Swift whenever the
+    // field order differs from the role order.
+    final ordered = _initOrderedProperties(info);
+    final params = ordered
+        .map((prop) {
+          final swiftType = dartTypeToSwiftType(prop.dartType);
+          if (prop.exposeAsProperty) {
+            return '${prop.fieldName}: $swiftType = '
+                '${_defaultForSwiftType(swiftType, prop.fieldName)}';
+          }
+          return '${prop.fieldName}: $swiftType';
+        })
+        .join(', ');
+    buffer.writeln('${_indent}init($params) {');
+    for (final prop in ordered) {
+      buffer.writeln(
+        '$_indent${_indent}self.${prop.fieldName} = ${prop.fieldName}',
+      );
+    }
+    buffer.writeln('$_indent}');
+  }
+
+  /// Properties in the order the generated initializer and every construction
+  /// call site list them: the role fields first (id, title, subtitle, image),
+  /// then exposed `@EntityProperty` fields in declaration order. Mirrors the
+  /// argument order built in [_writeEntityDictMapping] so the two cannot drift.
+  List<EntityPropertyInfo> _initOrderedProperties(EntityInfo info) {
+    final ordered = <EntityPropertyInfo>[];
+    for (final role in const [
+      EntityPropertyRole.id,
+      EntityPropertyRole.title,
+      EntityPropertyRole.subtitle,
+      EntityPropertyRole.image,
+    ]) {
+      final prop = info.properties.where((p) => p.role == role).firstOrNull;
+      if (prop != null) ordered.add(prop);
+    }
+    // `_extractProperties` keeps only role-annotated or exposed fields, so every
+    // remaining (role == none) property is an exposed @EntityProperty and is
+    // given a default below — the call site may safely omit it.
+    ordered.addAll(
+      info.properties.where((p) => p.role == EntityPropertyRole.none),
+    );
+    return ordered;
+  }
+
+  /// A literal default value for an exposed property's Swift type, used so a
+  /// construction call site that only passes the role fields (and exposed
+  /// String properties) still compiles.
+  ///
+  /// Throws for types that have no synthesizable default — those cannot be
+  /// exposed via `@EntityProperty`. Note: non-String exposed properties (e.g.
+  /// `Date`) compile via this default but are not populated from the cached
+  /// dict (the query reads only String properties), so they always take the
+  /// default value at construction.
+  String _defaultForSwiftType(String swiftType, String fieldName) {
+    if (swiftType.endsWith('?')) return 'nil';
+    switch (swiftType) {
+      case 'Int':
+        return '0';
+      case 'Double':
+        return '0';
+      case 'Bool':
+        return 'false';
+      case 'String':
+        return '""';
+      case 'Date':
+        return 'Date()';
+      default:
+        throw InvalidGenerationSourceError(
+          'Cannot expose entity property `$fieldName` of Swift type '
+          '`$swiftType` via @EntityProperty: no default value can be '
+          'synthesized for the generated initializer. Expose only '
+          'String/int/double/bool/DateTime (or their nullable forms).',
+        );
     }
   }
 
@@ -701,7 +870,11 @@ class SwiftGenerator {
   }
 
   /// Writes the entity query struct with FlutterBridge integration.
-  void _writeQueryStruct(StringBuffer buffer, EntityInfo info) {
+  void _writeQueryStruct(
+    StringBuffer buffer,
+    EntityInfo info, [
+    String availability = 'iOS 17.0',
+  ]) {
     final idProp = info.properties
         .where((p) => p.role == EntityPropertyRole.id)
         .firstOrNull;
@@ -717,7 +890,7 @@ class SwiftGenerator {
 
     final cacheKey = info.effectiveCacheKey;
 
-    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('@available($availability, *)');
     buffer.writeln('struct ${info.className}Query: EntityQuery {');
 
     if (cacheKey != null) {
@@ -905,6 +1078,20 @@ class SwiftGenerator {
       );
     }
 
+    // Exposed @Property string fields (role: none) are read from the dict so
+    // semantic content is populated; other types fall back to the init default.
+    final exposedStringProps = info.properties.where(
+      (p) =>
+          p.exposeAsProperty &&
+          p.role == EntityPropertyRole.none &&
+          (p.dartType == 'String' || p.dartType == 'String?'),
+    );
+    for (final prop in exposedStringProps) {
+      buffer.writeln(
+        '$_indent$_indent${_indent}let ${prop.fieldName} = dict["${prop.fieldName}"] as? String',
+      );
+    }
+
     // Build initializer
     final initParts = <String>['$id: $id', '$title: $title'];
     if (subtitleProp != null) {
@@ -913,15 +1100,25 @@ class SwiftGenerator {
     if (imageProp != null) {
       initParts.add('${imageProp.fieldName}: ${imageProp.fieldName}');
     }
+    for (final prop in exposedStringProps) {
+      final value = prop.dartType.endsWith('?')
+          ? prop.fieldName
+          : '${prop.fieldName} ?? ""';
+      initParts.add('${prop.fieldName}: $value');
+    }
     buffer.writeln(
       '$_indent$_indent${_indent}return ${info.className}(${initParts.join(', ')})',
     );
   }
 
   /// Writes EnumerableEntityQuery extension.
-  void _writeEnumerableQueryExtension(StringBuffer buffer, EntityInfo info) {
+  void _writeEnumerableQueryExtension(
+    StringBuffer buffer,
+    EntityInfo info, [
+    String availability = 'iOS 17.0',
+  ]) {
     buffer.writeln();
-    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('@available($availability, *)');
     buffer.writeln('extension ${info.className}Query: EnumerableEntityQuery {');
     buffer.writeln(
       '${_indent}func allEntities() async throws -> [${info.className}] {',
@@ -932,13 +1129,17 @@ class SwiftGenerator {
   }
 
   /// Writes IndexedEntity extension with attributeSet.
-  void _writeIndexedEntityExtension(StringBuffer buffer, EntityInfo info) {
+  void _writeIndexedEntityExtension(
+    StringBuffer buffer,
+    EntityInfo info, [
+    String availability = 'iOS 26.0',
+  ]) {
     final titleProp = info.properties
         .where((p) => p.role == EntityPropertyRole.title)
         .firstOrNull;
 
     buffer.writeln();
-    buffer.writeln('@available(iOS 26.0, *)');
+    buffer.writeln('@available($availability, *)');
     buffer.writeln('extension ${info.className}: IndexedEntity {');
     buffer.writeln(
       '${_indent}var attributeSet: CSSearchableItemAttributeSet {',
@@ -1003,7 +1204,7 @@ class SwiftGenerator {
         entities.any((e) => e.effectiveCacheKey != null)) {
       buffer.writeln('import app_intents');
     }
-    if (entities.any((e) => e.indexed)) {
+    if (entities.any((e) => e.indexed || e.hasIndexingKeys)) {
       buffer.writeln('import CoreSpotlight');
     }
     buffer.writeln();
@@ -1044,7 +1245,7 @@ class SwiftGenerator {
   /// that build against a released SDK (without the `APP_INTENTS_WWDC26` flag)
   /// still compile.
   void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
-    if (_usesExperimentalExecution(info)) {
+    if (_usesExperimentalIntent(info)) {
       buffer.writeln('#if APP_INTENTS_WWDC26');
       _generateExperimentalIntentBody(buffer, info);
       buffer.writeln();
@@ -1057,6 +1258,11 @@ class SwiftGenerator {
     }
   }
 
+  /// Whether [info] uses any experimental WWDC26 feature (execution control or
+  /// App Schema), which triggers dual-branch emission.
+  bool _usesExperimentalIntent(IntentInfo info) =>
+      _usesExperimentalExecution(info) || _usesExperimentalSchema(info);
+
   /// Whether [info] should emit the experimental WWDC26 execution-control form.
   ///
   /// Requires both the opt-in `long-running` feature to be enabled and the
@@ -1067,6 +1273,12 @@ class SwiftGenerator {
         info.cancellable ||
         (info.executionTargets != null && info.executionTargets!.isNotEmpty);
   }
+
+  /// Whether [info] should emit the `@AppIntent(schema:)` macro (app-schema
+  /// feature enabled and a schema declared).
+  bool _usesExperimentalSchema(IntentInfo info) =>
+      experimental.isEnabled(ExperimentalFeature.appSchema) &&
+      info.schema != null;
 
   /// Generates the stable (released-SDK) intent struct.
   void _generateStableIntentBody(StringBuffer buffer, IntentInfo info) {
@@ -1106,18 +1318,25 @@ class SwiftGenerator {
   void _generateExperimentalIntentBody(StringBuffer buffer, IntentInfo info) {
     final hasExecutionTargets =
         info.executionTargets != null && info.executionTargets!.isNotEmpty;
+    final hasSchema = _usesExperimentalSchema(info);
 
     final conformances = <String>['AppIntent'];
     if (info.longRunning) conformances.add('LongRunningIntent');
     if (info.cancellable) conformances.add('CancellableIntent');
 
-    // LongRunningIntent and IntentExecutionTargets are iOS 27+; CancellableIntent
-    // on its own is iOS 26.4+.
-    final minVersion = (info.longRunning || hasExecutionTargets)
+    // LongRunningIntent, IntentExecutionTargets and App Schema are iOS 27+;
+    // CancellableIntent on its own is iOS 26.4+.
+    final minVersion = (info.longRunning || hasExecutionTargets || hasSchema)
         ? '27.0'
         : '26.4';
 
     buffer.writeln('@available(iOS $minVersion, *)');
+    // The @AppIntent(schema:) macro adds the AppIntent conformance itself, but
+    // the explicit ": AppIntent" is redundant-and-OK and keeps the stable/
+    // experimental structs structurally identical.
+    if (hasSchema) {
+      buffer.writeln('@AppIntent(schema: .${info.schema})');
+    }
     buffer.writeln('struct ${info.className}: ${conformances.join(', ')} {');
 
     _writeIntentTitle(buffer, info);

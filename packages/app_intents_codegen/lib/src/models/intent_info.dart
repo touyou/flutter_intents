@@ -49,6 +49,11 @@ class IntentInfo {
   /// When non-empty, generates `allowedExecutionTargets: IntentExecutionTargets`.
   final List<IntentExecutionTargetType>? executionTargets;
 
+  /// Experimental (WWDC26): the App Schema this intent conforms to, as a dotted
+  /// `domain.schema` path (e.g. `messages.setMessageReadStatus`). When set and
+  /// the `app-schema` feature is enabled, adds the `@AppIntent(schema:)` macro.
+  final String? schema;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -64,6 +69,7 @@ class IntentInfo {
     this.longRunning = false,
     this.cancellable = false,
     this.executionTargets,
+    this.schema,
   });
 
   @override
@@ -83,6 +89,7 @@ class IntentInfo {
         supportedModes == other.supportedModes &&
         longRunning == other.longRunning &&
         cancellable == other.cancellable &&
+        schema == other.schema &&
         _nullableListEquals(executionTargets, other.executionTargets);
   }
 
@@ -101,6 +108,7 @@ class IntentInfo {
     supportedModes,
     longRunning,
     cancellable,
+    schema,
     executionTargets == null ? null : Object.hashAll(executionTargets!),
   );
 
@@ -112,7 +120,8 @@ class IntentInfo {
       'urlScheme: $urlScheme, urlAction: $urlAction, '
       'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes, longRunning: $longRunning, '
-      'cancellable: $cancellable, executionTargets: $executionTargets)';
+      'cancellable: $cancellable, executionTargets: $executionTargets, '
+      'schema: $schema)';
 }
 
 /// The implementation language for the intent.

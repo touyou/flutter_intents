@@ -38,6 +38,12 @@ class EntityInfo {
   /// `app_intents.entities.<identifier>` is used.
   final String? persistedCacheKey;
 
+  /// Experimental (WWDC26): the App Schema this entity conforms to, as a dotted
+  /// `domain.schema` path (e.g. `messages.message`). When set and the
+  /// `app-schema` experimental feature is enabled, the generated Swift adds the
+  /// `@AppEntity(schema:)` macro (dual-branch).
+  final String? schema;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -50,7 +56,16 @@ class EntityInfo {
     this.indexed = false,
     this.enumerable = false,
     this.persistedCacheKey,
+    this.schema,
   });
+
+  /// Whether any property is exposed as a Swift `@Property`. Such entities need
+  /// an explicit initializer (the `@Property` wrapper has no `init(wrappedValue:)`).
+  bool get hasExposedProperties => properties.any((p) => p.exposeAsProperty);
+
+  /// Whether any exposed property uses semantic `indexingKey` (iOS 18.4+).
+  bool get hasIndexingKeys =>
+      properties.any((p) => p.exposeAsProperty && p.indexingKey != null);
 
   /// Returns the effective cache key to use for App Group fallback, or null
   /// when no fallback should be generated.
@@ -79,6 +94,7 @@ class EntityInfo {
         indexed == other.indexed &&
         enumerable == other.enumerable &&
         persistedCacheKey == other.persistedCacheKey &&
+        schema == other.schema &&
         _listEquals(properties, other.properties);
   }
 
@@ -94,6 +110,7 @@ class EntityInfo {
     indexed,
     enumerable,
     persistedCacheKey,
+    schema,
     Object.hashAll(properties),
   );
 
@@ -102,7 +119,7 @@ class EntityInfo {
       'EntityInfo(className: $className, identifier: $identifier, title: $title, '
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
-      'persistedCacheKey: $persistedCacheKey, properties: $properties)';
+      'persistedCacheKey: $persistedCacheKey, schema: $schema, properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.
@@ -116,10 +133,24 @@ class EntityPropertyInfo {
   /// The role of this property in the entity.
   final EntityPropertyRole role;
 
+  /// Experimental (WWDC26 / #50): whether to emit this field as a Swift
+  /// `@Property(...)` exposed to the system (Spotlight / Apple Intelligence).
+  final bool exposeAsProperty;
+
+  /// The `@Property(title:)` value, when [exposeAsProperty] is true.
+  final String? propertyTitle;
+
+  /// The `CSSearchableItemAttributeSet` key path name (without leading `\.`) for
+  /// `@Property(indexingKey:)` semantic indexing (iOS 18.4+).
+  final String? indexingKey;
+
   const EntityPropertyInfo({
     required this.fieldName,
     required this.dartType,
     required this.role,
+    this.exposeAsProperty = false,
+    this.propertyTitle,
+    this.indexingKey,
   });
 
   @override
@@ -128,15 +159,27 @@ class EntityPropertyInfo {
     if (other is! EntityPropertyInfo) return false;
     return fieldName == other.fieldName &&
         dartType == other.dartType &&
-        role == other.role;
+        role == other.role &&
+        exposeAsProperty == other.exposeAsProperty &&
+        propertyTitle == other.propertyTitle &&
+        indexingKey == other.indexingKey;
   }
 
   @override
-  int get hashCode => Object.hash(fieldName, dartType, role);
+  int get hashCode => Object.hash(
+    fieldName,
+    dartType,
+    role,
+    exposeAsProperty,
+    propertyTitle,
+    indexingKey,
+  );
 
   @override
   String toString() =>
-      'EntityPropertyInfo(fieldName: $fieldName, dartType: $dartType, role: $role)';
+      'EntityPropertyInfo(fieldName: $fieldName, dartType: $dartType, role: $role, '
+      'exposeAsProperty: $exposeAsProperty, propertyTitle: $propertyTitle, '
+      'indexingKey: $indexingKey)';
 }
 
 /// The role of an entity property.

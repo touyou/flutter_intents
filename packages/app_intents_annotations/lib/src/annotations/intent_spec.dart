@@ -79,6 +79,15 @@ class IntentSpec {
   /// unless experimental generation is enabled.
   final List<IntentExecutionTarget>? executionTargets;
 
+  /// **Experimental (WWDC26, iOS 27+).** The App Schema this intent conforms to,
+  /// as a dotted `domain.schema` path (e.g. `'messages.setMessageReadStatus'`).
+  ///
+  /// When experimental code generation is enabled, the generated Swift adds the
+  /// `@AppIntent(schema: .messages.setMessageReadStatus)` macro. Emitted in a
+  /// `#if APP_INTENTS_WWDC26` block with a stable `AppIntent`-only fallback. Has
+  /// no effect unless experimental generation is enabled.
+  final String? schema;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -92,6 +101,7 @@ class IntentSpec {
     this.longRunning = false,
     this.cancellable = false,
     this.executionTargets,
+    this.schema,
   });
 }
 

@@ -63,6 +63,16 @@ class EntitySpec {
   /// must be available.
   final String? persistedCacheKey;
 
+  /// **Experimental (WWDC26, iOS 27+).** The App Schema this entity conforms to,
+  /// as a dotted `domain.schema` path (e.g. `'messages.message'`).
+  ///
+  /// When experimental code generation is enabled, the generated Swift adds the
+  /// `@AppEntity(schema: .messages.message)` macro so the entity is described in
+  /// a vocabulary Siri/Apple Intelligence already understands. Emitted in a
+  /// `#if APP_INTENTS_WWDC26` block with a stable `@AppEntity`-only fallback.
+  /// Has no effect unless experimental generation is enabled.
+  final String? schema;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -72,5 +82,6 @@ class EntitySpec {
     this.indexed = false,
     this.enumerable = false,
     this.persistedCacheKey,
+    this.schema,
   });
 }
