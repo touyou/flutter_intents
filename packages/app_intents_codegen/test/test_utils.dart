@@ -110,6 +110,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool enumerable;
           final String? persistedCacheKey;
           final String? schema;
+          final EntityOwnershipState? ownership;
 
           const EntitySpec({
             required this.identifier,
@@ -121,8 +122,11 @@ Future<LibraryElement> resolveSource(String source) async {
             this.enumerable = false,
             this.persistedCacheKey,
             this.schema,
+            this.ownership,
           });
         }
+
+        enum EntityOwnershipState { unknown, shared, public }
       ''',
       'app_intents_annotations|lib/src/annotations/entity_params.dart': '''
         class EntityId {
@@ -165,10 +169,12 @@ Future<LibraryElement> resolveSource(String source) async {
         class EnumSpec {
           final String identifier;
           final String title;
+          final String? schema;
 
           const EnumSpec({
             required this.identifier,
             required this.title,
+            this.schema,
           });
         }
 

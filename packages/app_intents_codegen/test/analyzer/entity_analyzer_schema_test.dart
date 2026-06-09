@@ -1,4 +1,5 @@
 import 'package:app_intents_codegen/src/analyzer/entity_analyzer.dart';
+import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:test/test.dart';
 
 import '../test_utils.dart';
@@ -52,6 +53,28 @@ void main() {
 
       final result = analyzer.analyze(findClass(library, 'MessageEntity'));
       expect(result!.schema, isNull);
+    });
+
+    test('parses ownership field', () async {
+      final library = await resolveSource('''
+        import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+        @EntitySpec(
+          identifier: 'com.example.thing',
+          title: 'Thing',
+          pluralTitle: 'Things',
+          ownership: EntityOwnershipState.shared,
+        )
+        class ThingEntity extends EntitySpecBase {
+          @EntityId()
+          final String id = '';
+          @EntityTitle()
+          final String title = '';
+        }
+      ''');
+
+      final result = analyzer.analyze(findClass(library, 'ThingEntity'));
+      expect(result!.ownership, equals(EntityOwnershipType.shared));
     });
 
     test('parses @EntityProperty with title and indexingKey', () async {

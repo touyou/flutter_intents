@@ -621,6 +621,39 @@ class SwiftGenerator {
         indexedAvailability: 'iOS 26.0',
       );
     }
+
+    // #55 ownership: a purely additive iOS 27 conformance, in its own #if block
+    // (no #else needed — without the flag the entity just isn't ownership-aware).
+    if (experimental.isEnabled(ExperimentalFeature.ownership) &&
+        info.ownership != null) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeOwnershipExtension(buffer, info);
+    }
+  }
+
+  /// Writes the experimental `OwnershipProvidingEntity` conformance extension.
+  void _writeOwnershipExtension(StringBuffer buffer, EntityInfo info) {
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('extension ${info.className}: OwnershipProvidingEntity {');
+    buffer.writeln(
+      '${_indent}var ownership: EntityOwnership { ${_ownershipToSwift(info.ownership!)} }',
+    );
+    buffer.writeln('}');
+    buffer.write('#endif');
+  }
+
+  /// Maps an ownership state to its Swift `EntityOwnership` member.
+  String _ownershipToSwift(EntityOwnershipType ownership) {
+    switch (ownership) {
+      case EntityOwnershipType.unknown:
+        return '.unknown';
+      case EntityOwnershipType.shared:
+        return '.shared';
+      case EntityOwnershipType.public:
+        return '.public';
+    }
   }
 
   /// Whether [info] should emit the `@AppEntity(schema:)` macro.
@@ -1465,8 +1498,42 @@ class SwiftGenerator {
   }
 
   /// Generates enum body without import statement.
+  ///
+  /// When the `app-schema` experimental feature is enabled and a schema is set,
+  /// emits the `@AppEnum(schema:)` form in `#if APP_INTENTS_WWDC26` and the
+  /// stable form in `#else`.
   void _generateEnumBody(StringBuffer buffer, EnumInfo info) {
-    buffer.writeln('@available(iOS 17.0, *)');
+    if (experimental.isEnabled(ExperimentalFeature.appSchema) &&
+        info.schema != null) {
+      buffer.writeln('#if APP_INTENTS_WWDC26');
+      _writeEnumStruct(
+        buffer,
+        info,
+        availability: 'iOS 27.0',
+        schemaMacro: '@AppEnum(schema: .${info.schema})',
+      );
+      buffer.writeln();
+      buffer.writeln('#else');
+      _writeEnumStruct(buffer, info, availability: 'iOS 17.0');
+      buffer.writeln();
+      buffer.write('#endif');
+    } else {
+      _writeEnumStruct(buffer, info, availability: 'iOS 17.0');
+    }
+  }
+
+  /// Writes the enum declaration at the given availability, optionally prefixed
+  /// with an App Schema macro.
+  void _writeEnumStruct(
+    StringBuffer buffer,
+    EnumInfo info, {
+    required String availability,
+    String? schemaMacro,
+  }) {
+    buffer.writeln('@available($availability, *)');
+    if (schemaMacro != null) {
+      buffer.writeln(schemaMacro);
+    }
     buffer.writeln('enum ${info.className}: String, AppEnum {');
 
     // Cases

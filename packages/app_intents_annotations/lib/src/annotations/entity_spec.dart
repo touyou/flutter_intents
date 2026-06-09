@@ -1,3 +1,5 @@
+import 'entity_ownership.dart';
+
 /// Annotation to specify an entity with its metadata.
 class EntitySpec {
   /// A unique identifier for the entity.
@@ -73,6 +75,15 @@ class EntitySpec {
   /// Has no effect unless experimental generation is enabled.
   final String? schema;
 
+  /// **Experimental (WWDC26, iOS 27+).** The ownership state of this entity.
+  ///
+  /// When experimental code generation is enabled (the `ownership` feature),
+  /// the generated Swift adds an `OwnershipProvidingEntity` conformance
+  /// declaring `var ownership: EntityOwnership`. Emitted in a
+  /// `#if APP_INTENTS_WWDC26` block. Has no effect unless experimental
+  /// generation is enabled.
+  final EntityOwnershipState? ownership;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -83,5 +94,6 @@ class EntitySpec {
     this.enumerable = false,
     this.persistedCacheKey,
     this.schema,
+    this.ownership,
   });
 }

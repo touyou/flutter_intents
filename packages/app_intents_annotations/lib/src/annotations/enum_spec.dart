@@ -20,7 +20,16 @@ class EnumSpec {
   /// A human-readable title for the enum type.
   final String title;
 
-  const EnumSpec({required this.identifier, required this.title});
+  /// **Experimental (WWDC26, iOS 27+).** The App Schema this enum conforms to,
+  /// as a dotted `domain.schema` path (e.g. `'messages.messageType'`).
+  ///
+  /// When experimental code generation is enabled (the `app-schema` feature),
+  /// the generated Swift adds the `@AppEnum(schema: .messages.messageType)`
+  /// macro, in a `#if APP_INTENTS_WWDC26` block with a stable fallback. Has no
+  /// effect unless experimental generation is enabled.
+  final String? schema;
+
+  const EnumSpec({required this.identifier, required this.title, this.schema});
 }
 
 /// Annotation to customize the display title of an enum case.

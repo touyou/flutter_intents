@@ -33,6 +33,7 @@ class EnumAnalyzer {
 
     final identifier = annotation.getField('identifier')?.toStringValue();
     final title = annotation.getField('title')?.toStringValue();
+    final schema = annotation.getField('schema')?.toStringValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -54,6 +55,7 @@ class EnumAnalyzer {
       identifier: identifier,
       title: title,
       cases: cases,
+      schema: schema,
     );
   }
 

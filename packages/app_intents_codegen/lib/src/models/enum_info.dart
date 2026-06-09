@@ -12,11 +12,17 @@ class EnumInfo {
   /// The enum cases with their display metadata.
   final List<EnumCaseInfo> cases;
 
+  /// Experimental (WWDC26): the App Schema this enum conforms to, as a dotted
+  /// `domain.schema` path (e.g. `messages.messageType`). When set and the
+  /// `app-schema` feature is enabled, adds the `@AppEnum(schema:)` macro.
+  final String? schema;
+
   const EnumInfo({
     required this.className,
     required this.identifier,
     required this.title,
     required this.cases,
+    this.schema,
   });
 
   @override
@@ -26,17 +32,18 @@ class EnumInfo {
     return className == other.className &&
         identifier == other.identifier &&
         title == other.title &&
+        schema == other.schema &&
         _listEquals(cases, other.cases);
   }
 
   @override
   int get hashCode =>
-      Object.hash(className, identifier, title, Object.hashAll(cases));
+      Object.hash(className, identifier, title, schema, Object.hashAll(cases));
 
   @override
   String toString() =>
       'EnumInfo(className: $className, identifier: $identifier, '
-      'title: $title, cases: $cases)';
+      'title: $title, schema: $schema, cases: $cases)';
 }
 
 /// Represents a single case of an AppEnum.
