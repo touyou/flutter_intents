@@ -1044,6 +1044,68 @@ class SwiftGenerator {
       buffer.writeln();
       _writeValueQueryStruct(buffer, info);
     }
+
+    // #54 cross-app sharing (export): an additive iOS 27 Transferable
+    // conformance, in its own #if block (no #else — without the flag the entity
+    // simply isn't exportable). See ADR 0002.
+    if (experimental.isEnabled(ExperimentalFeature.valueRepresentation) &&
+        info.exportAs != null) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeValueRepresentationExtension(buffer, info);
+    }
+  }
+
+  /// Writes the experimental `Transferable` + `ValueRepresentation(exporting:)`
+  /// conformance for cross-app entity sharing (#54).
+  ///
+  /// Gated by `#if APP_INTENTS_WWDC26` with no `#else`: export is purely
+  /// additive, so released-SDK builds without the flag just omit it. The
+  /// `CoreTransferable` import is emitted inside the `#if` so it does not become
+  /// an unused-import warning when the flag is off.
+  void _writeValueRepresentationExtension(
+    StringBuffer buffer,
+    EntityInfo info,
+  ) {
+    final idField =
+        info.properties
+            .where((p) => p.role == EntityPropertyRole.id)
+            .firstOrNull
+            ?.fieldName ??
+        'id';
+    final titleField =
+        info.properties
+            .where((p) => p.role == EntityPropertyRole.title)
+            .firstOrNull
+            ?.fieldName ??
+        'title';
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('import CoreTransferable');
+    buffer.writeln();
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('extension ${info.className}: Transferable {');
+    buffer.writeln(
+      '${_indent}static var transferRepresentation: some TransferRepresentation {',
+    );
+    switch (info.exportAs!) {
+      case EntityExportKind.person:
+        buffer.writeln(
+          '$_indent${_indent}ValueRepresentation(exporting: { entity in',
+        );
+        buffer.writeln('$_indent$_indent${_indent}IntentPerson(');
+        buffer.writeln(
+          '$_indent$_indent$_indent${_indent}identifier: .applicationDefined(entity.$idField),',
+        );
+        buffer.writeln(
+          '$_indent$_indent$_indent${_indent}name: .displayName(entity.$titleField)',
+        );
+        buffer.writeln('$_indent$_indent$_indent)');
+        buffer.writeln('$_indent$_indent})');
+    }
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
   }
 
   /// Writes the experimental `IntentValueQuery` conforming struct (#51).

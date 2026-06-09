@@ -1,3 +1,4 @@
+import 'entity_export.dart';
 import 'entity_ownership.dart';
 
 /// Annotation to specify an entity with its metadata.
@@ -106,6 +107,20 @@ class EntitySpec {
   /// scope (#58, native-only). See `docs/adr/0001-intent-value-query-bridge.md`.
   final bool valueQuery;
 
+  /// **Experimental (WWDC26, iOS 27+).** The system structured type this entity
+  /// is exported as for cross-app sharing (#54).
+  ///
+  /// When the `value-representation` experimental feature is enabled, the
+  /// generated Swift adds a `Transferable` conformance with
+  /// `ValueRepresentation(exporting:)` (in a `#if APP_INTENTS_WWDC26` block) so
+  /// the entity can be handed to other apps in a system-understood form.
+  ///
+  /// [EntityExportType.person] builds an `IntentPerson` from the entity's
+  /// `@EntityId`/`@EntityTitle` fields — no extra Dart-side data needed. Other
+  /// catalog entries (e.g. `PlaceDescriptor`) are added as they gain a Dart
+  /// representation. See `docs/adr/0002-cross-app-entity-sharing.md`.
+  final EntityExportType? exportAs;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -118,5 +133,6 @@ class EntitySpec {
     this.schema,
     this.ownership,
     this.valueQuery = false,
+    this.exportAs,
   });
 }

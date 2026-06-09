@@ -1,6 +1,6 @@
 # ADR 0002: アプリ間エンティティ共有設計 (#54)
 
-- **ステータス**: Proposed
+- **ステータス**: Accepted — export 部分実装済み（`IntentPerson` のみ、`--experimental=value-representation`）。`PlaceDescriptor` 等カタログ拡張と import 経路は後続
 - **関連 issue**: #54。import 経路は [ADR 0001](0001-intent-value-query-bridge.md)（#51）に依存
 - **対象フラグ（案）**: `--experimental=value-representation`
 

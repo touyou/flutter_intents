@@ -55,6 +55,12 @@ class EntityInfo {
   /// (`#if`-gated) delegating to a Dart value-query handler.
   final bool valueQuery;
 
+  /// Experimental (WWDC26 #54): the system structured type this entity is
+  /// exported as. When set and the `value-representation` feature is enabled,
+  /// the Swift output adds a `Transferable` conformance with
+  /// `ValueRepresentation(exporting:)` (`#if`-gated).
+  final EntityExportKind? exportAs;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -70,6 +76,7 @@ class EntityInfo {
     this.schema,
     this.ownership,
     this.valueQuery = false,
+    this.exportAs,
   });
 
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
@@ -110,6 +117,7 @@ class EntityInfo {
         schema == other.schema &&
         ownership == other.ownership &&
         valueQuery == other.valueQuery &&
+        exportAs == other.exportAs &&
         _listEquals(properties, other.properties);
   }
 
@@ -128,6 +136,7 @@ class EntityInfo {
     schema,
     ownership,
     valueQuery,
+    exportAs,
     Object.hashAll(properties),
   );
 
@@ -137,7 +146,7 @@ class EntityInfo {
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
       'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
-      'valueQuery: $valueQuery, properties: $properties)';
+      'valueQuery: $valueQuery, exportAs: $exportAs, properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.
@@ -203,6 +212,10 @@ class EntityPropertyInfo {
 /// Experimental (WWDC26 #55): the ownership state of an entity, mapped to a
 /// member of the Swift `EntityOwnership` option set.
 enum EntityOwnershipType { unknown, shared, public }
+
+/// Experimental (WWDC26 #54): the system structured type an entity is exported
+/// as via `ValueRepresentation`. Mirrors `EntityExportType` in annotations.
+enum EntityExportKind { person }
 
 /// The role of an entity property.
 enum EntityPropertyRole {

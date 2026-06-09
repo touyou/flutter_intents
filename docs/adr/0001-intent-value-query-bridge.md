@@ -1,6 +1,6 @@
 # ADR 0001: IntentValueQuery ブリッジ設計 (#51)
 
-- **ステータス**: Proposed
+- **ステータス**: Accepted — 実装済み（構造化/テキスト `Input`、`--experimental=value-query`）。ビジュアル `Input` は #58
 - **関連 issue**: #51（基盤）、#54 import 経路 / #58 ビジュアルが依存
 - **対象フラグ（案）**: `--experimental=value-query`
 

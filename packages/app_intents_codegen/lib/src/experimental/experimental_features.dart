@@ -31,7 +31,15 @@ enum ExperimentalFeature {
   /// input from the system and delegates to a Dart handler via FlutterBridge.
   /// See `docs/adr/0001-intent-value-query-bridge.md`. The visual
   /// (`SemanticContentDescriptor`) variant is out of scope here (#58).
-  valueQuery('value-query');
+  valueQuery('value-query'),
+
+  /// Cross-app entity sharing via export (#54): generates a `Transferable`
+  /// conformance with `ValueRepresentation(exporting:)` so the entity can be
+  /// handed to other apps as a system structured type (initially
+  /// `IntentPerson`). Export is system-facing (no Dart round-trip); the import
+  /// path reuses the value-query bridge and is added later. See
+  /// `docs/adr/0002-cross-app-entity-sharing.md`.
+  valueRepresentation('value-representation');
 
   const ExperimentalFeature(this.flag);
 
