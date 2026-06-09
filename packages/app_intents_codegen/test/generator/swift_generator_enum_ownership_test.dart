@@ -4,32 +4,31 @@ import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/enum_info.dart';
 import 'package:test/test.dart';
 
-SwiftGenerator _allExperimental() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
-
-EntityInfo _entity({
-  String? schema,
-  EntityOwnershipType? ownership,
-}) => EntityInfo(
-  className: 'ThingEntity',
-  identifier: 'com.example.thing',
-  title: 'Thing',
-  pluralTitle: 'Things',
-  schema: schema,
-  ownership: ownership,
-  properties: const [
-    EntityPropertyInfo(
-      fieldName: 'id',
-      dartType: 'String',
-      role: EntityPropertyRole.id,
-    ),
-    EntityPropertyInfo(
-      fieldName: 'title',
-      dartType: 'String',
-      role: EntityPropertyRole.title,
-    ),
-  ],
+SwiftGenerator _allExperimental() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
 );
+
+EntityInfo _entity({String? schema, EntityOwnershipType? ownership}) =>
+    EntityInfo(
+      className: 'ThingEntity',
+      identifier: 'com.example.thing',
+      title: 'Thing',
+      pluralTitle: 'Things',
+      schema: schema,
+      ownership: ownership,
+      properties: const [
+        EntityPropertyInfo(
+          fieldName: 'id',
+          dartType: 'String',
+          role: EntityPropertyRole.id,
+        ),
+        EntityPropertyInfo(
+          fieldName: 'title',
+          dartType: 'String',
+          role: EntityPropertyRole.title,
+        ),
+      ],
+    );
 
 void main() {
   group('SwiftGenerator (#49 enum schema)', () {
