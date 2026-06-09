@@ -4,8 +4,9 @@ import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:app_intents_codegen/src/models/union_info.dart';
 import 'package:test/test.dart';
 
-SwiftGenerator _experimentalGenerator() =>
-    const SwiftGenerator(experimental: ExperimentalFeatures(masterEnabled: true));
+SwiftGenerator _experimentalGenerator() => const SwiftGenerator(
+  experimental: ExperimentalFeatures(masterEnabled: true),
+);
 
 const _union = UnionInfo(
   className: 'GalleryContent',
@@ -37,9 +38,7 @@ void main() {
   group('SwiftGenerator (#53 UnionValue)', () {
     group('default / fallback (rich-types OFF)', () {
       test('degrades to the first case entity, no union enum, no #if', () {
-        final result = const SwiftGenerator().generateAll(
-          intents: [_intent()],
-        );
+        final result = const SwiftGenerator().generateAll(intents: [_intent()]);
 
         expect(result, isNot(contains('#if APP_INTENTS_WWDC26')));
         expect(result, isNot(contains('@UnionValue')));

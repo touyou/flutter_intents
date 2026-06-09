@@ -249,7 +249,9 @@ void main() {
           }
         ''');
 
-        final result = analyzer.analyze(findClass(library, 'OpenGalleryIntent'));
+        final result = analyzer.analyze(
+          findClass(library, 'OpenGalleryIntent'),
+        );
 
         expect(result, isNotNull);
         final content = result!.parameters.firstWhere(
@@ -288,7 +290,9 @@ void main() {
           }
         ''');
 
-        final result = analyzer.analyze(findClass(library, 'OpenGalleryIntent'));
+        final result = analyzer.analyze(
+          findClass(library, 'OpenGalleryIntent'),
+        );
         final content = result!.parameters.firstWhere(
           (p) => p.fieldName == 'content',
         );
