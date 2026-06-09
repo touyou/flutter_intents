@@ -193,6 +193,32 @@ void main() {
         expect(editor.dartType, equals('PersonName?'));
       });
 
+      test('captures entityCollectionType (#53)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.tagPhotos',
+            title: 'Tag Photos',
+          )
+          class TagPhotosIntent extends IntentSpecBase {
+            @IntentParam(title: 'Photos', entityCollectionType: 'PhotoEntity')
+            final List<String> photos;
+
+            TagPhotosIntent({required this.photos});
+          }
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'TagPhotosIntent'));
+
+        expect(result, isNotNull);
+        final photos = result!.parameters.firstWhere(
+          (p) => p.fieldName == 'photos',
+        );
+        expect(photos.entityCollectionType, equals('PhotoEntity'));
+        expect(photos.dartType, equals('List<String>'));
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

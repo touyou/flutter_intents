@@ -164,6 +164,12 @@ class IntentParamInfo {
   /// When set, the Swift parameter uses IntentFile with supportedTypeIdentifiers.
   final String? fileType;
 
+  /// The element entity type for an entity-collection parameter (#53).
+  /// When set, the Swift parameter uses `EntityCollection<Entity>` (native) or
+  /// `[Entity]` (fallback), and the Dart handler receives a `List<String>` of
+  /// identifiers.
+  final String? entityCollectionType;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -173,6 +179,7 @@ class IntentParamInfo {
     this.entityType,
     this.enumType,
     this.fileType,
+    this.entityCollectionType,
   });
 
   @override
@@ -186,7 +193,8 @@ class IntentParamInfo {
         isOptional == other.isOptional &&
         entityType == other.entityType &&
         enumType == other.enumType &&
-        fileType == other.fileType;
+        fileType == other.fileType &&
+        entityCollectionType == other.entityCollectionType;
   }
 
   @override
@@ -199,13 +207,15 @@ class IntentParamInfo {
     entityType,
     enumType,
     fileType,
+    entityCollectionType,
   );
 
   @override
   String toString() =>
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
       'description: $description, isOptional: $isOptional, entityType: $entityType, '
-      'enumType: $enumType, fileType: $fileType)';
+      'enumType: $enumType, fileType: $fileType, '
+      'entityCollectionType: $entityCollectionType)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

@@ -269,6 +269,37 @@ void main() {
         expect(result, contains("PersonName(givenName: params['editor'])"));
       });
 
+      test('generates Params class with EntityCollection parameters (#53)', () {
+        final intents = [
+          const IntentInfo(
+            className: 'TagPhotosIntent',
+            identifier: 'com.example.tagPhotos',
+            title: 'Tag Photos',
+            implementation: IntentImplementationType.dart,
+            parameters: [
+              IntentParamInfo(
+                fieldName: 'photos',
+                dartType: 'List<String>',
+                title: 'Photos',
+                isOptional: false,
+                entityCollectionType: 'PhotoEntity',
+              ),
+            ],
+          ),
+        ];
+
+        final result = generator.generate(intents, []);
+
+        expect(result, contains('final List<String> photos'));
+        // fromMap: list of identifier strings.
+        expect(
+          result,
+          contains("(map['photos'] as List).cast<String>()"),
+        );
+        // fromQueryParameters: comma-joined.
+        expect(result, contains("params['photos']!.split(',')"));
+      });
+
       test('generates handler using Params class with named parameters', () {
         final intents = [
           const IntentInfo(

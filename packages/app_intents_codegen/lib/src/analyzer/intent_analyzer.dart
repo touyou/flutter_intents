@@ -188,6 +188,9 @@ class IntentAnalyzer {
       final entityType = annotation.getField('entityType')?.toStringValue();
       final enumType = annotation.getField('enumType')?.toStringValue();
       final fileType = annotation.getField('fileType')?.toStringValue();
+      final entityCollectionType = annotation
+          .getField('entityCollectionType')
+          ?.toStringValue();
 
       parameters.add(
         IntentParamInfo(
@@ -199,6 +202,7 @@ class IntentAnalyzer {
           entityType: entityType,
           enumType: enumType,
           fileType: fileType,
+          entityCollectionType: entityCollectionType,
         ),
       );
     }
