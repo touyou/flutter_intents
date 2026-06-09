@@ -12,13 +12,22 @@ void main() {
         ExperimentalFeature.fromFlag('app-schema'),
         ExperimentalFeature.appSchema,
       );
+      expect(
+        ExperimentalFeature.fromFlag('rich-types'),
+        ExperimentalFeature.richTypes,
+      );
       expect(ExperimentalFeature.fromFlag('nope'), isNull);
     });
 
     test('allFlags lists every feature token', () {
       expect(
         ExperimentalFeature.allFlags,
-        containsAll(<String>['long-running', 'app-schema']),
+        containsAll(<String>[
+          'long-running',
+          'app-schema',
+          'ownership',
+          'rich-types',
+        ]),
       );
     });
   });
