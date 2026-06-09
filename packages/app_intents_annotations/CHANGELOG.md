@@ -1,3 +1,15 @@
+## 0.11.0
+
+- WWDC26 App Intents annotation surfaces (opt-in; inert unless experimental code generation is enabled in `app_intents_codegen`):
+  - Intent execution control (#52): `@IntentSpec(longRunning:, cancellable:, executionTargets:)` + the `IntentExecutionTarget` enum.
+  - App Schema (#49): `schema:` on `@EntitySpec` / `@IntentSpec` / `@EnumSpec`, plus the `AppSchemas` catalog (`messages` / `mail` / `photos`).
+  - Semantic indexing (#50): `@EntityProperty(title:, indexingKey:)`.
+  - Entity ownership (#55): `@EntitySpec(ownership:)` + `EntityOwnershipState`.
+  - Rich parameter types (#53): `Duration` parameters, the new `PersonName` value type, `@IntentParam(entityCollectionType:)`, and `@UnionValueSpec` / `@UnionCase` (which codegen lowers to a native `@UnionValue` enum).
+  - Cross-app export (#54): `@EntitySpec(exportAs:)` + `EntityExportType`.
+  - IntentValueQuery (#51) and donations/discovery (#55): `@EntitySpec(valueQuery:, syncable:, relevantEntities:)`.
+- Docs: documentation consistency fixes across the repository guides.
+
 ## 0.10.1
 
 - No annotation changes; version bump aligns with `app_intents` 0.10.1 (Android `compilerOptions` DSL fix for Kotlin 2.3+ / AGP 9.1.0+, #20)

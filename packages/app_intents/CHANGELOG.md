@@ -1,3 +1,12 @@
+## 0.11.0
+
+- WWDC26 experimental bridges (opt-in; exercised only when experimental Swift generation is enabled):
+  - IntentValueQuery (#51): `registerValueQueryHandler` + platform `queryValuesAsync` (generic inbound value query; visual variant out of scope).
+  - Donations & discovery (#55): `donateRelevantEntities(id, entities, context:)` via a reverse executor, wired through `AppIntentsPlugin.relevantEntitiesDonationForwarder`.
+  - Onscreen awareness scaffold (#56): `setOnscreenEntity(typeId, instanceId, title:)` / `clearOnscreenEntity()` backed by `NSUserActivity`, plus `AppIntentsPlugin.onscreenEntityBinder`.
+  - Extended the platform interface, method channel, and iOS `AppIntentsPlugin.swift` accordingly.
+- Docs: fix the Android setup README (`compileSdk`/`targetSdk` 37, `minSdk` 36 — the previous "36" would fail the `appfunctions:1.0.0-alpha09` AAR-metadata check) and replace the placeholder example app READMEs with real content.
+
 ## 0.10.1
 
 - Fix Android build on Kotlin 2.3+ / AGP 9.1.0+: migrate the plugin's `android/build.gradle.kts` from the deprecated `kotlinOptions` DSL to the modern `compilerOptions` DSL (#20, thanks @cpbritton)

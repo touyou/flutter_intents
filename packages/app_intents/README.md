@@ -25,11 +25,11 @@ Add `app_intents` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  app_intents: ^0.10.1
-  app_intents_annotations: ^0.10.1
+  app_intents: ^0.11.0
+  app_intents_annotations: ^0.11.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.10.1
+  app_intents_codegen: ^0.11.0
   build_runner: ^2.4.0
 ```
 
@@ -141,7 +141,7 @@ platform :ios, '17.0'
 
 ## Android Configuration
 
-1. Set `compileSdk` and `minSdk` to 36 in `android/app/build.gradle.kts`
+1. Set `compileSdk`/`targetSdk` to 37 and `minSdk` to 36 in `android/app/build.gradle.kts`
 2. Add KSP and AppFunctions dependencies
 3. See the [full documentation](https://github.com/touyou/flutter_intents/blob/main/docs/usage.md) for complete Android setup instructions including Kotlin code generation.
 

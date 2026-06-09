@@ -7,11 +7,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  app_intents: ^0.10.1
-  app_intents_annotations: ^0.10.1
+  app_intents: ^0.11.0
+  app_intents_annotations: ^0.11.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.10.1
+  app_intents_codegen: ^0.11.0
   build_runner: ^2.4.0
 ```
 
@@ -46,9 +46,9 @@ KSPとAppFunctionsの依存関係を追加:
 
 ```kotlin
 // android/settings.gradle.kts
-id("com.android.application") version "9.1.1" apply false
+id("com.android.application") version "9.2.1" apply false
 id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-id("com.google.devtools.ksp") version "2.2.20-2.0.4" apply false
+id("com.google.devtools.ksp") version "2.3.9" apply false
 
 // android/app/build.gradle.kts
 plugins {
@@ -80,7 +80,7 @@ android.builtInKotlin=false
 `android/gradle/wrapper/gradle-wrapper.properties` の Gradle wrapper を 9.3.1+ に更新します:
 
 ```properties
-distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
 > **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha09` の AAR メタデータに由来します。
@@ -95,6 +95,11 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
 4. `AppIntentsBridge` パッケージプロダクトを選択
 5. `Runner` ターゲットに追加
 
+続いて、プロセス間ストレージのための App Groups を設定します（cache モードで必須）:
+
+1. Xcode で Runner ターゲットを選択 → **Signing & Capabilities** → **+ Capability** → **App Groups**
+2. 識別子を追加（例: `group.com.example.app`）
+
 `AppDelegate.swift` に以下を追加:
 
 ```swift
@@ -103,6 +108,11 @@ import AppIntentsBridge
 
 // AppDelegate内 (FlutterImplicitEngineDelegateを使用):
 if #available(iOS 17.0, *) {
+  // App Group ストレージを設定 — cache モードの Intent がメインアプリと
+  // App Intent 拡張プロセス間でデータを共有するために必須。
+  // これがないと、キャッシュしたデータがプロセスをまたいで「リセット」されたように見える。
+  AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
+
   Task { @MainActor in
     // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
@@ -532,9 +542,9 @@ Shortcutsエディタでの表示を制御：
 選択式パラメータ用の列挙型定義：
 
 ```dart
-@EnumSpec(title: 'Priority')
+@EnumSpec(identifier: 'com.example.taskapp.TaskPriority', title: 'Priority')
 enum TaskPriority {
-  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  @EnumCaseDisplay(title: 'High')
   high,
   @EnumCaseDisplay(title: 'Medium')
   medium,
@@ -546,7 +556,7 @@ enum TaskPriority {
 `@IntentParam` と組み合わせて使用：
 
 ```dart
-@IntentParam(title: 'Priority', enumType: TaskPriority)
+@IntentParam(title: 'Priority', enumType: 'TaskPriority')
 final TaskPriority priority;
 ```
 
@@ -639,7 +649,9 @@ Siri/Shortcuts → 生成されたAppIntent.perform()
   → 登録済みハンドラーにパラメータを配信
 ```
 
-**必須**: `main()` で `processPendingActions()` を呼び出す必要があります（[プラグインの使用](#プラグインの使用) を参照）。
+**必須**:
+- AppDelegate で `AppIntentsPlugin.configure(appGroupIdentifier:)` を呼び出す（[iOSネイティブ設定](#3-iosネイティブ設定-appintentsbridge) を参照）
+- `main()` で `configureStorage()` と `processPendingActions()` を呼び出す（[プラグインの使用](#プラグインの使用) を参照）
 
 ### FlutterBridgeモード (Background)
 
@@ -773,8 +785,14 @@ import 'intents/create_task_intent.dart';
 import 'intents/create_task_with_image_intent.dart';
 import 'entities/task_entity.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // App Group ストレージを設定（iOS、cache モードで必須）。
+  // AppDelegate.swift の appGroupIdentifier と一致させること。
+  await AppIntents().configureStorage(
+    appGroupIdentifier: 'group.com.example.app',
+  );
 
   // Intent/Entityハンドラーを登録（生成コード）
   initializeCreateTaskAppIntents();
@@ -803,8 +821,13 @@ void main() {
 `processPendingActions()` を使用する場合、`main()` での初期化順序が重要です。Intentハンドラーは `processPendingActions()` を呼び出す**前に**登録する必要があります。そうしないと、ペンディングアクションがディスパッチされてもハンドラーが受信できません。
 
 ```dart
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 0. App Group ストレージを設定（最初に行う必要がある）
+  await AppIntents().configureStorage(
+    appGroupIdentifier: 'group.com.example.app',
+  );
 
   // 1. すべてのハンドラーを先に登録
   initializeCreateTaskAppIntents();
@@ -856,7 +879,7 @@ Swift は `#if APP_INTENTS_WWDC26` で囲まれビルド設定からも切り替
 # マスタースイッチ + 機能選択（カンマ区切り）。マスター OFF なら一切出力しない。
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-query,value-representation,donation,long-running,app-schema,rich-types
+  --experimental=value-query,value-representation,donation,long-running,app-schema,ownership,rich-types
 ```
 
 出力された WWDC26 形をコンパイルするには、Xcode のターゲットの **Active Compilation
@@ -867,6 +890,7 @@ Conditions**（Swift フラグ）に `APP_INTENTS_WWDC26` を追加します。�
 | フラグ | 機能 |
 |------|---------|
 | `app-schema` | `@AppEntity/@AppIntent/@AppEnum(schema:)` ドメイン準拠 (#49) |
+| `ownership` | `@EntitySpec(ownership:)` による `OwnershipProvidingEntity` 準拠 (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / 実行ターゲット (#52) |
 | `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53) |
 | `value-query` | `IntentValueQuery` 構造化検索 (#51) |

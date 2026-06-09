@@ -6,7 +6,7 @@ A pure Dart package that provides annotations and base classes for defining Inte
 
 ### Dependencies
 
-- Dart SDK: ^3.10.1
+- Dart SDK: ^3.10.0
 - No external dependencies (framework-independent)
 
 ### Intent Related
@@ -174,9 +174,9 @@ class TaskEntitySpec extends EntitySpecBase<Task> {}
 Annotation for defining an AppEnum.
 
 ```dart
-@EnumSpec(title: 'Priority')
+@EnumSpec(identifier: 'com.example.taskapp.TaskPriority', title: 'Priority')
 enum TaskPriority {
-  @EnumCaseDisplay(title: 'High', subtitle: 'Urgent tasks')
+  @EnumCaseDisplay(title: 'High')
   high,
   @EnumCaseDisplay(title: 'Medium')
   medium,
@@ -187,6 +187,7 @@ enum TaskPriority {
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
+| identifier | String | Yes | Unique identifier for the enum |
 | title | String | Yes | Enum type display name |
 
 #### EnumCaseDisplay
@@ -196,7 +197,7 @@ Annotation for defining display properties of enum cases.
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | title | String | Yes | Case display name |
-| subtitle | String | No | Case subtitle |
+| imageName | String | No | Asset/SF Symbol name for `.init(named:isTemplate:)` image |
 
 ### File Structure
 
@@ -390,11 +391,17 @@ Tool for generating code from Dart annotations.
 
 ### Dependencies
 
-- Dart SDK: ^3.10.1
-- analyzer: ^7.4.5
-- build: ^2.4.2
-- source_gen: ^2.0.0
+- Dart SDK: ^3.10.0
+- analyzer: ">=7.0.0 <14.0.0"
+- args: ^2.5.0
+- build: ">=2.4.0 <5.0.0"
+- source_gen: ">=2.0.0 <5.0.0"
+- code_builder: ^4.10.0
+- dart_style: ^3.0.0
+- glob: ^2.1.0
 - path: ^1.9.0
+- yaml: ^3.1.0
+- app_intents_annotations: ^0.11.0
 
 ### Implemented Features
 
@@ -427,7 +434,7 @@ Tool for generating code from Dart annotations.
 
 6. **WWDC26 experimental generation (opt-in, default OFF)** ✅
    - Master switch `--experimental-wwdc26` + per-feature `--experimental=<flag>`
-     (`app-schema`, `long-running`, `rich-types`, `value-query`,
+     (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`,
      `value-representation`, `donation`). Output wrapped in `#if APP_INTENTS_WWDC26`.
    - App Schema (#49), execution control (#52), rich parameter types (#53),
      `IntentValueQuery` (#51), cross-app export (#54), `SyncableEntity` /
@@ -441,7 +448,7 @@ Tool for generating code from Dart annotations.
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.10.1
+  app_intents_codegen: ^0.11.0
 ```
 
 ```bash
