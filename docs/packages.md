@@ -227,6 +227,25 @@ app_intents_annotations/
     └── app_intents_annotations_test.dart
 ```
 
+### WWDC26 experimental annotations
+
+`@EntitySpec` / `@IntentSpec` carry opt-in WWDC26 fields (emitted only when the
+matching `--experimental` flag is on, gated by `#if APP_INTENTS_WWDC26`):
+
+- `@EntitySpec(schema:)` / `@IntentSpec(schema:)` / `@EnumSpec(schema:)` — App
+  Schema domain conformance (#49). Pass a `'domain.schema'` string, ideally via
+  the **App Schema catalog**: `AppSchemaDomain` (known iOS 27 domains) and
+  `AppSchemas` (verified identifiers, e.g. `AppSchemas.messages.message`;
+  `AppSchemas.of(domain, name)` for unlisted ones). See `src/schema/app_schema.dart`.
+- `@EntitySpec(valueQuery:)` — generate an `IntentValueQuery` (#51).
+- `@EntitySpec(exportAs:)` — cross-app export via `ValueRepresentation`
+  (`EntityExportType.person`) (#54).
+- `@EntitySpec(syncable:)` — `SyncableEntity` conformance (stable-id case) (#55).
+- `@EntitySpec(ownership:)` — `OwnershipProvidingEntity` (#55).
+- `@EntitySpec(relevantEntities:)` — `RelevantEntities` donator generation (#55).
+
+See `docs/usage.md` → "WWDC26 Experimental Features" for full examples.
+
 ---
 
 ## app_intents
@@ -405,6 +424,16 @@ Tool for generating code from Dart annotations.
 5. **CLI Commands** ✅
    - `dart run app_intents_codegen:generate_swift` for Swift file generation
    - `dart run app_intents_codegen:generate_kotlin` for Kotlin file generation
+
+6. **WWDC26 experimental generation (opt-in, default OFF)** ✅
+   - Master switch `--experimental-wwdc26` + per-feature `--experimental=<flag>`
+     (`app-schema`, `long-running`, `rich-types`, `value-query`,
+     `value-representation`, `donation`). Output wrapped in `#if APP_INTENTS_WWDC26`.
+   - App Schema (#49), execution control (#52), rich parameter types (#53),
+     `IntentValueQuery` (#51), cross-app export (#54), `SyncableEntity` /
+     `RelevantEntities` donation (#55). See `docs/usage.md` and `docs/adr/`.
+   - Verification: `scripts/verify_experimental_swift.sh` dual-branch
+     `swiftc -typecheck` (beta iOS 27 SDK).
 
 ### Usage
 

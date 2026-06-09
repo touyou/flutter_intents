@@ -9,6 +9,7 @@ class MockAppIntentsPlatform
   final Map<String, IntentHandler> _intentHandlers = {};
   final Map<String, EntityQueryHandler> _entityQueryHandlers = {};
   final Map<String, SuggestedEntitiesHandler> _suggestedEntitiesHandlers = {};
+  final Map<String, ValueQueryHandler> valueQueryHandlers = {};
 
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
@@ -32,6 +33,49 @@ class MockAppIntentsPlatform
     SuggestedEntitiesHandler handler,
   ) {
     _suggestedEntitiesHandlers[entityIdentifier] = handler;
+  }
+
+  @override
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    ValueQueryHandler handler,
+  ) {
+    valueQueryHandlers[entityIdentifier] = handler;
+  }
+
+  final List<Map<String, dynamic>> donatedRelevantEntities = [];
+
+  @override
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) async {
+    donatedRelevantEntities.add({
+      'entityIdentifier': entityIdentifier,
+      'entities': entities,
+      'context': context,
+    });
+  }
+
+  final List<Map<String, dynamic>> onscreenCalls = [];
+
+  @override
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) async {
+    onscreenCalls.add({
+      'entityIdentifier': entityIdentifier,
+      'entityId': entityId,
+      'title': title,
+    });
+  }
+
+  @override
+  Future<void> clearOnscreenEntity() async {
+    onscreenCalls.add({'cleared': true});
   }
 
   @override
@@ -116,6 +160,53 @@ void main() {
 
       expect(fakePlatform.hasSuggestedEntitiesHandler('TaskEntity'), isTrue);
     });
+
+    test('registerValueQueryHandler delegates to platform', () {
+      appIntentsPlugin.registerValueQueryHandler(
+        'com.example.ProductEntity',
+        (input) async => [],
+      );
+
+      expect(
+        fakePlatform.valueQueryHandlers.containsKey(
+          'com.example.ProductEntity',
+        ),
+        isTrue,
+      );
+    });
+
+    test('donateRelevantEntities delegates to platform', () async {
+      await appIntentsPlugin.donateRelevantEntities('com.example.SongEntity', [
+        {'id': 's1', 'title': 'Track'},
+      ], context: 'audio.nowPlaying');
+
+      expect(fakePlatform.donatedRelevantEntities, hasLength(1));
+      expect(
+        fakePlatform.donatedRelevantEntities.first['entityIdentifier'],
+        'com.example.SongEntity',
+      );
+      expect(
+        fakePlatform.donatedRelevantEntities.first['context'],
+        'audio.nowPlaying',
+      );
+    });
+
+    test(
+      'setOnscreenEntity / clearOnscreenEntity delegate to platform',
+      () async {
+        await appIntentsPlugin.setOnscreenEntity(
+          'com.example.TaskEntity',
+          't1',
+          title: 'My Task',
+        );
+        await appIntentsPlugin.clearOnscreenEntity();
+
+        expect(fakePlatform.onscreenCalls, hasLength(2));
+        expect(fakePlatform.onscreenCalls[0]['entityId'], 't1');
+        expect(fakePlatform.onscreenCalls[0]['title'], 'My Task');
+        expect(fakePlatform.onscreenCalls[1]['cleared'], isTrue);
+      },
+    );
 
     test('onIntentExecution returns stream from platform', () {
       expect(

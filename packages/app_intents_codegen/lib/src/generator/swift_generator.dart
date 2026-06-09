@@ -1034,6 +1034,248 @@ class SwiftGenerator {
       buffer.writeln();
       _writeOwnershipExtension(buffer, info);
     }
+
+    // #51 IntentValueQuery: an additive iOS 27 query type, in its own #if block
+    // (no #else needed — without the flag the entity simply has no value query;
+    // its normal EntityQuery is unaffected). See ADR 0001.
+    if (experimental.isEnabled(ExperimentalFeature.valueQuery) &&
+        info.valueQuery) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeValueQueryStruct(buffer, info);
+    }
+
+    // #54 cross-app sharing (export): an additive iOS 27 Transferable
+    // conformance, in its own #if block (no #else — without the flag the entity
+    // simply isn't exportable). See ADR 0002.
+    if (experimental.isEnabled(ExperimentalFeature.valueRepresentation) &&
+        info.exportAs != null) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeValueRepresentationExtension(buffer, info);
+    }
+
+    // #55 SyncableEntity (stable-id case): an additive iOS 27 conformance, in
+    // its own #if block (no #else — without the flag the entity just isn't
+    // syncable). Only valid when the entity's id is already stable. See ADR 0003.
+    if (experimental.isEnabled(ExperimentalFeature.donation) && info.syncable) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeSyncableEntityExtension(buffer, info);
+    }
+
+    // #55 RelevantEntities donator: an additive iOS 27 reverse-executor
+    // registration, in its own #if block (no #else). See ADR 0003.
+    if (experimental.isEnabled(ExperimentalFeature.donation) &&
+        info.relevantEntities) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeRelevantEntitiesDonator(buffer, info);
+    }
+  }
+
+  /// Writes the experimental `SyncableEntity` conformance for the
+  /// already-stable-id case (#55). No members are needed when the entity's id
+  /// is already consistent across devices. Gated by `#if APP_INTENTS_WWDC26`
+  /// with no `#else` (additive).
+  void _writeSyncableEntityExtension(StringBuffer buffer, EntityInfo info) {
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln(
+      '/// The id is already stable across devices, so no extra members are needed.',
+    );
+    buffer.writeln('extension ${info.className}: SyncableEntity {}');
+    buffer.write('#endif');
+  }
+
+  /// Writes the experimental `RelevantEntities` donator registration (#55).
+  ///
+  /// Emits a `register<Entity>RelevantEntitiesDonator()` function (call it once
+  /// at startup) that registers a closure with `FlutterBridge`. When Dart calls
+  /// `donateRelevantEntities`, the closure builds concrete entities from the
+  /// dictionaries and calls `RelevantEntities.shared.updateEntities(_:for:)`
+  /// (a stateful overwrite for the context). Gated by `#if APP_INTENTS_WWDC26`
+  /// with no `#else` (additive). The iOS-27 symbols (`RelevantEntities`,
+  /// `AppEntityContext`) appear only inside this gated closure.
+  void _writeRelevantEntitiesDonator(StringBuffer buffer, EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+    final subtitleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.subtitle)
+        .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
+    final fnName = 'register${info.className}RelevantEntitiesDonator';
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln(
+      '/// Registers the RelevantEntities donator for ${info.className}.',
+    );
+    buffer.writeln('/// Call this once at startup (e.g. in AppDelegate).');
+    buffer.writeln('func $fnName() {');
+    buffer.writeln('${_indent}Task {');
+    buffer.writeln(
+      '$_indent${_indent}await FlutterBridge.shared.registerRelevantEntitiesDonator(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"',
+    );
+    buffer.writeln('$_indent$_indent) { dicts, context in');
+    buffer.writeln(
+      '$_indent$_indent${_indent}let entities: [${info.className}] = dicts.compactMap { dict in',
+    );
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
+    buffer.writeln('$_indent$_indent$_indent}');
+    buffer.writeln(
+      '$_indent$_indent${_indent}try await RelevantEntities.shared.updateEntities(',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}entities, for: ${info.className}._relevantContext(context))',
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.writeln();
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('extension ${info.className} {');
+    buffer.writeln(
+      '$_indent/// Maps an opaque context token from Dart to an AppEntityContext.',
+    );
+    buffer.writeln(
+      '${_indent}static func _relevantContext(_ token: String?) -> AppEntityContext {',
+    );
+    buffer.writeln('$_indent${_indent}switch token {');
+    buffer.writeln(
+      '$_indent$_indent case "audio.nowPlaying": return .audio(.nowPlaying)',
+    );
+    // MVP: only `audio.nowPlaying` is mapped. An unknown/nil token falls back to
+    // it rather than erroring; expand this switch as the context catalog grows.
+    buffer.writeln(
+      '$_indent$_indent // Unknown/nil tokens fall back to now-playing (only context in the MVP).',
+    );
+    buffer.writeln('$_indent$_indent default: return .audio(.nowPlaying)');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
+  }
+
+  /// Writes the experimental `Transferable` + `ValueRepresentation(exporting:)`
+  /// conformance for cross-app entity sharing (#54).
+  ///
+  /// Gated by `#if APP_INTENTS_WWDC26` with no `#else`: export is purely
+  /// additive, so released-SDK builds without the flag just omit it. The
+  /// `CoreTransferable` import is emitted inside the `#if` so it does not become
+  /// an unused-import warning when the flag is off.
+  void _writeValueRepresentationExtension(
+    StringBuffer buffer,
+    EntityInfo info,
+  ) {
+    final idField =
+        info.properties
+            .where((p) => p.role == EntityPropertyRole.id)
+            .firstOrNull
+            ?.fieldName ??
+        'id';
+    final titleField =
+        info.properties
+            .where((p) => p.role == EntityPropertyRole.title)
+            .firstOrNull
+            ?.fieldName ??
+        'title';
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('import CoreTransferable');
+    buffer.writeln();
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('extension ${info.className}: Transferable {');
+    buffer.writeln(
+      '${_indent}static var transferRepresentation: some TransferRepresentation {',
+    );
+    switch (info.exportAs!) {
+      case EntityExportKind.person:
+        buffer.writeln(
+          '$_indent${_indent}ValueRepresentation(exporting: { entity in',
+        );
+        buffer.writeln('$_indent$_indent${_indent}IntentPerson(');
+        buffer.writeln(
+          '$_indent$_indent$_indent${_indent}identifier: .applicationDefined(entity.$idField),',
+        );
+        buffer.writeln(
+          '$_indent$_indent$_indent${_indent}name: .displayName(entity.$titleField),',
+        );
+        // `handle` has no default in the SDK initializer
+        // (init(identifier:name:handle:aliases:isMe:image:)), so it must be
+        // passed explicitly even when nil.
+        buffer.writeln('$_indent$_indent$_indent${_indent}handle: nil');
+        buffer.writeln('$_indent$_indent$_indent)');
+        buffer.writeln('$_indent$_indent})');
+    }
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
+  }
+
+  /// Writes the experimental `IntentValueQuery` conforming struct (#51).
+  ///
+  /// Receives a serializable text search input from the system and delegates to
+  /// a Dart handler via `FlutterBridge.shared.queryValues`. Gated by
+  /// `#if APP_INTENTS_WWDC26` with no `#else`: the value query is purely
+  /// additive, so released-SDK builds without the flag just omit it.
+  void _writeValueQueryStruct(StringBuffer buffer, EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+    final subtitleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.subtitle)
+        .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('struct ${info.className}ValueQuery: IntentValueQuery {');
+    buffer.writeln(
+      '${_indent}func values(for input: String) async throws -> [${info.className}] {',
+    );
+    buffer.writeln(
+      '$_indent${_indent}let results = try await FlutterBridge.shared.queryValues(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}queryIdentifier: "${info.identifier}",',
+    );
+    buffer.writeln('$_indent$_indent${_indent}input: ["query": input]');
+    buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent${_indent}return results.compactMap { dict in');
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
   }
 
   /// Writes the experimental `OwnershipProvidingEntity` conformance extension.
@@ -1531,11 +1773,21 @@ class SwiftGenerator {
 
     // Build initializer
     final initParts = <String>['$id: $id', '$title: $title'];
+    // subtitle/image are read from the dict as `String?`; coalesce to a
+    // non-optional value when the entity field is declared non-optional (the
+    // local read is always optional, but the struct field type follows the Dart
+    // type). Mirrors the exposed-property handling below.
     if (subtitleProp != null) {
-      initParts.add('${subtitleProp.fieldName}: ${subtitleProp.fieldName}');
+      final value = subtitleProp.dartType.endsWith('?')
+          ? subtitleProp.fieldName
+          : '${subtitleProp.fieldName} ?? ""';
+      initParts.add('${subtitleProp.fieldName}: $value');
     }
     if (imageProp != null) {
-      initParts.add('${imageProp.fieldName}: ${imageProp.fieldName}');
+      final value = imageProp.dartType.endsWith('?')
+          ? imageProp.fieldName
+          : '${imageProp.fieldName} ?? ""';
+      initParts.add('${imageProp.fieldName}: $value');
     }
     for (final prop in exposedStringProps) {
       final value = prop.dartType.endsWith('?')

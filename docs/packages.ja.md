@@ -227,6 +227,25 @@ app_intents_annotations/
     └── app_intents_annotations_test.dart
 ```
 
+### WWDC26 実験的アノテーション
+
+`@EntitySpec` / `@IntentSpec` は opt-in の WWDC26 フィールドを持ちます（対応する
+`--experimental` フラグが ON のときのみ出力、`#if APP_INTENTS_WWDC26` でゲート）:
+
+- `@EntitySpec(schema:)` / `@IntentSpec(schema:)` / `@EnumSpec(schema:)` — App
+  Schema ドメイン準拠 (#49)。`'domain.schema'` 文字列を渡す。**App Schema カタログ**
+  推奨: `AppSchemaDomain`（iOS 27 既知ドメイン）と `AppSchemas`（検証済み識別子。例:
+  `AppSchemas.messages.message`、未収録は `AppSchemas.of(domain, name)`）。
+  `src/schema/app_schema.dart` 参照。
+- `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51)。
+- `@EntitySpec(exportAs:)` — `ValueRepresentation` によるアプリ間 export
+  (`EntityExportType.person`) (#54)。
+- `@EntitySpec(syncable:)` — `SyncableEntity` 準拠（安定 id ケース）(#55)。
+- `@EntitySpec(ownership:)` — `OwnershipProvidingEntity` (#55)。
+- `@EntitySpec(relevantEntities:)` — `RelevantEntities` donator 生成 (#55)。
+
+完全な例は `docs/usage.ja.md`「WWDC26 実験的機能」を参照。
+
 ---
 
 ## app_intents
@@ -396,6 +415,16 @@ Dartアノテーションからコードを生成するツール。
 5. **CLIコマンド** ✅
    - `dart run app_intents_codegen:generate_swift` でSwiftファイル生成
    - `dart run app_intents_codegen:generate_kotlin` でKotlinファイル生成
+
+6. **WWDC26 実験的生成（opt-in・デフォルト OFF）** ✅
+   - マスタースイッチ `--experimental-wwdc26` + 機能別 `--experimental=<flag>`
+     (`app-schema`, `long-running`, `rich-types`, `value-query`,
+     `value-representation`, `donation`)。出力は `#if APP_INTENTS_WWDC26` で囲む。
+   - App Schema (#49)、実行制御 (#52)、リッチなパラメータ型 (#53)、
+     `IntentValueQuery` (#51)、アプリ間 export (#54)、`SyncableEntity` /
+     `RelevantEntities` ドネーション (#55)。`docs/usage.ja.md` と `docs/adr/` を参照。
+   - 検証: `scripts/verify_experimental_swift.sh` で dual-branch
+     `swiftc -typecheck`（beta iOS 27 SDK）。
 
 ### 使用方法
 

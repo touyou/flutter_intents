@@ -7,7 +7,11 @@ library;
 export 'src/models/models.dart';
 export 'app_intents_platform_interface.dart' show AppIntentsPlatform;
 export 'app_intents_method_channel.dart'
-    show IntentHandler, EntityQueryHandler, SuggestedEntitiesHandler;
+    show
+        IntentHandler,
+        EntityQueryHandler,
+        SuggestedEntitiesHandler,
+        ValueQueryHandler;
 
 import 'app_intents_platform_interface.dart';
 import 'src/models/models.dart';
@@ -147,6 +151,77 @@ class AppIntents {
       entityIdentifier,
       handler,
     );
+  }
+
+  /// Registers a handler for an `IntentValueQuery` (#51).
+  ///
+  /// The [handler] receives the system's serializable search input (e.g.
+  /// `{'query': 'text'}`) and returns matching entities as maps. Used for
+  /// content that is hard to index ahead of time (large, server-side, or
+  /// fast-changing). See `docs/adr/0001-intent-value-query-bridge.md`.
+  ///
+  /// Example:
+  /// ```dart
+  /// appIntents.registerValueQueryHandler(
+  ///   'com.example.app.ProductEntity',
+  ///   (input) async {
+  ///     final products = await catalog.search(input['query'] as String? ?? '');
+  ///     return products.map((p) => p.toJson()).toList();
+  ///   },
+  /// );
+  /// ```
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input)
+    handler,
+  ) {
+    AppIntentsPlatform.instance.registerValueQueryHandler(
+      entityIdentifier,
+      handler,
+    );
+  }
+
+  /// Donates contextually relevant entities to the system (#55).
+  ///
+  /// Tells the system which [entities] are relevant right now for [context]
+  /// (e.g. media to suggest during a workout). Each call is a **stateful
+  /// overwrite** — pass an empty list to clear the context. [entityIdentifier]
+  /// must match an entity declared `@EntitySpec(relevantEntities: true)`.
+  ///
+  /// iOS-only; a no-op on other platforms. See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) {
+    return AppIntentsPlatform.instance.donateRelevantEntities(
+      entityIdentifier,
+      entities,
+      context: context,
+    );
+  }
+
+  /// Binds the on-screen entity to the current `NSUserActivity` so Siri can
+  /// resolve "this" to it (#56). Call as the user navigates; pass the entity
+  /// *type* identifier and instance [entityId]. iOS-only; a no-op elsewhere.
+  ///
+  /// See `docs/adr/0004-onscreen-awareness-feasibility.md`.
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) {
+    return AppIntentsPlatform.instance.setOnscreenEntity(
+      entityIdentifier,
+      entityId,
+      title: title,
+    );
+  }
+
+  /// Clears the onscreen entity association set by [setOnscreenEntity] (#56).
+  Future<void> clearOnscreenEntity() {
+    return AppIntentsPlatform.instance.clearOnscreenEntity();
   }
 
   /// A stream of intent execution requests from the native platform.

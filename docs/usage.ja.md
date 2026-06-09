@@ -843,6 +843,198 @@ if #available(iOS 17.0, *) {
 
 これはコードジェネレータでは自動生成されません — エンティティデータが変更される場所でSwiftコードに手動で追加してください。
 
+## WWDC26 実験的機能（opt-in）
+
+codegen は WWDC26 の App Intents API（iOS 26.4 / iOS 27+）を出力できます。これらの
+シンボルは**安定 SDK に存在しない**ため、**opt-in・デフォルト OFF** であり、生成された
+Swift は `#if APP_INTENTS_WWDC26` で囲まれビルド設定からも切り替えられます。既存の安定
+出力は変わりません。
+
+### 実験的生成の有効化
+
+```bash
+# マスタースイッチ + 機能選択（カンマ区切り）。マスター OFF なら一切出力しない。
+dart run app_intents_codegen:generate_swift \
+  --experimental-wwdc26 \
+  --experimental=value-query,value-representation,donation,long-running,app-schema,rich-types
+```
+
+出力された WWDC26 形をコンパイルするには、Xcode のターゲットの **Active Compilation
+Conditions**（Swift フラグ）に `APP_INTENTS_WWDC26` を追加します。未設定なら生成された
+`#else`（安定）分岐がコンパイルされる — つまり実験的 codegen を有効にしてもフラグ未設定の
+プロジェクトはそのままビルドできます。
+
+| フラグ | 機能 |
+|------|---------|
+| `app-schema` | `@AppEntity/@AppIntent/@AppEnum(schema:)` ドメイン準拠 (#49) |
+| `long-running` | `LongRunningIntent` / `CancellableIntent` / 実行ターゲット (#52) |
+| `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53) |
+| `value-query` | `IntentValueQuery` 構造化検索 (#51) |
+| `value-representation` | `ValueRepresentation` によるアプリ間エンティティ export (#54) |
+| `donation` | `SyncableEntity` + `RelevantEntities` ドネーション (#55) |
+
+### App Schema (#49) — カタログの利用
+
+スキーマを渡すと、Siri/Apple Intelligence が既知の語彙でエンティティ/インテントを理解
+します。ライブラリは型付きカタログを同梱しており、マジック文字列を手書きせずに済みます:
+
+```dart
+import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+@EntitySpec(
+  identifier: 'com.example.app.MessageEntity',
+  title: 'Message',
+  pluralTitle: 'Messages',
+  schema: AppSchemas.messages.message, // == 'messages.message'
+)
+class MessageEntitySpec extends EntitySpecBase<Message> { /* ... */ }
+
+@IntentSpec(
+  identifier: 'com.example.app.sendMessage',
+  title: 'Send Message',
+  schema: AppSchemas.messages.sendMessage,
+)
+class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
+```
+
+- `AppSchemaDomain` は iOS 27 の既知ドメインを列挙（`messages`, `mail`, `photos`,
+  `calendar`, `maps`, `imageGeneration`, `visualIntelligence` など）。
+- `AppSchemas.<domain>.<schema>` は検証済み識別子を公開（現状 `messages` / `mail` /
+  `photos`、順次拡充）。
+- カタログは**非網羅**です — システムは生文字列で照合するため、任意の `'domain.schema'`
+  が使えます。未収録のスキーマは
+  `schema: AppSchemas.of(AppSchemaDomain.calendar, 'event')` → `'calendar.event'`。
+
+### IntentValueQuery (#51) — 構造化検索
+
+事前インデックスが難しいコンテンツ（大規模・サーバーサイド・高頻度更新）向けに、
+`IntentValueQuery` は検索入力を受け取り一致エンティティを返します。エンティティ単位で
+`valueQuery: true` を指定し、`<entity>ValueQuery` という名前のハンドラを定義します:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ProductEntity',
+  title: 'Product',
+  pluralTitle: 'Products',
+  valueQuery: true,
+)
+class ProductEntitySpec extends EntitySpecBase<Product> { /* ... */ }
+
+// 同じ spec ファイル内のハンドラ（システムのテキストクエリを受け取る）:
+Future<List<Product>> productEntityValueQuery(String input) async {
+  return ProductRepository.instance.search(input);
+}
+```
+
+生成 Dart がハンドラを自動登録します。ネイティブ側では value-query executor を配線します
+（[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
+ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
+
+### アプリ間エンティティ export (#54)
+
+エンティティをシステム標準型として export し、他アプリが受け取れるようにします。MVP は
+`IntentPerson`（エンティティの id/title から構築）として export します:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ContactEntity',
+  title: 'Contact',
+  pluralTitle: 'Contacts',
+  exportAs: EntityExportType.person,
+)
+class ContactEntitySpec extends EntitySpecBase<Contact> { /* ... */ }
+```
+
+`ValueRepresentation` を伴う `Transferable` 準拠が生成されます。export はシステム向き
+（Flutter 往復なし）のため、ネイティブ配線は不要です。
+
+### ドネーションと発見性 (#55)
+
+**SyncableEntity** — エンティティの `@EntityId` が既にデバイス間で安定（例: サーバー
+UUID）な場合に `syncable: true` を指定すると、会話がデバイス間を移動しても Siri が一貫
+して参照できます:
+
+```dart
+@EntitySpec(identifier: '…', title: '…', pluralTitle: '…', syncable: true)
+```
+
+**RelevantEntities ドネーション** — `relevantEntities: true` で
+`register<Entity>RelevantEntitiesDonator()` 関数が生成されます。起動時に一度呼び（ネイ
+ティブ配線参照）、ユーザーの文脈変化に応じて Dart から donate します:
+
+```dart
+@EntitySpec(identifier: 'com.example.app.SongEntity', title: '…',
+    pluralTitle: '…', relevantEntities: true)
+// …
+await AppIntents().donateRelevantEntities(
+  'com.example.app.SongEntity',
+  currentlyPlaying.map((s) => s.toJson()).toList(),
+  context: 'audio.nowPlaying', // ステートフル上書き; [] でクリア
+);
+```
+
+### オンスクリーン認識 (#56)
+
+画面に表示中の主要エンティティを `NSUserActivity` に紐付け、Siri が「これ」を解決できる
+ようにします。画面遷移に合わせて呼びます:
+
+```dart
+await AppIntents().setOnscreenEntity(
+  'com.example.app.TaskEntity', task.id, title: task.title,
+);
+// 画面を離れるとき:
+await AppIntents().clearOnscreenEntity();
+```
+
+このスキャフォルドは安定 API（`becomeCurrent` / `targetContentIdentifier`）を使います。
+iOS 26+ の `appEntityIdentifier` による AppEntity 関連付けは具体エンティティ型が必要で
+`AppDelegate` で配線します（ネイティブ配線参照）。依存する前に実機検証を推奨します。
+個別ビュー注釈（`.appEntityIdentifier`）は Flutter では**非対応**です（SwiftUI ビュー
+ツリーが無いため）。
+
+### 実験的ブリッジのネイティブ配線
+
+新しい inbound/outbound 経路は、既存の executor と並べて `AppDelegate` で配線します。
+iOS-27 シンボルを参照するものは `#if APP_INTENTS_WWDC26` でゲートします:
+
+```swift
+Task { @MainActor in
+  // … 既存の intent/entity/suggested executor …
+
+  // #51 IntentValueQuery
+  await FlutterBridge.shared.setValueQueryExecutor { entityIdentifier, input in
+    guard let plugin = AppIntentsPlugin.shared else {
+      throw AppIntentError.entityQueryNotConfigured
+    }
+    return try await plugin.queryValuesAsync(entityIdentifier: entityIdentifier, input: input)
+  }
+}
+
+#if APP_INTENTS_WWDC26
+// #55 RelevantEntities ドネーション: Dart → 生成 donator へ転送。
+AppIntentsPlugin.relevantEntitiesDonationForwarder = { id, entities, context in
+  try await FlutterBridge.shared.donateRelevantEntities(
+    entityIdentifier: id, entities: entities, context: context)
+}
+// 各エンティティの生成 donator を登録（relevantEntities エンティティごとに1回）:
+if #available(iOS 27.0, *) {
+  registerSongEntityRelevantEntitiesDonator()
+}
+
+// #56 オンスクリーン関連付け: 具体エンティティ型から appEntityIdentifier を設定。
+if #available(iOS 26.0, *) {
+  AppIntentsPlugin.onscreenEntityBinder = { activity, entityIdentifier, entityId in
+    // entityIdentifier を具体 AppEntity 型にマップしてから:
+    // activity.appEntityIdentifier = EntityIdentifier(for: SongEntity.self, identifier: entityId)
+  }
+}
+#endif
+```
+
+> 生成 Swift の検証: `scripts/verify_experimental_swift.sh` を実行（iOS 27 SDK の beta
+> Xcode が必要）。生成出力を `-D APP_INTENTS_WWDC26` の有/無の両方で type-check するため、
+> WWDC26 形と安定フォールバック形の両方がコンパイル可能であることが保証されます。
+
 ## ベストプラクティス
 
 ### 1. Intent識別子の命名

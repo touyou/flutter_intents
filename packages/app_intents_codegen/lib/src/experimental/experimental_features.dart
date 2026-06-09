@@ -24,7 +24,29 @@ enum ExperimentalFeature {
   /// Richer parameter types (#53): native `Duration` parameters. Without this
   /// feature a `Duration` parameter falls back to `Measurement<UnitDuration>`,
   /// which the stable SDK supports.
-  richTypes('rich-types');
+  richTypes('rich-types'),
+
+  /// IntentValueQuery structured search (#51): generates an
+  /// `IntentValueQuery`-conforming type that receives a serializable search
+  /// input from the system and delegates to a Dart handler via FlutterBridge.
+  /// See `docs/adr/0001-intent-value-query-bridge.md`. The visual
+  /// (`SemanticContentDescriptor`) variant is out of scope here (#58).
+  valueQuery('value-query'),
+
+  /// Cross-app entity sharing via export (#54): generates a `Transferable`
+  /// conformance with `ValueRepresentation(exporting:)` so the entity can be
+  /// handed to other apps as a system structured type (initially
+  /// `IntentPerson`). Export is system-facing (no Dart round-trip); the import
+  /// path reuses the value-query bridge and is added later. See
+  /// `docs/adr/0002-cross-app-entity-sharing.md`.
+  valueRepresentation('value-representation'),
+
+  /// Donations & discovery (#55): `SyncableEntity` conformance (stable-id case)
+  /// and `RelevantEntities` contextual donation via the reverse executor
+  /// (generated closure registers with the plugin and calls
+  /// `RelevantEntities.shared.updateEntities`). See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  donation('donation');
 
   const ExperimentalFeature(this.flag);
 

@@ -1,3 +1,4 @@
+import 'entity_export.dart';
 import 'entity_ownership.dart';
 
 /// Annotation to specify an entity with its metadata.
@@ -84,6 +85,71 @@ class EntitySpec {
   /// generation is enabled.
   final EntityOwnershipState? ownership;
 
+  /// **Experimental (WWDC26, iOS 27+).** Whether to generate an
+  /// `IntentValueQuery`-conforming type for this entity (#51).
+  ///
+  /// An `IntentValueQuery` receives a serializable search input (e.g. a text
+  /// query) from the system — for content that is hard to index ahead of time
+  /// (large, server-side, or fast-changing) — and returns matching entities.
+  /// Unlike [enumerable]/the default `EntityQuery`, it can take an arbitrary
+  /// search input.
+  ///
+  /// When the `value-query` experimental feature is enabled, the generated
+  /// Swift adds a `<Entity>ValueQuery: IntentValueQuery` struct (in a
+  /// `#if APP_INTENTS_WWDC26` block) whose `values(for:)` delegates to a Dart
+  /// handler via `FlutterBridge.shared.queryValues`. The Dart side registers
+  /// the handler with `AppIntents().registerValueQueryHandler` — emitted
+  /// whenever this flag is set (it references no iOS-version-specific symbol,
+  /// so it is safe to ship unconditionally; an unused registration is
+  /// harmless until the Swift side is enabled).
+  ///
+  /// The visual (`SemanticContentDescriptor`/pixel-buffer) variant is out of
+  /// scope (#58, native-only). See `docs/adr/0001-intent-value-query-bridge.md`.
+  final bool valueQuery;
+
+  /// **Experimental (WWDC26, iOS 27+).** The system structured type this entity
+  /// is exported as for cross-app sharing (#54).
+  ///
+  /// When the `value-representation` experimental feature is enabled, the
+  /// generated Swift adds a `Transferable` conformance with
+  /// `ValueRepresentation(exporting:)` (in a `#if APP_INTENTS_WWDC26` block) so
+  /// the entity can be handed to other apps in a system-understood form.
+  ///
+  /// [EntityExportType.person] builds an `IntentPerson` from the entity's
+  /// `@EntityId`/`@EntityTitle` fields — no extra Dart-side data needed. Other
+  /// catalog entries (e.g. `PlaceDescriptor`) are added as they gain a Dart
+  /// representation. See `docs/adr/0002-cross-app-entity-sharing.md`.
+  final EntityExportType? exportAs;
+
+  /// **Experimental (WWDC26, iOS 27+).** Whether this entity's identifier is
+  /// stable across devices, allowing Siri to refer to it consistently when a
+  /// conversation moves between devices (#55, `SyncableEntity`).
+  ///
+  /// Set this only when the entity's `@EntityId` is **already** stable across
+  /// devices (e.g. a server-assigned UUID). When enabled and the `donation`
+  /// experimental feature is on, the generated Swift adds a `SyncableEntity`
+  /// conformance (in a `#if APP_INTENTS_WWDC26` block). No extra members are
+  /// needed for the already-stable case.
+  ///
+  /// The dual-identifier case (`SyncableEntityIdentifier<Local, Stable>`, where
+  /// the local and stable IDs differ) changes the entity's id type and ripples
+  /// through queries and caching — it is **not** handled here and is tracked
+  /// separately. See `docs/adr/0003-donations-and-discovery.md`.
+  final bool syncable;
+
+  /// **Experimental (WWDC26, iOS 27+).** Whether to generate a
+  /// `RelevantEntities` donator for this entity (#55).
+  ///
+  /// When enabled and the `donation` experimental feature is on, the generated
+  /// Swift emits a `register<Entity>RelevantEntitiesDonator()` function (in a
+  /// `#if APP_INTENTS_WWDC26` block) that you call at startup. It registers a
+  /// closure with the bridge so that `AppIntents().donateRelevantEntities(...)`
+  /// from Dart builds concrete entities and calls
+  /// `RelevantEntities.shared.updateEntities(_:for:)`.
+  ///
+  /// See `docs/adr/0003-donations-and-discovery.md`.
+  final bool relevantEntities;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -95,5 +161,9 @@ class EntitySpec {
     this.persistedCacheKey,
     this.schema,
     this.ownership,
+    this.valueQuery = false,
+    this.exportAs,
+    this.syncable = false,
+    this.relevantEntities = false,
   });
 }

@@ -131,6 +131,84 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     );
   }
 
+  /// Registers a handler for an `IntentValueQuery` (#51).
+  ///
+  /// An `IntentValueQuery` receives a serializable search input from the system
+  /// (for content that is hard to index ahead of time) and returns matching
+  /// entities. The [handler] receives the input map (e.g. `{'query': 'text'}`)
+  /// and returns a list of entity maps.
+  ///
+  /// Example:
+  /// ```dart
+  /// AppIntentsPlatform.instance.registerValueQueryHandler(
+  ///   'com.example.app.ProductEntity',
+  ///   (input) async {
+  ///     final products = await catalog.search(input['query'] as String? ?? '');
+  ///     return products.map((p) => p.toJson()).toList();
+  ///   },
+  /// );
+  /// ```
+  ///
+  /// See `docs/adr/0001-intent-value-query-bridge.md`.
+  void registerValueQueryHandler(
+    String entityIdentifier,
+    Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input)
+    handler,
+  ) {
+    throw UnimplementedError(
+      'registerValueQueryHandler() has not been implemented.',
+    );
+  }
+
+  /// Donates a set of contextually relevant entities to the system (#55).
+  ///
+  /// Tells the system which entities are relevant right now, scoped by
+  /// [context] (e.g. media to suggest during a workout). Each call is a
+  /// **stateful overwrite** for that context — passing an empty [entities] list
+  /// clears the previously donated set.
+  ///
+  /// [entityIdentifier] must match an entity whose generated Swift registered a
+  /// donator (via `@EntitySpec(relevantEntities: true)`). [context] is an opaque
+  /// token understood by the generated code (e.g. `'audio.nowPlaying'`).
+  ///
+  /// See `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) {
+    throw UnimplementedError(
+      'donateRelevantEntities() has not been implemented.',
+    );
+  }
+
+  /// Binds the entity currently shown on screen to an `NSUserActivity` so Siri
+  /// and Apple Intelligence can resolve references like "this" (#56).
+  ///
+  /// Call this as the user navigates, passing the primary entity for the
+  /// current screen ([entityIdentifier] = the entity *type* identifier,
+  /// [entityId] = the instance id). Creates/updates the current user activity
+  /// and makes it current. Call [clearOnscreenEntity] when leaving the screen.
+  ///
+  /// **PoC status**: the user-activity lifecycle (`becomeCurrent` /
+  /// `targetContentIdentifier`) uses stable APIs and works today. The actual
+  /// `NSUserActivity.appEntityIdentifier` AppEntity association is iOS 26+ and
+  /// needs the concrete entity type — see the on-device PoC note in
+  /// `docs/adr/0004-onscreen-awareness-feasibility.md`. iOS-only; a no-op
+  /// elsewhere.
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) {
+    throw UnimplementedError('setOnscreenEntity() has not been implemented.');
+  }
+
+  /// Clears the onscreen entity association set by [setOnscreenEntity] (#56).
+  Future<void> clearOnscreenEntity() {
+    throw UnimplementedError('clearOnscreenEntity() has not been implemented.');
+  }
+
   /// Retrieves a cached value from native storage.
   Future<dynamic> getCachedValue(String key) {
     throw UnimplementedError('getCachedValue() has not been implemented.');

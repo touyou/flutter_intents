@@ -129,6 +129,42 @@ void main() {
         expect(result, isEmpty);
       },
     );
+
+    test('registerValueQueryHandler stores handler correctly', () async {
+      var handlerCalled = false;
+      Map<String, dynamic>? receivedInput;
+
+      platform.registerValueQueryHandler('com.example.ProductEntity', (
+        input,
+      ) async {
+        handlerCalled = true;
+        receivedInput = input;
+        return [
+          {'id': 'p1', 'title': 'Matched Product'},
+        ];
+      });
+
+      // Simulate an IntentValueQuery from iOS.
+      final result = await platform.handleValueQuery(
+        'com.example.ProductEntity',
+        {'query': 'shoes'},
+      );
+
+      expect(handlerCalled, isTrue);
+      expect(receivedInput, {'query': 'shoes'});
+      expect(result.length, 1);
+      expect(result[0]['title'], 'Matched Product');
+    });
+
+    test(
+      'handleValueQuery returns empty list for unregistered entity',
+      () async {
+        final result = await platform.handleValueQuery('unknown.entity', {
+          'query': 'x',
+        });
+        expect(result, isEmpty);
+      },
+    );
   });
 
   group('MethodChannelAppIntents - Intent Execution Stream', () {

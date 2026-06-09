@@ -79,6 +79,12 @@ class EntityAnalyzer {
         ?.toStringValue();
     final schema = annotation.getField('schema')?.toStringValue();
     final ownership = _parseOwnership(annotation.getField('ownership'));
+    final valueQuery =
+        annotation.getField('valueQuery')?.toBoolValue() ?? false;
+    final exportAs = _parseExportAs(annotation.getField('exportAs'));
+    final syncable = annotation.getField('syncable')?.toBoolValue() ?? false;
+    final relevantEntities =
+        annotation.getField('relevantEntities')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -116,6 +122,10 @@ class EntityAnalyzer {
       persistedCacheKey: persistedCacheKey,
       schema: schema,
       ownership: ownership,
+      valueQuery: valueQuery,
+      exportAs: exportAs,
+      syncable: syncable,
+      relevantEntities: relevantEntities,
     );
   }
 
@@ -131,6 +141,19 @@ class EntityAnalyzer {
         return EntityOwnershipType.shared;
       case 2:
         return EntityOwnershipType.public;
+      default:
+        return null;
+    }
+  }
+
+  /// Parses the `exportAs` enum value (`EntityExportType`) into the model type,
+  /// or `null` when absent.
+  EntityExportKind? _parseExportAs(DartObject? field) {
+    if (field == null || field.isNull) return null;
+    final index = field.getField('index')?.toIntValue();
+    switch (index) {
+      case 0:
+        return EntityExportKind.person;
       default:
         return null;
     }

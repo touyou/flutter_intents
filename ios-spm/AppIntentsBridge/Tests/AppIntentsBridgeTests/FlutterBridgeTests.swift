@@ -127,4 +127,84 @@ struct FlutterBridgeTests {
         await bridge.unregisterHandler("ToBeRemoved")
         #expect(await bridge.hasHandler(for: "ToBeRemoved") == false)
     }
+
+    @Test("Value query executor forwards input and returns entity dicts (#51)")
+    func valueQueryExecutorForwardsInput() async throws {
+        let bridge = FlutterBridge.shared
+
+        await bridge.setValueQueryExecutor { entityIdentifier, input in
+            #expect(entityIdentifier == "com.example.product")
+            let query = input["query"] as? String
+            return [["id": "p1", "title": "Matched: \(query ?? "")"]]
+        }
+
+        let results = try await bridge.queryValues(
+            queryIdentifier: "com.example.product",
+            input: ["query": "shoes"]
+        )
+
+        #expect(results.count == 1)
+        #expect(results.first?["title"] as? String == "Matched: shoes")
+
+        // Reset shared singleton so later tests see a clean executor slot.
+        await bridge.clearExecutors()
+    }
+
+    @Test("RelevantEntities donator receives dicts and context (#55)")
+    func relevantEntitiesDonatorReceivesInput() async throws {
+        let bridge = FlutterBridge.shared
+
+        let box = DonationBox()
+        await bridge.registerRelevantEntitiesDonator(
+            entityIdentifier: "com.example.song"
+        ) { dicts, context in
+            await box.record(count: dicts.count, context: context)
+        }
+
+        #expect(await bridge.hasRelevantEntitiesDonator(for: "com.example.song"))
+
+        try await bridge.donateRelevantEntities(
+            entityIdentifier: "com.example.song",
+            entities: [["id": "s1", "title": "Track"]],
+            context: "audio.nowPlaying"
+        )
+
+        #expect(await box.count == 1)
+        #expect(await box.context == "audio.nowPlaying")
+
+        await bridge.clearExecutors()
+    }
+
+    @Test("donateRelevantEntities throws when no donator registered (#55)")
+    func donateWithoutDonatorThrows() async {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        do {
+            try await bridge.donateRelevantEntities(
+                entityIdentifier: "com.example.unregistered",
+                entities: [],
+                context: nil
+            )
+            Issue.record("Expected DONATOR_NOT_REGISTERED error")
+        } catch let error as AppIntentError {
+            if case .custom(let code, _) = error {
+                #expect(code == "DONATOR_NOT_REGISTERED")
+            } else {
+                Issue.record("Expected custom(DONATOR_NOT_REGISTERED), got: \(error)")
+            }
+        } catch {
+            Issue.record("Expected AppIntentError, got: \(error)")
+        }
+    }
+}
+
+/// Actor box to capture donator invocations across the Sendable closure boundary.
+private actor DonationBox {
+    var count = 0
+    var context: String?
+    func record(count: Int, context: String?) {
+        self.count = count
+        self.context = context
+    }
 }

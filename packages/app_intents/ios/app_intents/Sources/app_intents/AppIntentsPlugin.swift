@@ -16,6 +16,54 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Uses a buffer to hold events until Dart starts listening.
     public static let notifier = PendingActionStreamHandler()
 
+    /// Forwards a Dart `donateRelevantEntities` call to the reverse executor (#55).
+    ///
+    /// The plugin does not depend on `AppIntentsBridge`, so AppDelegate wires
+    /// this closure to `FlutterBridge.shared.donateRelevantEntities`. Mirrors
+    /// how the forward executors are wired, but in the opposite direction.
+    /// Parameters: `(entityIdentifier, entityDicts, context)`.
+    public static var relevantEntitiesDonationForwarder:
+        (@Sendable (String, [[String: Any]], String?) async throws -> Void)?
+
+    /// Applies the iOS 26+ `appEntityIdentifier` AppEntity association to an
+    /// onscreen `NSUserActivity` (#56). Wired in AppDelegate, where the concrete
+    /// entity type is known (the association needs
+    /// `EntityIdentifier(for: Entity.self, identifier:)`). When unset, the
+    /// activity still carries `targetContentIdentifier` (Handoff/Spotlight) but
+    /// no AppEntity association. Parameters: `(activity, entityIdentifier, entityId)`.
+    public static var onscreenEntityBinder:
+        ((NSUserActivity, String, String) -> Void)?
+
+    /// The currently-active onscreen user activity (#56).
+    private static var currentOnscreenActivity: NSUserActivity?
+
+    /// Binds the on-screen entity to a current `NSUserActivity` (#56).
+    ///
+    /// Uses stable APIs (`becomeCurrent`, `targetContentIdentifier`). The
+    /// iOS 26+ AppEntity association is applied by [onscreenEntityBinder] when
+    /// wired in AppDelegate. Must run on the main thread (Flutter method-channel
+    /// handlers already do).
+    static func setOnscreenEntity(
+        entityIdentifier: String,
+        entityId: String,
+        title: String?
+    ) {
+        let activity = NSUserActivity(activityType: "app_intents.onscreen.\(entityIdentifier)")
+        if let title = title {
+            activity.title = title
+        }
+        activity.targetContentIdentifier = entityId
+        onscreenEntityBinder?(activity, entityIdentifier, entityId)
+        activity.becomeCurrent()
+        currentOnscreenActivity = activity
+    }
+
+    /// Clears the current onscreen user activity (#56).
+    static func clearOnscreenEntity() {
+        currentOnscreenActivity?.resignCurrent()
+        currentOnscreenActivity = nil
+    }
+
     // MARK: - Storage Configuration
 
     /// The App Group identifier for shared UserDefaults between the main app
@@ -148,6 +196,61 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             } else {
                 result(FlutterError(code: "INVALID_ARGS", message: "appGroupIdentifier must not be empty", details: nil))
             }
+        case "donateRelevantEntities":
+            // #55: forward to the reverse executor via the donation forwarder
+            // wired in AppDelegate. The plugin does not depend on
+            // AppIntentsBridge (consistent with the existing closure wiring);
+            // AppDelegate connects this forwarder to
+            // FlutterBridge.shared.donateRelevantEntities, whose generated
+            // donator builds concrete entities and calls
+            // RelevantEntities.shared.updateEntities.
+            guard let args = call.arguments as? [String: Any],
+                  let entityIdentifier = args["entityIdentifier"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "entityIdentifier is required", details: nil))
+                return
+            }
+            let entities = (args["entities"] as? [[String: Any]]) ?? []
+            let context = args["context"] as? String
+            guard let forwarder = Self.relevantEntitiesDonationForwarder else {
+                result(FlutterError(
+                    code: "DONATION_NOT_CONFIGURED",
+                    message: "RelevantEntities donation forwarder not wired. Set "
+                        + "AppIntentsPlugin.relevantEntitiesDonationForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    try await forwarder(entityIdentifier, entities, context)
+                    result(nil)
+                } catch {
+                    result(FlutterError(
+                        code: "DONATION_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
+            }
+        case "setOnscreenEntity":
+            // #56 PoC: bind the current screen's primary entity to an
+            // NSUserActivity. The user-activity lifecycle below uses stable
+            // APIs; the iOS-26 `appEntityIdentifier` AppEntity association is
+            // wired via the onscreenEntityBinder forwarder (set in AppDelegate)
+            // because it needs the concrete entity type. See ADR 0004.
+            guard let args = call.arguments as? [String: Any],
+                  let entityIdentifier = args["entityIdentifier"] as? String,
+                  let entityId = args["entityId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "entityIdentifier and entityId are required", details: nil))
+                return
+            }
+            let title = args["title"] as? String
+            Self.setOnscreenEntity(
+                entityIdentifier: entityIdentifier,
+                entityId: entityId,
+                title: title)
+            result(nil)
+        case "clearOnscreenEntity":
+            Self.clearOnscreenEntity()
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -345,6 +448,31 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         }
     }
 
+    /// Runs an IntentValueQuery asynchronously for use with FlutterBridge (#51).
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity to return.
+    ///   - input: A serializable search input (e.g. `["query": "text"]`).
+    /// - Returns: The list of entities from the Dart value-query handler.
+    /// - Throws: An error if the query fails.
+    @available(iOS 13.0, *)
+    @MainActor
+    public func queryValuesAsync(
+        entityIdentifier: String,
+        input: [String: Any]
+    ) async throws -> [[String: Any]] {
+        return try await withCheckedThrowingContinuation { continuation in
+            queryValues(entityIdentifier: entityIdentifier, input: input) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     // MARK: - Intent Execution
 
     /// Executes an intent by invoking the Dart handler.
@@ -444,6 +572,46 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         ]
 
         channel.invokeMethod("getSuggestedEntities", arguments: arguments) { result in
+            if let error = result as? FlutterError {
+                completion(.failure(AppIntentsError.flutterError(
+                    code: error.code,
+                    message: error.message ?? "Unknown error",
+                    details: error.details
+                )))
+            } else if let resultList = result as? [[String: Any]] {
+                completion(.success(resultList))
+            } else if result == nil || result is NSNull {
+                completion(.success([]))
+            } else {
+                completion(.failure(AppIntentsError.invalidResult))
+            }
+        }
+    }
+
+    // MARK: - Value Queries (#51)
+
+    /// Runs an IntentValueQuery by invoking the Dart handler.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The type identifier of the entity to return.
+    ///   - input: A serializable search input (e.g. `["query": "text"]`).
+    ///   - completion: Called with the list of entities or an error.
+    public func queryValues(
+        entityIdentifier: String,
+        input: [String: Any],
+        completion: @escaping (Result<[[String: Any]], Error>) -> Void
+    ) {
+        guard let channel = channel else {
+            completion(.failure(AppIntentsError.channelNotAvailable))
+            return
+        }
+
+        let arguments: [String: Any] = [
+            "entityIdentifier": entityIdentifier,
+            "input": input
+        ]
+
+        channel.invokeMethod("queryValues", arguments: arguments) { result in
             if let error = result as? FlutterError {
                 completion(.failure(AppIntentsError.flutterError(
                     code: error.code,
