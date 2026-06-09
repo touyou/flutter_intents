@@ -96,6 +96,22 @@ void main() {
       expect(name, isA<PersonName>());
     });
   });
+
+  group('UnionValueSpec / UnionCase', () {
+    test('UnionValueSpec is const constructible for use as annotation', () {
+      const spec = UnionValueSpec(
+        identifier: 'com.example.GalleryContent',
+        title: 'Gallery',
+      );
+      expect(spec.identifier, equals('com.example.GalleryContent'));
+      expect(spec.title, equals('Gallery'));
+    });
+
+    test('UnionCase carries the entity type', () {
+      const c = UnionCase(entityType: 'PhotoEntity');
+      expect(c.entityType, equals('PhotoEntity'));
+    });
+  });
 }
 
 class MyIntentSpec extends IntentSpecBase {

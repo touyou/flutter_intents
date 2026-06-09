@@ -4,6 +4,7 @@ import '../experimental/experimental_features.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
+import '../models/union_info.dart';
 
 /// Information about an App Shortcut to generate.
 class AppShortcutInfo {
@@ -167,6 +168,15 @@ class SwiftGenerator {
       final base = nativeRichTypes ? 'EntityCollection<$entity>' : '[$entity]';
       return nullable ? '$base?' : base;
     }
+    if (_isUnionParam(param)) {
+      // Native @UnionValue enum (iOS 27) vs. a lossy fallback to the first
+      // case's entity type (no stable union-parameter representation exists).
+      final union = param.unionInfo!;
+      final base = nativeRichTypes
+          ? union.className
+          : union.cases.first.entityType;
+      return nullable ? '$base?' : base;
+    }
     return dartTypeToSwiftType(param.dartType);
   }
 
@@ -182,11 +192,15 @@ class SwiftGenerator {
   bool _isEntityCollectionParam(IntentParamInfo param) =>
       param.entityCollectionType != null;
 
+  /// Whether [param] is a union-value parameter (#53).
+  bool _isUnionParam(IntentParamInfo param) => param.unionInfo != null;
+
   /// Whether [param] is a WWDC26 "rich" parameter type (#53).
   bool _isRichTypeParam(IntentParamInfo param) =>
       _isDurationParam(param) ||
       _isPersonNameParam(param) ||
-      _isEntityCollectionParam(param);
+      _isEntityCollectionParam(param) ||
+      _isUnionParam(param);
 
   /// Whether [info] has any rich (#53) parameter.
   bool _hasRichTypeParams(IntentInfo info) =>
@@ -220,6 +234,12 @@ class SwiftGenerator {
     // [_writeEntityCollectionSerializations]).
     if (_isEntityCollectionParam(param)) {
       return '${param.fieldName}Ids';
+    }
+
+    // Union types: use pre-serialized tagged map (see
+    // [_writeUnionSerializations]).
+    if (_isUnionParam(param)) {
+      return '${param.fieldName}Union';
     }
 
     // Entity types: use .id
@@ -532,6 +552,69 @@ class SwiftGenerator {
     }
   }
 
+  /// Writes `<field>Union` locals converting union parameters to a tagged
+  /// `["_type": <case>, "id": <entityId>]` map.
+  ///
+  /// Native (`#if`) switches over the `@UnionValue enum` cases. The fallback
+  /// (`#else` / default) is **lossy**: the parameter is the first case's entity
+  /// type, so it always tags as the first case. Both shapes feed the same Dart
+  /// `<Union>FromMap` factory.
+  void _writeUnionSerializations(
+    StringBuffer buffer,
+    IntentInfo info,
+    bool nativeRichTypes,
+  ) {
+    final indent2 = '$_indent$_indent';
+    final indent3 = '$_indent$_indent$_indent';
+    for (final param in info.parameters) {
+      if (!_isUnionParam(param)) continue;
+      final name = param.fieldName;
+      final union = param.unionInfo!;
+      final isNullable = param.isOptional || param.dartType.endsWith('?');
+
+      if (!nativeRichTypes) {
+        final first = union.cases.first.dartClassName;
+        if (isNullable) {
+          buffer.writeln(
+            '${indent2}let ${name}Union: [String: String]? = '
+            '$name.map { ["_type": "$first", "id": \$0.id] }',
+          );
+        } else {
+          buffer.writeln(
+            '${indent2}let ${name}Union: [String: String] = '
+            '["_type": "$first", "id": $name.id]',
+          );
+        }
+        continue;
+      }
+
+      // Native: switch over the enum cases.
+      if (isNullable) {
+        buffer.writeln('${indent2}var ${name}Union: [String: String]? = nil');
+        buffer.writeln('${indent2}if let $name {');
+        buffer.writeln('${indent3}switch $name {');
+        for (final c in union.cases) {
+          buffer.writeln(
+            '${indent3}case .${c.swiftCaseName}(let e): '
+            '${name}Union = ["_type": "${c.dartClassName}", "id": e.id]',
+          );
+        }
+        buffer.writeln('$indent3}');
+        buffer.writeln('$indent2}');
+      } else {
+        buffer.writeln('${indent2}let ${name}Union: [String: String]');
+        buffer.writeln('${indent2}switch $name {');
+        for (final c in union.cases) {
+          buffer.writeln(
+            '${indent2}case .${c.swiftCaseName}(let e): '
+            '${name}Union = ["_type": "${c.dartClassName}", "id": e.id]',
+          );
+        }
+        buffer.writeln('$indent2}');
+      }
+    }
+  }
+
   /// Writes the return statement (with optional dialog).
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
     if (info.resultDialogTemplate != null) {
@@ -556,6 +639,7 @@ class SwiftGenerator {
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
+    _writeUnionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -620,6 +704,7 @@ class SwiftGenerator {
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
+    _writeUnionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
     final indent3 = '$_indent$_indent$_indent';
@@ -668,6 +753,7 @@ class SwiftGenerator {
     _writeDurationSerializations(buffer, info, nativeRichTypes);
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
+    _writeUnionSerializations(buffer, info, nativeRichTypes);
 
     final indent2 = '$_indent$_indent';
 
@@ -734,6 +820,7 @@ class SwiftGenerator {
       _writeDurationSerializations(buffer, info, nativeRichTypes);
       _writePersonNameSerializations(buffer, info, nativeRichTypes);
       _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
+      _writeUnionSerializations(buffer, info, nativeRichTypes);
       buffer.writeln('${indent2}var queryItems = [URLQueryItem]()');
 
       for (final param in info.parameters) {
@@ -829,6 +916,27 @@ class SwiftGenerator {
       } else {
         buffer.writeln(
           '$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: $joined))',
+        );
+      }
+      return;
+    }
+
+    // Union types: encode the tagged map as `<_type>|<id>` (a single URL query
+    // value can't carry a Map; Dart splits on the first `|`).
+    if (_isUnionParam(param)) {
+      final name = param.fieldName;
+      final indent3 = '$_indent$_indent$_indent';
+      final value =
+          '(${name}Union["_type"] ?? "") + "|" + (${name}Union["id"] ?? "")';
+      if (isNullable) {
+        buffer.writeln('$_indent${_indent}if let ${name}Union {');
+        buffer.writeln(
+          '${indent3}queryItems.append(URLQueryItem(name: "$name", value: $value))',
+        );
+        buffer.writeln('$_indent$_indent}');
+      } else {
+        buffer.writeln(
+          '$_indent${_indent}queryItems.append(URLQueryItem(name: "$name", value: $value))',
         );
       }
       return;
@@ -1545,6 +1653,16 @@ class SwiftGenerator {
       buffer.writeln();
     }
 
+    // Generate @UnionValue enums (before intents that reference them). Only
+    // emitted when the rich-types feature is on — `@UnionValue`/`AppUnionValue`
+    // is iOS 27+, so on the stable `#else` the union type doesn't exist and a
+    // union parameter falls back to its first case's entity type instead.
+    for (final union in _distinctUnions(intents)) {
+      _generateUnionEnum(buffer, union);
+      buffer.writeln();
+      buffer.writeln();
+    }
+
     // Generate intents (without individual imports)
     for (final intent in intents) {
       _generateIntentBody(buffer, intent);
@@ -1573,6 +1691,40 @@ class SwiftGenerator {
   /// `#if APP_INTENTS_WWDC26` and the stable form inside `#else`, so projects
   /// that build against a released SDK (without the `APP_INTENTS_WWDC26` flag)
   /// still compile.
+  /// The distinct unions referenced by [intents]' parameters, or empty when the
+  /// rich-types feature is off (in which case union parameters fall back to
+  /// their first case's entity type and no `@UnionValue enum` is needed).
+  List<UnionInfo> _distinctUnions(List<IntentInfo> intents) {
+    if (!experimental.isEnabled(ExperimentalFeature.richTypes)) {
+      return const [];
+    }
+    final seen = <String>{};
+    final unions = <UnionInfo>[];
+    for (final intent in intents) {
+      for (final param in intent.parameters) {
+        final union = param.unionInfo;
+        if (union != null && seen.add(union.className)) {
+          unions.add(union);
+        }
+      }
+    }
+    return unions;
+  }
+
+  /// Writes a `@UnionValue enum`, gated by `#if APP_INTENTS_WWDC26` (no `#else`:
+  /// the type can't exist on the stable SDK).
+  void _generateUnionEnum(StringBuffer buffer, UnionInfo union) {
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@UnionValue');
+    buffer.writeln('enum ${union.className} {');
+    for (final c in union.cases) {
+      buffer.writeln('${_indent}case ${c.swiftCaseName}(${c.entityType})');
+    }
+    buffer.writeln('}');
+    buffer.write('#endif');
+  }
+
   void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
     if (_usesExperimentalIntent(info)) {
       buffer.writeln('#if APP_INTENTS_WWDC26');

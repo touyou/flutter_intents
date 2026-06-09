@@ -3,6 +3,7 @@ import 'package:dart_style/dart_style.dart';
 
 import '../models/entity_info.dart';
 import '../models/intent_info.dart';
+import '../models/union_info.dart';
 
 /// Generator for Dart code that registers intent and entity handlers.
 ///
@@ -26,13 +27,14 @@ class DartGenerator {
     List<IntentInfo> intents,
     List<EntityInfo> entities, {
     String? baseName,
+    List<UnionInfo> unions = const [],
   }) {
     // Filter to only dart implementation intents
     final dartIntents = intents
         .where((i) => i.implementation == IntentImplementationType.dart)
         .toList();
 
-    if (dartIntents.isEmpty && entities.isEmpty) {
+    if (dartIntents.isEmpty && entities.isEmpty && unions.isEmpty) {
       return null;
     }
 
@@ -50,6 +52,11 @@ class DartGenerator {
 
     final bodyElements = <Spec>[];
 
+    // Generate `<Union>FromMap` factories (#53) for any union spec in this file.
+    for (final union in unions) {
+      bodyElements.add(_buildUnionFactory(union));
+    }
+
     // Generate Params classes for intents with parameters
     for (final intent in dartIntents) {
       final paramsClass = _buildParamsClass(intent);
@@ -58,14 +65,17 @@ class DartGenerator {
       }
     }
 
-    // Generate functions
-    bodyElements.add(
-      _buildInitializeFunction(
-        initFuncName,
-        dartIntents.isNotEmpty ? intentFuncName : null,
-        entities.isNotEmpty ? entityFuncName : null,
-      ),
-    );
+    // Generate functions (skip the initialize/register machinery for a
+    // union-only file — it would be empty).
+    if (dartIntents.isNotEmpty || entities.isNotEmpty) {
+      bodyElements.add(
+        _buildInitializeFunction(
+          initFuncName,
+          dartIntents.isNotEmpty ? intentFuncName : null,
+          entities.isNotEmpty ? entityFuncName : null,
+        ),
+      );
+    }
 
     if (dartIntents.isNotEmpty) {
       bodyElements.add(
@@ -96,6 +106,46 @@ class DartGenerator {
       // If formatting fails, return unformatted code
       return code;
     }
+  }
+
+  /// The Dart factory function name for [union] (e.g. `galleryContentFromMap`).
+  static String unionFactoryName(UnionInfo union) =>
+      '${_lowerFirst(union.className)}FromMap';
+
+  static String _lowerFirst(String s) =>
+      s.isEmpty ? s : s[0].toLowerCase() + s.substring(1);
+
+  /// Builds a `<Union>FromMap` factory that maps a tagged
+  /// `{"_type": ..., "id": ...}` map to the matching `@UnionCase` subclass.
+  ///
+  /// Each case subclass is assumed to take a single positional `String id`.
+  Method _buildUnionFactory(UnionInfo union) {
+    final body = StringBuffer();
+    body.writeln("switch (map['_type'] as String) {");
+    for (final c in union.cases) {
+      body.writeln("  case '${c.dartClassName}':");
+      body.writeln("    return ${c.dartClassName}(map['id'] as String);");
+    }
+    body.writeln('  default:');
+    body.writeln(
+      "    throw ArgumentError('Unknown ${union.className} _type: "
+      "\${map['_type']}');",
+    );
+    body.writeln('}');
+
+    return Method(
+      (b) => b
+        ..name = unionFactoryName(union)
+        ..returns = refer(union.className)
+        ..requiredParameters.add(
+          Parameter(
+            (p) => p
+              ..name = 'map'
+              ..type = refer('Map<String, dynamic>'),
+          ),
+        )
+        ..body = Code(body.toString()),
+    );
   }
 
   /// Builds a type-safe Params class for the given intent.
@@ -220,6 +270,17 @@ $fromMapParams    );
       }
     }
 
+    // Union parameters arrive as a tagged map; the generated factory picks the
+    // case subclass.
+    if (param.unionInfo != null) {
+      final factory = unionFactoryName(param.unionInfo!);
+      if (isNullable) {
+        return "map['${param.fieldName}'] != null ? $factory(Map<String, dynamic>.from(map['${param.fieldName}'] as Map)) : null";
+      } else {
+        return "$factory(Map<String, dynamic>.from(map['${param.fieldName}'] as Map))";
+      }
+    }
+
     if (baseType == 'double') {
       if (isNullable) {
         return "(map['${param.fieldName}'] as num?)?.toDouble()";
@@ -273,6 +334,19 @@ $fromMapParams    );
         return "params['${param.fieldName}'] != null ? params['${param.fieldName}']!.split(',') : null";
       } else {
         return "params['${param.fieldName}']!.split(',')";
+      }
+    }
+
+    // Union parameters arrive as `<_type>|<id>` in URL scheme.
+    if (param.unionInfo != null) {
+      final factory = unionFactoryName(param.unionInfo!);
+      final build =
+          "$factory({'_type': params['${param.fieldName}']!.split('|').first, "
+          "'id': params['${param.fieldName}']!.split('|').last})";
+      if (isNullable) {
+        return "params['${param.fieldName}'] != null ? $build : null";
+      } else {
+        return build;
       }
     }
 

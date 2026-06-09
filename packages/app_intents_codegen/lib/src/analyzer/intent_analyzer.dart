@@ -4,6 +4,8 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/intent_info.dart';
+import '../models/union_info.dart';
+import 'union_analyzer.dart';
 
 /// Type checker for IntentSpec annotation.
 const _intentSpecChecker = TypeChecker.fromUrl(
@@ -191,6 +193,7 @@ class IntentAnalyzer {
       final entityCollectionType = annotation
           .getField('entityCollectionType')
           ?.toStringValue();
+      final unionInfo = _resolveUnion(field);
 
       parameters.add(
         IntentParamInfo(
@@ -203,10 +206,21 @@ class IntentAnalyzer {
           enumType: enumType,
           fileType: fileType,
           entityCollectionType: entityCollectionType,
+          unionInfo: unionInfo,
         ),
       );
     }
 
     return parameters;
+  }
+
+  /// Resolves the union (#53) when [field]'s type is a `@UnionValueSpec`
+  /// sealed class; returns `null` otherwise.
+  UnionInfo? _resolveUnion(FieldElement field) {
+    final typeElement = field.type.element;
+    if (typeElement is! ClassElement) return null;
+    const unionAnalyzer = UnionAnalyzer();
+    if (!unionAnalyzer.hasUnionValueSpecAnnotation(typeElement)) return null;
+    return unionAnalyzer.analyze(typeElement);
   }
 }

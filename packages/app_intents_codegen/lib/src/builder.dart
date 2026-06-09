@@ -6,9 +6,11 @@ import 'package:source_gen/source_gen.dart';
 
 import 'analyzer/entity_analyzer.dart';
 import 'analyzer/intent_analyzer.dart';
+import 'analyzer/union_analyzer.dart';
 import 'generator/dart_generator.dart';
 import 'models/entity_info.dart';
 import 'models/intent_info.dart';
+import 'models/union_info.dart';
 
 /// Creates an [AppIntentsBuilder] for use with build_runner.
 Builder appIntentsBuilder(BuilderOptions options) => PartBuilder(
@@ -22,12 +24,14 @@ Builder appIntentsBuilder(BuilderOptions options) => PartBuilder(
 class AppIntentsGenerator extends Generator {
   final IntentAnalyzer _intentAnalyzer = const IntentAnalyzer();
   final EntityAnalyzer _entityAnalyzer = const EntityAnalyzer();
+  final UnionAnalyzer _unionAnalyzer = const UnionAnalyzer();
   final DartGenerator _dartGenerator = const DartGenerator();
 
   @override
   FutureOr<String?> generate(LibraryReader library, BuildStep buildStep) {
     final intents = <IntentInfo>[];
     final entities = <EntityInfo>[];
+    final unions = <UnionInfo>[];
 
     for (final classElement in library.classes) {
       // Check for @IntentSpec annotation
@@ -45,9 +49,17 @@ class AppIntentsGenerator extends Generator {
           entities.add(entityInfo);
         }
       }
+
+      // Check for @UnionValueSpec annotation (#53)
+      if (_unionAnalyzer.hasUnionValueSpecAnnotation(classElement)) {
+        final unionInfo = _unionAnalyzer.analyze(classElement);
+        if (unionInfo != null) {
+          unions.add(unionInfo);
+        }
+      }
     }
 
-    if (intents.isEmpty && entities.isEmpty) {
+    if (intents.isEmpty && entities.isEmpty && unions.isEmpty) {
       return null;
     }
 
@@ -56,7 +68,12 @@ class AppIntentsGenerator extends Generator {
     final baseName = _toBaseName(fileName);
 
     // Generate Dart handler registration code
-    return _dartGenerator.generate(intents, entities, baseName: baseName);
+    return _dartGenerator.generate(
+      intents,
+      entities,
+      baseName: baseName,
+      unions: unions,
+    );
   }
 
   /// Converts a file name to a base name suitable for function naming.

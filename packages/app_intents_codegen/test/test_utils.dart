@@ -33,6 +33,7 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/bases/intent_spec_base.dart';
         export 'src/bases/entity_spec_base.dart';
         export 'src/models/person_name.dart';
+        export 'src/annotations/union_value.dart';
       ''',
       'app_intents_annotations|lib/src/annotations/intent_spec.dart': '''
         class IntentSpec {
@@ -191,6 +192,18 @@ Future<LibraryElement> resolveSource(String source) async {
             required this.title,
             this.imageName,
           });
+        }
+      ''',
+      'app_intents_annotations|lib/src/annotations/union_value.dart': '''
+        class UnionValueSpec {
+          final String identifier;
+          final String? title;
+          const UnionValueSpec({required this.identifier, this.title});
+        }
+
+        class UnionCase {
+          final String entityType;
+          const UnionCase({required this.entityType});
         }
       ''',
       'app_intents_annotations|lib/src/models/person_name.dart': '''

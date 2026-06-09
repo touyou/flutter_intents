@@ -4,3 +4,4 @@ library;
 export 'entity_info.dart';
 export 'enum_info.dart';
 export 'intent_info.dart';
+export 'union_info.dart';
