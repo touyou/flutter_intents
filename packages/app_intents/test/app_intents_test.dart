@@ -58,6 +58,26 @@ class MockAppIntentsPlatform
     });
   }
 
+  final List<Map<String, dynamic>> onscreenCalls = [];
+
+  @override
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) async {
+    onscreenCalls.add({
+      'entityIdentifier': entityIdentifier,
+      'entityId': entityId,
+      'title': title,
+    });
+  }
+
+  @override
+  Future<void> clearOnscreenEntity() async {
+    onscreenCalls.add({'cleared': true});
+  }
+
   @override
   Stream<IntentExecutionRequest> get onIntentExecution =>
       Stream<IntentExecutionRequest>.empty();
@@ -170,6 +190,23 @@ void main() {
         'audio.nowPlaying',
       );
     });
+
+    test(
+      'setOnscreenEntity / clearOnscreenEntity delegate to platform',
+      () async {
+        await appIntentsPlugin.setOnscreenEntity(
+          'com.example.TaskEntity',
+          't1',
+          title: 'My Task',
+        );
+        await appIntentsPlugin.clearOnscreenEntity();
+
+        expect(fakePlatform.onscreenCalls, hasLength(2));
+        expect(fakePlatform.onscreenCalls[0]['entityId'], 't1');
+        expect(fakePlatform.onscreenCalls[0]['title'], 'My Task');
+        expect(fakePlatform.onscreenCalls[1]['cleared'], isTrue);
+      },
+    );
 
     test('onIntentExecution returns stream from platform', () {
       expect(

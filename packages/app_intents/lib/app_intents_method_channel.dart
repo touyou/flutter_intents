@@ -234,6 +234,33 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   }
 
   @override
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) async {
+    try {
+      await methodChannel.invokeMethod('setOnscreenEntity', {
+        'entityIdentifier': entityIdentifier,
+        'entityId': entityId,
+        'title': ?title,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // Onscreen awareness is iOS-specific.
+    }
+  }
+
+  @override
+  Future<void> clearOnscreenEntity() async {
+    try {
+      await methodChannel.invokeMethod('clearOnscreenEntity');
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+    }
+  }
+
+  @override
   Future<dynamic> getCachedValue(String key) {
     return methodChannel.invokeMethod('getCachedValue', {'key': key});
   }

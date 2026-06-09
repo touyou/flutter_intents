@@ -1,6 +1,6 @@
 # ADR 0004: オンスクリーン認識・スニペットビューの実現可能性 (#56)
 
-- **ステータス**: Proposed（**実現可能性判定**。実装を約束するものではない）
+- **ステータス**: Accepted — GO 判定の NSUserActivity 紐付けを**スキャフォルド実装**（プラグイン `setOnscreenEntity`/`clearOnscreenEntity`、安定 API）。`appEntityIdentifier` の AppEntity 関連付け（iOS 26、具体型必要）と実機 PoC は後続。per-view 注釈は NO-GO、スニペットは別件
 - **関連 issue**: #56
 - **形式**: 他の ADR と異なり、これは **GO / NO-GO 判定**であって実装ブループリントではない
 
@@ -40,7 +40,8 @@
   主要エンティティとして解決できる。
 - iOS 27 シンボルが絡むのは「アクティビティへのエンティティ関連付け」部分のみ。プラグイン本体に
   入れる場合は ADR 0003 と同じ「シンボル存在の壁」を点検し、必要なら逆向き executor で生成コードに逃がす。
-- **[要検証]** `NSUserActivity` ↔ `AppEntity` 関連付け API の正確な形と iOS バージョン。
+- **[SDK検証済]** `NSUserActivity.appEntityIdentifier: EntityIdentifier?`（Foundation、nil でクリア）。`EntityIdentifier` の構築は `init(for: Entity.Type, identifier: Entity.ID)`（**具体エンティティ型が必要**）。文字列だけの `AppEntityIdentifier(entityType:instanceIdentifier:)` は別型で `appEntityIdentifier`(型 `EntityIdentifier`) には直接代入不可。→ #55 と同じ逆向き executor で具体型を生成コードに置く必要。`becomeCurrent()`/`targetContentIdentifier` は安定 API。
+- **実機 PoC で確認すべきこと**: スキャフォルドが作る NSUserActivity に AppDelegate 経由で `appEntityIdentifier = EntityIdentifier(for: <Entity>.self, identifier: id)` を設定し、Siri が「これ」を解決できるか。`onscreenEntityBinder` フック（プラグイン）はこの配線点として用意済み。
 
 ### 2. `.appEntityIdentifier` 個別ビュー/コレクション注釈 — **NO-GO**
 

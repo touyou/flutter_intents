@@ -202,6 +202,28 @@ class AppIntents {
     );
   }
 
+  /// Binds the on-screen entity to the current `NSUserActivity` so Siri can
+  /// resolve "this" to it (#56). Call as the user navigates; pass the entity
+  /// *type* identifier and instance [entityId]. iOS-only; a no-op elsewhere.
+  ///
+  /// See `docs/adr/0004-onscreen-awareness-feasibility.md`.
+  Future<void> setOnscreenEntity(
+    String entityIdentifier,
+    String entityId, {
+    String? title,
+  }) {
+    return AppIntentsPlatform.instance.setOnscreenEntity(
+      entityIdentifier,
+      entityId,
+      title: title,
+    );
+  }
+
+  /// Clears the onscreen entity association set by [setOnscreenEntity] (#56).
+  Future<void> clearOnscreenEntity() {
+    return AppIntentsPlatform.instance.clearOnscreenEntity();
+  }
+
   /// A stream of intent execution requests from the native platform.
   ///
   /// This stream emits [IntentExecutionRequest] objects whenever iOS
