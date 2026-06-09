@@ -1054,6 +1054,118 @@ class SwiftGenerator {
       buffer.writeln();
       _writeValueRepresentationExtension(buffer, info);
     }
+
+    // #55 SyncableEntity (stable-id case): an additive iOS 27 conformance, in
+    // its own #if block (no #else — without the flag the entity just isn't
+    // syncable). Only valid when the entity's id is already stable. See ADR 0003.
+    if (experimental.isEnabled(ExperimentalFeature.donation) && info.syncable) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeSyncableEntityExtension(buffer, info);
+    }
+
+    // #55 RelevantEntities donator: an additive iOS 27 reverse-executor
+    // registration, in its own #if block (no #else). See ADR 0003.
+    if (experimental.isEnabled(ExperimentalFeature.donation) &&
+        info.relevantEntities) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeRelevantEntitiesDonator(buffer, info);
+    }
+  }
+
+  /// Writes the experimental `SyncableEntity` conformance for the
+  /// already-stable-id case (#55). No members are needed when the entity's id
+  /// is already consistent across devices. Gated by `#if APP_INTENTS_WWDC26`
+  /// with no `#else` (additive).
+  void _writeSyncableEntityExtension(StringBuffer buffer, EntityInfo info) {
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln(
+      '/// The id is already stable across devices, so no extra members are needed.',
+    );
+    buffer.writeln('extension ${info.className}: SyncableEntity {}');
+    buffer.write('#endif');
+  }
+
+  /// Writes the experimental `RelevantEntities` donator registration (#55).
+  ///
+  /// Emits a `register<Entity>RelevantEntitiesDonator()` function (call it once
+  /// at startup) that registers a closure with `FlutterBridge`. When Dart calls
+  /// `donateRelevantEntities`, the closure builds concrete entities from the
+  /// dictionaries and calls `RelevantEntities.shared.updateEntities(_:for:)`
+  /// (a stateful overwrite for the context). Gated by `#if APP_INTENTS_WWDC26`
+  /// with no `#else` (additive). The iOS-27 symbols (`RelevantEntities`,
+  /// `AppEntityContext`) appear only inside this gated closure.
+  void _writeRelevantEntitiesDonator(StringBuffer buffer, EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    final titleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.title)
+        .firstOrNull;
+    final subtitleProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.subtitle)
+        .firstOrNull;
+    final imageProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.image)
+        .firstOrNull;
+    final fnName = 'register${info.className}RelevantEntitiesDonator';
+
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln(
+      '/// Registers the RelevantEntities donator for ${info.className}.',
+    );
+    buffer.writeln('/// Call this once at startup (e.g. in AppDelegate).');
+    buffer.writeln('func $fnName() {');
+    buffer.writeln('${_indent}Task {');
+    buffer.writeln(
+      '$_indent${_indent}await FlutterBridge.shared.registerRelevantEntitiesDonator(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}entityIdentifier: "${info.identifier}"',
+    );
+    buffer.writeln('$_indent$_indent) { dicts, context in');
+    buffer.writeln(
+      '$_indent$_indent${_indent}let entities: [${info.className}] = dicts.compactMap { dict in',
+    );
+    _writeEntityDictMapping(
+      buffer,
+      info,
+      idProp,
+      titleProp,
+      subtitleProp,
+      imageProp,
+    );
+    buffer.writeln('$_indent$_indent$_indent}');
+    buffer.writeln(
+      '$_indent$_indent${_indent}try await RelevantEntities.shared.updateEntities(',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}entities, for: ${info.className}._relevantContext(context))',
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.writeln();
+    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('extension ${info.className} {');
+    buffer.writeln(
+      '$_indent/// Maps an opaque context token from Dart to an AppEntityContext.',
+    );
+    buffer.writeln(
+      '${_indent}static func _relevantContext(_ token: String?) -> AppEntityContext {',
+    );
+    buffer.writeln('$_indent${_indent}switch token {');
+    buffer.writeln(
+      '$_indent$_indent case "audio.nowPlaying": return .audio(.nowPlaying)',
+    );
+    buffer.writeln('$_indent$_indent default: return .audio(.nowPlaying)');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
   }
 
   /// Writes the experimental `Transferable` + `ValueRepresentation(exporting:)`

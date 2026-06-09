@@ -16,6 +16,15 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Uses a buffer to hold events until Dart starts listening.
     public static let notifier = PendingActionStreamHandler()
 
+    /// Forwards a Dart `donateRelevantEntities` call to the reverse executor (#55).
+    ///
+    /// The plugin does not depend on `AppIntentsBridge`, so AppDelegate wires
+    /// this closure to `FlutterBridge.shared.donateRelevantEntities`. Mirrors
+    /// how the forward executors are wired, but in the opposite direction.
+    /// Parameters: `(entityIdentifier, entityDicts, context)`.
+    public static var relevantEntitiesDonationForwarder:
+        (@Sendable (String, [[String: Any]], String?) async throws -> Void)?
+
     // MARK: - Storage Configuration
 
     /// The App Group identifier for shared UserDefaults between the main app
@@ -147,6 +156,40 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
                 result(nil)
             } else {
                 result(FlutterError(code: "INVALID_ARGS", message: "appGroupIdentifier must not be empty", details: nil))
+            }
+        case "donateRelevantEntities":
+            // #55: forward to the reverse executor via the donation forwarder
+            // wired in AppDelegate. The plugin does not depend on
+            // AppIntentsBridge (consistent with the existing closure wiring);
+            // AppDelegate connects this forwarder to
+            // FlutterBridge.shared.donateRelevantEntities, whose generated
+            // donator builds concrete entities and calls
+            // RelevantEntities.shared.updateEntities.
+            guard let args = call.arguments as? [String: Any],
+                  let entityIdentifier = args["entityIdentifier"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "entityIdentifier is required", details: nil))
+                return
+            }
+            let entities = (args["entities"] as? [[String: Any]]) ?? []
+            let context = args["context"] as? String
+            guard let forwarder = Self.relevantEntitiesDonationForwarder else {
+                result(FlutterError(
+                    code: "DONATION_NOT_CONFIGURED",
+                    message: "RelevantEntities donation forwarder not wired. Set "
+                        + "AppIntentsPlugin.relevantEntitiesDonationForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    try await forwarder(entityIdentifier, entities, context)
+                    result(nil)
+                } catch {
+                    result(FlutterError(
+                        code: "DONATION_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
             }
         default:
             result(FlutterMethodNotImplemented)

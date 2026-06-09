@@ -43,6 +43,21 @@ class MockAppIntentsPlatform
     valueQueryHandlers[entityIdentifier] = handler;
   }
 
+  final List<Map<String, dynamic>> donatedRelevantEntities = [];
+
+  @override
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) async {
+    donatedRelevantEntities.add({
+      'entityIdentifier': entityIdentifier,
+      'entities': entities,
+      'context': context,
+    });
+  }
+
   @override
   Stream<IntentExecutionRequest> get onIntentExecution =>
       Stream<IntentExecutionRequest>.empty();
@@ -137,6 +152,22 @@ void main() {
           'com.example.ProductEntity',
         ),
         isTrue,
+      );
+    });
+
+    test('donateRelevantEntities delegates to platform', () async {
+      await appIntentsPlugin.donateRelevantEntities('com.example.SongEntity', [
+        {'id': 's1', 'title': 'Track'},
+      ], context: 'audio.nowPlaying');
+
+      expect(fakePlatform.donatedRelevantEntities, hasLength(1));
+      expect(
+        fakePlatform.donatedRelevantEntities.first['entityIdentifier'],
+        'com.example.SongEntity',
+      );
+      expect(
+        fakePlatform.donatedRelevantEntities.first['context'],
+        'audio.nowPlaying',
       );
     });
 

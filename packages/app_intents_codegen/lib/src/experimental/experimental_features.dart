@@ -39,7 +39,14 @@ enum ExperimentalFeature {
   /// `IntentPerson`). Export is system-facing (no Dart round-trip); the import
   /// path reuses the value-query bridge and is added later. See
   /// `docs/adr/0002-cross-app-entity-sharing.md`.
-  valueRepresentation('value-representation');
+  valueRepresentation('value-representation'),
+
+  /// Donations & discovery (#55): `SyncableEntity` conformance (stable-id case)
+  /// and `RelevantEntities` contextual donation via the reverse executor
+  /// (generated closure registers with the plugin and calls
+  /// `RelevantEntities.shared.updateEntities`). See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  donation('donation');
 
   const ExperimentalFeature(this.flag);
 

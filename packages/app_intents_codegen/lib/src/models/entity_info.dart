@@ -61,6 +61,19 @@ class EntityInfo {
   /// `ValueRepresentation(exporting:)` (`#if`-gated).
   final EntityExportKind? exportAs;
 
+  /// Experimental (WWDC26 #55): whether the entity's id is stable across
+  /// devices. When true and the `donation` feature is enabled, the Swift output
+  /// adds a `SyncableEntity` conformance (`#if`-gated, additive). Only the
+  /// already-stable-id case; the dual-id `SyncableEntityIdentifier` case is not
+  /// handled here.
+  final bool syncable;
+
+  /// Experimental (WWDC26 #55): whether to generate a `RelevantEntities`
+  /// donator registration for this entity. When true and the `donation`
+  /// feature is enabled, the Swift output adds a
+  /// `register<Entity>RelevantEntitiesDonator()` function (`#if`-gated).
+  final bool relevantEntities;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -77,6 +90,8 @@ class EntityInfo {
     this.ownership,
     this.valueQuery = false,
     this.exportAs,
+    this.syncable = false,
+    this.relevantEntities = false,
   });
 
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
@@ -118,6 +133,8 @@ class EntityInfo {
         ownership == other.ownership &&
         valueQuery == other.valueQuery &&
         exportAs == other.exportAs &&
+        syncable == other.syncable &&
+        relevantEntities == other.relevantEntities &&
         _listEquals(properties, other.properties);
   }
 
@@ -137,6 +154,8 @@ class EntityInfo {
     ownership,
     valueQuery,
     exportAs,
+    syncable,
+    relevantEntities,
     Object.hashAll(properties),
   );
 
@@ -146,7 +165,8 @@ class EntityInfo {
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
       'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
-      'valueQuery: $valueQuery, exportAs: $exportAs, properties: $properties)';
+      'valueQuery: $valueQuery, exportAs: $exportAs, syncable: $syncable, '
+      'relevantEntities: $relevantEntities, properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.

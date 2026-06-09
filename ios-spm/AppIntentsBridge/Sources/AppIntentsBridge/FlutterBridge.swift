@@ -42,6 +42,17 @@ public actor FlutterBridge {
     /// `#if`-gated generated `IntentValueQuery` struct that calls `queryValues`.
     private var valueQueryExecutor: (@Sendable (sending String, sending [String: Any]) async throws -> sending [[String: Any]])?
 
+    /// Reverse executors for RelevantEntities donation, keyed by entity
+    /// identifier (#55).
+    ///
+    /// Unlike the forward executors (which are single, type-agnostic
+    /// forwarders), a donator must construct *concrete* `AppEntity` instances
+    /// before calling `RelevantEntities.shared.updateEntities`. That concrete
+    /// type is per-entity and lives in `#if`-gated generated Swift, so each
+    /// generated entity registers its own closure here. The closure type stays
+    /// generic (dicts only) so this plugin names no iOS-27 symbol. See ADR 0003.
+    private var relevantEntitiesDonators: [String: @Sendable (sending [[String: Any]], sending String?) async throws -> Void] = [:]
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
@@ -55,6 +66,7 @@ public actor FlutterBridge {
         entityQueryExecutor = nil
         suggestedEntitiesExecutor = nil
         valueQueryExecutor = nil
+        relevantEntitiesDonators.removeAll()
     }
 
     /// Sets the intent executor that handles communication with Flutter.
@@ -268,5 +280,55 @@ public actor FlutterBridge {
         }
 
         throw AppIntentError.entityQueryNotConfigured
+    }
+
+    // MARK: - RelevantEntities Donation (#55)
+
+    /// Registers a donator closure for the given entity type.
+    ///
+    /// Called from `#if`-gated generated Swift at startup. The closure builds
+    /// concrete `AppEntity` instances from the dictionaries and calls
+    /// `RelevantEntities.shared.updateEntities(_:for:)`.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The entity type identifier.
+    ///   - donator: Builds entities from dicts and donates them for `context`.
+    public func registerRelevantEntitiesDonator(
+        entityIdentifier: String,
+        _ donator: @escaping @Sendable (sending [[String: Any]], sending String?) async throws -> Void
+    ) {
+        relevantEntitiesDonators[entityIdentifier] = donator
+    }
+
+    /// Donates relevant entities for the given entity type.
+    ///
+    /// Invoked by the plugin when Dart calls `donateRelevantEntities`. Looks up
+    /// the registered donator (which knows the concrete entity type) and calls
+    /// it. Each call is a stateful overwrite for the given context.
+    ///
+    /// - Parameters:
+    ///   - entityIdentifier: The entity type identifier.
+    ///   - entities: Entity dictionaries to donate (empty clears the context).
+    ///   - context: An opaque context token (e.g. `"audio.nowPlaying"`), or nil.
+    /// - Throws: `AppIntentError.custom("DONATOR_NOT_REGISTERED", ...)` when no
+    ///           generated donator is registered for `entityIdentifier`.
+    public func donateRelevantEntities(
+        entityIdentifier: String,
+        entities: sending [[String: Any]],
+        context: String?
+    ) async throws {
+        guard let donator = relevantEntitiesDonators[entityIdentifier] else {
+            throw AppIntentError.custom(
+                code: "DONATOR_NOT_REGISTERED",
+                message: "No RelevantEntities donator registered for \(entityIdentifier). "
+                    + "Call the generated register…RelevantEntitiesDonator() at startup."
+            )
+        }
+        try await donator(entities, context)
+    }
+
+    /// Whether a donator is registered for the given entity type.
+    public func hasRelevantEntitiesDonator(for entityIdentifier: String) -> Bool {
+        return relevantEntitiesDonators[entityIdentifier] != nil
     }
 }

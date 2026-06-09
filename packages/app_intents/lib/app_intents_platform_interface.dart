@@ -160,6 +160,28 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     );
   }
 
+  /// Donates a set of contextually relevant entities to the system (#55).
+  ///
+  /// Tells the system which entities are relevant right now, scoped by
+  /// [context] (e.g. media to suggest during a workout). Each call is a
+  /// **stateful overwrite** for that context — passing an empty [entities] list
+  /// clears the previously donated set.
+  ///
+  /// [entityIdentifier] must match an entity whose generated Swift registered a
+  /// donator (via `@EntitySpec(relevantEntities: true)`). [context] is an opaque
+  /// token understood by the generated code (e.g. `'audio.nowPlaying'`).
+  ///
+  /// See `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) {
+    throw UnimplementedError(
+      'donateRelevantEntities() has not been implemented.',
+    );
+  }
+
   /// Retrieves a cached value from native storage.
   Future<dynamic> getCachedValue(String key) {
     throw UnimplementedError('getCachedValue() has not been implemented.');

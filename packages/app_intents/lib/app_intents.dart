@@ -181,6 +181,27 @@ class AppIntents {
     );
   }
 
+  /// Donates contextually relevant entities to the system (#55).
+  ///
+  /// Tells the system which [entities] are relevant right now for [context]
+  /// (e.g. media to suggest during a workout). Each call is a **stateful
+  /// overwrite** — pass an empty list to clear the context. [entityIdentifier]
+  /// must match an entity declared `@EntitySpec(relevantEntities: true)`.
+  ///
+  /// iOS-only; a no-op on other platforms. See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) {
+    return AppIntentsPlatform.instance.donateRelevantEntities(
+      entityIdentifier,
+      entities,
+      context: context,
+    );
+  }
+
   /// A stream of intent execution requests from the native platform.
   ///
   /// This stream emits [IntentExecutionRequest] objects whenever iOS

@@ -216,6 +216,24 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       _intentExecutionController.stream;
 
   @override
+  Future<void> donateRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) async {
+    try {
+      await methodChannel.invokeMethod('donateRelevantEntities', {
+        'entityIdentifier': entityIdentifier,
+        'entities': entities,
+        'context': ?context,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // RelevantEntities donation is iOS-specific.
+    }
+  }
+
+  @override
   Future<dynamic> getCachedValue(String key) {
     return methodChannel.invokeMethod('getCachedValue', {'key': key});
   }

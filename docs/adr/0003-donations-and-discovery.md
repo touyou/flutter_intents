@@ -1,6 +1,6 @@
 # ADR 0003: ドネーションと発見性の設計 (#55 残)
 
-- **ステータス**: Proposed
+- **ステータス**: Accepted — 実装済み: SyncableEntity(安定id) + RelevantEntities ドネーション(逆向き executor、`--experimental=donation`)。後続: `donate()`/IntentDonationManager(インテントドネーション)・dual-id `SyncableEntityIdentifier`
 - **関連 issue**: #55（`OwnershipProvidingEntity` は #62 で対応済、残りが本 ADR）
 - **対象フラグ（案）**: `--experimental=donation`
 

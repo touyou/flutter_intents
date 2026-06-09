@@ -82,6 +82,9 @@ class EntityAnalyzer {
     final valueQuery =
         annotation.getField('valueQuery')?.toBoolValue() ?? false;
     final exportAs = _parseExportAs(annotation.getField('exportAs'));
+    final syncable = annotation.getField('syncable')?.toBoolValue() ?? false;
+    final relevantEntities =
+        annotation.getField('relevantEntities')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -121,6 +124,8 @@ class EntityAnalyzer {
       ownership: ownership,
       valueQuery: valueQuery,
       exportAs: exportAs,
+      syncable: syncable,
+      relevantEntities: relevantEntities,
     );
   }
 

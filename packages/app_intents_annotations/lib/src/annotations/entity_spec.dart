@@ -121,6 +121,35 @@ class EntitySpec {
   /// representation. See `docs/adr/0002-cross-app-entity-sharing.md`.
   final EntityExportType? exportAs;
 
+  /// **Experimental (WWDC26, iOS 27+).** Whether this entity's identifier is
+  /// stable across devices, allowing Siri to refer to it consistently when a
+  /// conversation moves between devices (#55, `SyncableEntity`).
+  ///
+  /// Set this only when the entity's `@EntityId` is **already** stable across
+  /// devices (e.g. a server-assigned UUID). When enabled and the `donation`
+  /// experimental feature is on, the generated Swift adds a `SyncableEntity`
+  /// conformance (in a `#if APP_INTENTS_WWDC26` block). No extra members are
+  /// needed for the already-stable case.
+  ///
+  /// The dual-identifier case (`SyncableEntityIdentifier<Local, Stable>`, where
+  /// the local and stable IDs differ) changes the entity's id type and ripples
+  /// through queries and caching — it is **not** handled here and is tracked
+  /// separately. See `docs/adr/0003-donations-and-discovery.md`.
+  final bool syncable;
+
+  /// **Experimental (WWDC26, iOS 27+).** Whether to generate a
+  /// `RelevantEntities` donator for this entity (#55).
+  ///
+  /// When enabled and the `donation` experimental feature is on, the generated
+  /// Swift emits a `register<Entity>RelevantEntitiesDonator()` function (in a
+  /// `#if APP_INTENTS_WWDC26` block) that you call at startup. It registers a
+  /// closure with the bridge so that `AppIntents().donateRelevantEntities(...)`
+  /// from Dart builds concrete entities and calls
+  /// `RelevantEntities.shared.updateEntities(_:for:)`.
+  ///
+  /// See `docs/adr/0003-donations-and-discovery.md`.
+  final bool relevantEntities;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -134,5 +163,7 @@ class EntitySpec {
     this.ownership,
     this.valueQuery = false,
     this.exportAs,
+    this.syncable = false,
+    this.relevantEntities = false,
   });
 }
