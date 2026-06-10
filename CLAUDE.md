@@ -239,6 +239,19 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
+- **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
+  Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
+  `appfunctions:1.0.0-alpha09`). Bumping to **Kotlin 2.4.0** (released 2026-06-03, after
+  both KSP 2.3.9 and alpha09) fails `:app:kspDebugKotlin` with
+  `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
+  contains illegal characters: :` — the AppFunctions compiler emits a colon-bearing
+  identifier that Kotlin 2.4.0's stricter escaping rejects, inside KSP's `KspAAWorkerAction`
+  (Analysis API). Both KSP (2.3.9) and appfunctions (alpha09) are already the latest
+  releases, so there is no toolchain knob to fix it — it needs a future KSP **or**
+  appfunctions release that supports Kotlin 2.4.0. **Decision rule**: hold/close any
+  Kotlin bump PR until a newer KSP or appfunctions alpha lands; re-test the bump then.
+  (Verified via bisection in PR #48 — the build-script DSL migration below is independent
+  and lands fine on 2.2.20.)
 
 ### Entity Identifier Consistency
 The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
@@ -525,7 +538,7 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.1.0+ / Gradle 9.3.1+ (required by `appfunctions:1.0.0-alpha09`)
+1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha09` needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.2.1" apply false
@@ -541,6 +554,19 @@ if #available(iOS 17.0, *) {
    - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`, `minSdk = 36`
    - Add AppFunctions dependencies (`appfunctions`, `appfunctions-service`, `appfunctions-compiler`)
    - Add KSP arg: `ksp { arg("appfunctions:aggregateAppFunctions", "true") }`
+   - **Set the JVM target via the `compilerOptions` DSL, not `kotlinOptions`** — the
+     legacy `android { kotlinOptions { jvmTarget = ... } }` accessor is an ERROR-level
+     deprecation under modern Kotlin Gradle plugins (it fails the build-script
+     compilation, not just warns). Use a top-level `kotlin {}` block instead:
+     ```kotlin
+     import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+     // ...
+     kotlin {
+         compilerOptions {
+             jvmTarget = JvmTarget.JVM_17
+         }
+     }
+     ```
 5. Run `make kotlin-gen` to generate Kotlin code
 6. Wire AppFunctionsBridge in MainActivity:
 ```kotlin
