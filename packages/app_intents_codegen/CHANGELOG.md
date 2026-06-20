@@ -1,3 +1,10 @@
+## 0.12.0
+
+- `@IntentSpec(donatable: true)` (#55, requires `--experimental=donation`): emits a `#if APP_INTENTS_WWDC26`-gated `register<Intent>Donator()` reverse-executor that reconstructs the concrete intent from a `[String: Any]` params dict and calls `intent.donate()` (stable iOS 16+). Analyzer enforces the MVP primitive-only contract; rejects `entityType` / `enumType` / `fileType` / `entityCollectionType` / `@UnionValue` / non-primitive Dart types at codegen time.
+- `@IntentParam(useValueState: true)` (#52): emits `if #available(iOS 18.2, *) { switch $field.valueState { … @unknown default … } }` in `perform()` and adds a sibling `"<field>State": "unset" | "cleared" | "set"` entry to the wire dict. The state key is added via `if let` in **both** FlutterBridge and cache-mode emit paths, so it is absent on iOS < 18.2 and the Dart handler can distinguish "no state info" from a present state. Analyzer rejects opt-in on non-optional Dart params. The Swift output uses `@unknown default` to future-proof against Swift 6's non-frozen enum errors. No experimental flag — this is a normal feature (the SDK symbol is stable iOS 18.2).
+- `AppSchemas.system.searchInApp` — codegen consumes the schema string verbatim through the existing `@AppIntent(schema:)` / `@AppEntity(schema:)` macro emission (the `app-schema` experimental gate is unchanged); no codegen change beyond the typed accessor that lives in `app_intents_annotations`.
+- Bumps `app_intents_annotations` dependency to `^0.12.0`.
+
 ## 0.11.0
 
 - WWDC26 experimental code generation (opt-in, default OFF). Master switch `--experimental-wwdc26` + per-feature `--experimental=<flag>` (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`, `value-representation`, `donation`). Experimental Swift is emitted inside `#if APP_INTENTS_WWDC26` with a mandatory stable `#else` fallback, so released-SDK builds (without the flag) still compile.

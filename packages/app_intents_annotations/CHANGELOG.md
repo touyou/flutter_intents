@@ -1,3 +1,9 @@
+## 0.12.0
+
+- `@IntentSpec(donatable: true)` — opt-in for `AppIntent.donate()` so Siri / Apple Intelligence learns the user performed the action in-app (#55). Inert unless the `donation` experimental feature is enabled in `app_intents_codegen`. MVP restricts to primitive parameter types (`String` / `int` / `double` / `bool` / `DateTime`, optionals allowed); entity / file / enum / union / collection params are rejected at codegen time.
+- `@IntentParam(useValueState: true)` — opt-in for `IntentParameter.ValueState` (`@available(iOS 18.2, *)` **stable** — no `#if` gating required). Distinguishes `unset` / `set` / `cleared` for an optional update parameter so the Dart handler can tell "don't touch" from "explicitly cleared." Only valid on a nullable Dart type; analyzer rejects use on non-optional params.
+- `AppSchemas.system.searchInApp` — typed accessor for the iOS 27 system search-in-app schema (iOS 17 used `.system.search`; iOS 27 renamed it). The iOS-17 identifier remains reachable via `AppSchemas.of(AppSchemaDomain.system, 'search')`. Also adds `AppSchemas.system.open`.
+
 ## 0.11.0
 
 - WWDC26 App Intents annotation surfaces (opt-in; inert unless experimental code generation is enabled in `app_intents_codegen`):
