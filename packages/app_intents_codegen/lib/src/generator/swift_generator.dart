@@ -418,6 +418,59 @@ class SwiftGenerator {
     }
   }
 
+  /// Writes `<field>State` locals for params declared with
+  /// `@IntentParam(useValueState: true)`. The state is read from the iOS 18.2+
+  /// `$<field>.valueState` projection at runtime; on older OS versions the
+  /// local stays `nil` (the Dart handler treats absent state as best-effort
+  /// optional, matching pre-18.2 behavior).
+  ///
+  /// Wire format: `"unset"` (caller didn't specify), `"set"` (caller provided a
+  /// value), `"cleared"` (caller explicitly cleared an optional). Both `"set"`
+  /// and `"cleared"` map to `.set(...)` in the SDK; we split them by inspecting
+  /// `Optional.some` / `Optional.none` so update intents can distinguish "leave
+  /// it alone" from "set this field to null".
+  void _writeValueStateSerializations(StringBuffer buffer, IntentInfo info) {
+    final indent2 = '$_indent$_indent';
+    for (final param in info.parameters) {
+      if (!param.useValueState) continue;
+      buffer.writeln('${indent2}var ${param.fieldName}State: String?');
+      buffer.writeln('${indent2}if #available(iOS 18.2, *) {');
+      buffer.writeln(
+        '$indent2$_indent'
+        r'switch $'
+        '${param.fieldName}.valueState {',
+      );
+      buffer.writeln(
+        '$indent2$_indent'
+        'case .unset:',
+      );
+      buffer.writeln(
+        '$indent2$_indent$_indent${param.fieldName}State = "unset"',
+      );
+      buffer.writeln(
+        '$indent2$_indent'
+        'case .set(.some):',
+      );
+      buffer.writeln('$indent2$_indent$_indent${param.fieldName}State = "set"');
+      buffer.writeln(
+        '$indent2$_indent'
+        'case .set(.none):',
+      );
+      buffer.writeln(
+        '$indent2$_indent$_indent${param.fieldName}State = "cleared"',
+      );
+      // `IntentParameter.ValueState` is marked non-frozen, so Swift 6 turns
+      // exhaustive switches into errors. Future-proof with @unknown default.
+      buffer.writeln(
+        '$indent2$_indent'
+        '@unknown default:',
+      );
+      buffer.writeln('$indent2$_indent$_indent${param.fieldName}State = nil');
+      buffer.writeln('$indent2$_indent}');
+      buffer.writeln('$indent2}');
+    }
+  }
+
   /// Writes `<field>Micros` locals converting Duration parameters to an `Int`
   /// number of microseconds.
   ///
@@ -640,6 +693,7 @@ class SwiftGenerator {
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
     _writeUnionSerializations(buffer, info, nativeRichTypes);
+    _writeValueStateSerializations(buffer, info);
 
     final indent2 = '$_indent$_indent';
 
@@ -662,6 +716,44 @@ class SwiftGenerator {
     IntentInfo info,
     String baseIndent,
   ) {
+    final hasValueState = info.parameters.any((p) => p.useValueState);
+    if (hasValueState) {
+      // When any param opts into IntentParameter.ValueState (#52), build the
+      // dict imperatively so the optional `<field>State` local can be omitted
+      // when nil (iOS < 18.2). This matches the cache-mode wire shape — the
+      // Dart handler can distinguish "no state info" (absent key) from a
+      // present state, instead of having to disambiguate `NSNull` from a
+      // legitimately-cleared value.
+      buffer.writeln('${baseIndent}var params: [String: Any] = [');
+      for (var i = 0; i < info.parameters.length; i++) {
+        final param = info.parameters[i];
+        final comma = i < info.parameters.length - 1 ? ',' : '';
+        final valueExpr = _paramValueExpression(param);
+        buffer.writeln(
+          '$baseIndent$_indent"${param.fieldName}": $valueExpr$comma',
+        );
+      }
+      buffer.writeln('$baseIndent]');
+      for (final param in info.parameters) {
+        if (!param.useValueState) continue;
+        buffer.writeln(
+          '${baseIndent}if let ${param.fieldName}StateValue = ${param.fieldName}State {',
+        );
+        buffer.writeln(
+          '$baseIndent${_indent}params["${param.fieldName}State"] = ${param.fieldName}StateValue',
+        );
+        buffer.writeln('$baseIndent}');
+      }
+      buffer.writeln(
+        '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+      );
+      buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
+      buffer.writeln('$baseIndent${_indent}params: params');
+      buffer.writeln('$baseIndent)');
+      return;
+    }
+
+    // Fast path: no ValueState opt-in → emit the dict literal inline as before.
     buffer.writeln(
       '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
     );
@@ -705,6 +797,7 @@ class SwiftGenerator {
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
     _writeUnionSerializations(buffer, info, nativeRichTypes);
+    _writeValueStateSerializations(buffer, info);
 
     final indent2 = '$_indent$_indent';
     final indent3 = '$_indent$_indent$_indent';
@@ -754,6 +847,7 @@ class SwiftGenerator {
     _writePersonNameSerializations(buffer, info, nativeRichTypes);
     _writeEntityCollectionSerializations(buffer, info, nativeRichTypes);
     _writeUnionSerializations(buffer, info, nativeRichTypes);
+    _writeValueStateSerializations(buffer, info);
 
     final indent2 = '$_indent$_indent';
 
@@ -771,6 +865,17 @@ class SwiftGenerator {
         buffer.writeln('$indent2}');
       } else {
         buffer.writeln('${indent2}params["${param.fieldName}"] = $valueExpr');
+      }
+      if (param.useValueState) {
+        // Add the state discriminator (always present on iOS 18.2+; nil-skipped
+        // on older OS versions where the pre-serialized local stays nil).
+        buffer.writeln(
+          '${indent2}if let ${param.fieldName}StateValue = ${param.fieldName}State {',
+        );
+        buffer.writeln(
+          '$indent2${_indent}params["${param.fieldName}State"] = ${param.fieldName}StateValue',
+        );
+        buffer.writeln('$indent2}');
       }
     }
 
@@ -1171,6 +1276,77 @@ class SwiftGenerator {
     buffer.writeln('$_indent}');
     buffer.writeln('}');
     buffer.write('#endif');
+  }
+
+  /// Writes the experimental intent donator registration (#55).
+  ///
+  /// Emits a `register<Intent>Donator()` function (call once at startup) that
+  /// registers a closure with `FlutterBridge`. When Dart calls
+  /// `donateIntent`, the closure reconstructs the concrete `AppIntent` from the
+  /// param dict and calls `intent.donate()` (`@discardableResult`, stable iOS
+  /// 16+). Gated by `#if APP_INTENTS_WWDC26` with no `#else` (additive). MVP
+  /// only supports primitive parameters; the analyzer rejects others.
+  void _writeIntentDonator(StringBuffer buffer, IntentInfo info) {
+    final fnName = 'register${info.className}Donator';
+    buffer.writeln('#if APP_INTENTS_WWDC26');
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('/// Registers the intent donator for ${info.className}.');
+    buffer.writeln('/// Call this once at startup (e.g. in AppDelegate).');
+    buffer.writeln('func $fnName() {');
+    buffer.writeln('${_indent}Task {');
+    buffer.writeln(
+      '$_indent${_indent}await FlutterBridge.shared.registerIntentDonator(',
+    );
+    buffer.writeln(
+      '$_indent$_indent${_indent}intentIdentifier: "${info.identifier}"',
+    );
+    buffer.writeln('$_indent$_indent) { params in');
+    buffer.writeln(
+      '$_indent$_indent${_indent}var intent = ${info.className}()',
+    );
+    for (final param in info.parameters) {
+      _writeIntentDonatorParamAssignment(buffer, param);
+    }
+    buffer.writeln('$_indent$_indent${_indent}_ = await intent.donate()');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln('}');
+    buffer.write('#endif');
+  }
+
+  /// Writes a single `if let v = params["field"] as? T { intent.field = v }`
+  /// (or DateTime variant) line for a donatable intent parameter. The analyzer
+  /// guarantees [param] is a primitive at this point.
+  void _writeIntentDonatorParamAssignment(
+    StringBuffer buffer,
+    IntentParamInfo param,
+  ) {
+    final indent3 = '$_indent$_indent$_indent';
+    final isDate =
+        param.dartType == 'DateTime' || param.dartType == 'DateTime?';
+    if (isDate) {
+      // Wire format is an ISO8601 string (see _paramValueExpression). Round-
+      // trip via ISO8601DateFormatter; silently skip on parse failure.
+      buffer.writeln(
+        '${indent3}if let s = params["${param.fieldName}"] as? String,',
+      );
+      buffer.writeln(
+        '$indent3${_indent}let d = ISO8601DateFormatter().date(from: s) {',
+      );
+      buffer.writeln('$indent3${_indent}intent.${param.fieldName} = d');
+      buffer.writeln('$indent3}');
+      return;
+    }
+    final swiftType = dartTypeToSwiftType(
+      param.dartType.endsWith('?')
+          ? param.dartType.substring(0, param.dartType.length - 1)
+          : param.dartType,
+    );
+    buffer.writeln(
+      '${indent3}if let v = params["${param.fieldName}"] as? $swiftType {',
+    );
+    buffer.writeln('$indent3${_indent}intent.${param.fieldName} = v');
+    buffer.writeln('$indent3}');
   }
 
   /// Writes the experimental `Transferable` + `ValueRepresentation(exporting:)`
@@ -1918,6 +2094,16 @@ class SwiftGenerator {
     // Generate intents (without individual imports)
     for (final intent in intents) {
       _generateIntentBody(buffer, intent);
+      // #55 intent donation: additive reverse executor, in its own #if block
+      // (no #else — without the flag the intent simply isn't donatable). The
+      // `donate()` symbol is stable iOS 16+ but we gate behind the donation
+      // feature for consistency. See ADR 0003.
+      if (experimental.isEnabled(ExperimentalFeature.donation) &&
+          intent.donatable) {
+        buffer.writeln();
+        buffer.writeln();
+        _writeIntentDonator(buffer, intent);
+      }
       buffer.writeln();
       buffer.writeln();
     }

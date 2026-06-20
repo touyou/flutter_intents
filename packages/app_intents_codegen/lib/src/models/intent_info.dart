@@ -56,6 +56,11 @@ class IntentInfo {
   /// the `app-schema` feature is enabled, adds the `@AppIntent(schema:)` macro.
   final String? schema;
 
+  /// Experimental (WWDC26): whether the intent emits a generated
+  /// `register<Intent>Donator()` reverse executor (#55). Only effective when the
+  /// `donation` feature is enabled.
+  final bool donatable;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -72,6 +77,7 @@ class IntentInfo {
     this.cancellable = false,
     this.executionTargets,
     this.schema,
+    this.donatable = false,
   });
 
   @override
@@ -92,6 +98,7 @@ class IntentInfo {
         longRunning == other.longRunning &&
         cancellable == other.cancellable &&
         schema == other.schema &&
+        donatable == other.donatable &&
         _nullableListEquals(executionTargets, other.executionTargets);
   }
 
@@ -111,6 +118,7 @@ class IntentInfo {
     longRunning,
     cancellable,
     schema,
+    donatable,
     executionTargets == null ? null : Object.hashAll(executionTargets!),
   );
 
@@ -123,7 +131,7 @@ class IntentInfo {
       'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '
-      'schema: $schema)';
+      'schema: $schema, donatable: $donatable)';
 }
 
 /// The implementation language for the intent.
@@ -177,6 +185,12 @@ class IntentParamInfo {
   /// enum` (or the first case's entity type as the stable fallback).
   final UnionInfo? unionInfo;
 
+  /// Opt-in to `IntentParameter.ValueState` reporting (iOS 18.2+ stable; no
+  /// `#if` gating). When true and the param is optional, the generated Swift
+  /// adds a sibling `<field>State: "unset" | "cleared" | "set"` to the params
+  /// dict by reading `$field.valueState`. See `IntentParam.useValueState`.
+  final bool useValueState;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -188,6 +202,7 @@ class IntentParamInfo {
     this.fileType,
     this.entityCollectionType,
     this.unionInfo,
+    this.useValueState = false,
   });
 
   @override
@@ -203,7 +218,8 @@ class IntentParamInfo {
         enumType == other.enumType &&
         fileType == other.fileType &&
         entityCollectionType == other.entityCollectionType &&
-        unionInfo == other.unionInfo;
+        unionInfo == other.unionInfo &&
+        useValueState == other.useValueState;
   }
 
   @override
@@ -218,6 +234,7 @@ class IntentParamInfo {
     fileType,
     entityCollectionType,
     unionInfo,
+    useValueState,
   );
 
   @override
@@ -225,7 +242,8 @@ class IntentParamInfo {
       'IntentParamInfo(fieldName: $fieldName, dartType: $dartType, title: $title, '
       'description: $description, isOptional: $isOptional, entityType: $entityType, '
       'enumType: $enumType, fileType: $fileType, '
-      'entityCollectionType: $entityCollectionType, unionInfo: $unionInfo)';
+      'entityCollectionType: $entityCollectionType, unionInfo: $unionInfo, '
+      'useValueState: $useValueState)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

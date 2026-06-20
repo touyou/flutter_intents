@@ -182,6 +182,20 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     );
   }
 
+  /// Donates an executed intent so Siri / Apple Intelligence can learn that the
+  /// user performed this action in-app (#55).
+  ///
+  /// Wraps `AppIntent.donate()` (stable iOS 16+). [identifier] must match an
+  /// intent declared `@IntentSpec(donatable: true)`; [params] is the parameter
+  /// map you'd otherwise pass at execution time — the reverse executor
+  /// reconstructs the concrete intent from it before calling `.donate()`.
+  ///
+  /// iOS-only; a no-op on other platforms. See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateIntent(String identifier, Map<String, dynamic> params) {
+    throw UnimplementedError('donateIntent() has not been implemented.');
+  }
+
   /// Binds the entity currently shown on screen to an `NSUserActivity` so Siri
   /// and Apple Intelligence can resolve references like "this" (#56).
   ///

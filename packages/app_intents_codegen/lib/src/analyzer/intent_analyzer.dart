@@ -60,6 +60,7 @@ class IntentAnalyzer {
       annotation.getField('executionTargets'),
     );
     final schema = annotation.getField('schema')?.toStringValue();
+    final donatable = annotation.getField('donatable')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -88,6 +89,10 @@ class IntentAnalyzer {
 
     final parameters = _extractParameters(element);
 
+    if (donatable) {
+      _validateDonatableParameters(element, parameters);
+    }
+
     return IntentInfo(
       className: element.name!,
       identifier: identifier,
@@ -104,7 +109,57 @@ class IntentAnalyzer {
       cancellable: cancellable,
       executionTargets: executionTargets,
       schema: schema,
+      donatable: donatable,
     );
+  }
+
+  /// MVP: `@IntentSpec(donatable: true)` requires all parameters to be
+  /// primitive types. Reconstructing an intent from a `[String: Any]` dict in
+  /// the generated reverse executor is only tractable for primitives today;
+  /// richer types (entities, files, enums, unions, collections) need follow-up
+  /// codegen.
+  void _validateDonatableParameters(
+    ClassElement element,
+    List<IntentParamInfo> parameters,
+  ) {
+    for (final param in parameters) {
+      final blocker = <String>[];
+      if (param.entityType != null) blocker.add('entityType');
+      if (param.enumType != null) blocker.add('enumType');
+      if (param.fileType != null) blocker.add('fileType (IntentFile)');
+      if (param.entityCollectionType != null) {
+        blocker.add('entityCollectionType');
+      }
+      if (param.unionInfo != null) blocker.add('@UnionValue sealed type');
+      if (blocker.isEmpty && !_isDonatablePrimitive(param.dartType)) {
+        blocker.add('non-primitive type "${param.dartType}"');
+      }
+      if (blocker.isNotEmpty) {
+        throw InvalidGenerationSourceError(
+          '@IntentSpec(donatable: true) currently only supports primitive '
+          'parameters (String/int/double/bool/DateTime, optionals allowed). '
+          'Parameter "${param.fieldName}" is incompatible: '
+          '${blocker.join(', ')}. Remove the param or drop donatable: true '
+          'until richer reconstruction lands.',
+          element: element,
+        );
+      }
+    }
+  }
+
+  static const _donatablePrimitiveBases = {
+    'String',
+    'int',
+    'double',
+    'bool',
+    'DateTime',
+  };
+
+  bool _isDonatablePrimitive(String dartType) {
+    final base = dartType.endsWith('?')
+        ? dartType.substring(0, dartType.length - 1)
+        : dartType;
+    return _donatablePrimitiveBases.contains(base);
   }
 
   /// Parses the `executionTargets` list of `IntentExecutionTarget` enum values.
@@ -194,11 +249,24 @@ class IntentAnalyzer {
           .getField('entityCollectionType')
           ?.toStringValue();
       final unionInfo = _resolveUnion(field);
+      final useValueState =
+          annotation.getField('useValueState')?.toBoolValue() ?? false;
+      final dartType = field.type.getDisplayString();
+
+      if (useValueState && !dartType.endsWith('?')) {
+        throw InvalidGenerationSourceError(
+          '@IntentParam(useValueState: true) requires an optional parameter '
+          '(nullable Dart type). Field "${field.name}" of type "$dartType" '
+          'is non-nullable, so "unset" vs "set" cannot be distinguished. '
+          'Make the field optional (e.g. "$dartType?") or drop useValueState.',
+          element: field,
+        );
+      }
 
       parameters.add(
         IntentParamInfo(
           fieldName: field.name!,
-          dartType: field.type.getDisplayString(),
+          dartType: dartType,
           title: title,
           description: description,
           isOptional: isOptional,
@@ -207,6 +275,7 @@ class IntentAnalyzer {
           fileType: fileType,
           entityCollectionType: entityCollectionType,
           unionInfo: unionInfo,
+          useValueState: useValueState,
         ),
       );
     }

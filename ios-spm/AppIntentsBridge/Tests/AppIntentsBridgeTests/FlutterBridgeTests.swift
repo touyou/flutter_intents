@@ -2,7 +2,12 @@ import Testing
 import Foundation
 @testable import AppIntentsBridge
 
-@Suite("FlutterBridge Tests")
+// Run serially: all tests share `FlutterBridge.shared` (a singleton actor),
+// and several tests need to call `clearExecutors()` to start from a known
+// state. Parallel execution lets one test's `clearExecutors()` wipe another
+// test's freshly registered executor mid-run. Serializing is the simplest
+// robust fix and matches how the bridge is used at runtime.
+@Suite("FlutterBridge Tests", .serialized)
 struct FlutterBridgeTests {
 
     @Test("FlutterBridge shared instance is singleton")
@@ -196,6 +201,65 @@ struct FlutterBridgeTests {
         } catch {
             Issue.record("Expected AppIntentError, got: \(error)")
         }
+    }
+
+    @Test("Intent donator receives params (#55)")
+    func intentDonatorReceivesParams() async throws {
+        // Do NOT clearExecutors() at start: the singleton is shared across
+        // tests that run in parallel under Swift Testing, and a clear here
+        // would race with other tests' registrations. Use a per-test unique
+        // intent identifier instead.
+        let bridge = FlutterBridge.shared
+        let id = "com.example.test.intentDonator.receivesParams"
+
+        let box = IntentDonationBox()
+        await bridge.registerIntentDonator(intentIdentifier: id) { params in
+            await box.record(params: params)
+        }
+
+        #expect(await bridge.hasIntentDonator(for: id))
+
+        try await bridge.donateIntent(
+            intentIdentifier: id,
+            params: ["title": "Buy milk", "count": 3]
+        )
+
+        #expect(await box.lastTitle == "Buy milk")
+        #expect(await box.lastCount == 3)
+    }
+
+    @Test("donateIntent throws when no donator registered (#55)")
+    func donateIntentWithoutDonatorThrows() async {
+        // Use a per-test unique identifier so no other test could have
+        // registered a donator for it (and so we don't need to clearExecutors).
+        let bridge = FlutterBridge.shared
+        let id = "com.example.test.intentDonator.unregistered"
+
+        do {
+            try await bridge.donateIntent(
+                intentIdentifier: id,
+                params: [:]
+            )
+            Issue.record("Expected DONATOR_NOT_REGISTERED error")
+        } catch let error as AppIntentError {
+            if case .custom(let code, _) = error {
+                #expect(code == "DONATOR_NOT_REGISTERED")
+            } else {
+                Issue.record("Expected custom(DONATOR_NOT_REGISTERED), got: \(error)")
+            }
+        } catch {
+            Issue.record("Expected AppIntentError, got: \(error)")
+        }
+    }
+}
+
+/// Actor box for intent donation tests.
+private actor IntentDonationBox {
+    var lastTitle: String?
+    var lastCount: Int?
+    func record(params: [String: Any]) {
+        lastTitle = params["title"] as? String
+        lastCount = params["count"] as? Int
     }
 }
 

@@ -234,6 +234,22 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   }
 
   @override
+  Future<void> donateIntent(
+    String identifier,
+    Map<String, dynamic> params,
+  ) async {
+    try {
+      await methodChannel.invokeMethod('donateIntent', {
+        'identifier': identifier,
+        'params': params,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // Intent donation is iOS-specific.
+    }
+  }
+
+  @override
   Future<void> setOnscreenEntity(
     String entityIdentifier,
     String entityId, {

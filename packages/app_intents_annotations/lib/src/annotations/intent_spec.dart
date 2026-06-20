@@ -88,6 +88,29 @@ class IntentSpec {
   /// no effect unless experimental generation is enabled.
   final String? schema;
 
+  /// **Experimental (WWDC26).** Marks this intent as donatable so Siri / Apple
+  /// Intelligence can learn that the user performed the action in-app (not just
+  /// via Siri).
+  ///
+  /// `AppIntent.donate()` is a stable iOS 16+ API. We gate the generated
+  /// `register<Intent>Donator()` reverse executor behind the `donation`
+  /// experimental feature for consistency with the rest of #55 — the call site
+  /// is additive (no `#else`), so released-SDK builds without the flag just
+  /// don't emit the donator.
+  ///
+  /// The Dart side calls `AppIntents().donateIntent(identifier, params)`; the
+  /// plugin forwards via `AppIntentsPlugin.intentDonationForwarder` to
+  /// `FlutterBridge.shared.donateIntent`, which invokes the generated closure
+  /// that reconstructs the concrete intent from `params` and calls
+  /// `intent.donate()`.
+  ///
+  /// **MVP restriction**: only intents whose parameters are all primitive
+  /// (`String`/`int`/`double`/`bool`/`DateTime`, with optionals allowed) can be
+  /// marked donatable. Entity/file/enum/union/collection params are rejected at
+  /// codegen time; they need richer reconstruction logic that's deferred to a
+  /// follow-up issue. See `docs/adr/0003-donations-and-discovery.md`.
+  final bool donatable;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -102,6 +125,7 @@ class IntentSpec {
     this.cancellable = false,
     this.executionTargets,
     this.schema,
+    this.donatable = false,
   });
 }
 

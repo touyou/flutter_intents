@@ -39,6 +39,16 @@ void main() {
       expect(AppSchemas.mail.openMessage, 'mail.openMessage');
       expect(AppSchemas.photos.asset, 'photos.asset');
       expect(AppSchemas.photos.assetType, 'photos.assetType');
+      expect(AppSchemas.system.searchInApp, 'system.searchInApp');
+      expect(AppSchemas.system.open, 'system.open');
+    });
+
+    test('system.searchInApp is the iOS 27 rename of system.search', () {
+      // iOS 17 used `.system.search`; iOS 27 renamed it to `.system.searchInApp`.
+      // Both are valid raw schema strings, so the iOS-17 fallback is reachable
+      // via [AppSchemas.of] without polluting the typed catalog.
+      expect(AppSchemas.of(AppSchemaDomain.system, 'search'), 'system.search');
+      expect(AppSchemas.system.searchInApp, isNot('system.search'));
     });
 
     test('of() builds a dotted identifier for any domain/schema', () {

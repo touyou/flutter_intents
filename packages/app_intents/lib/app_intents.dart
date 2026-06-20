@@ -202,6 +202,21 @@ class AppIntents {
     );
   }
 
+  /// Donates an executed intent so Siri / Apple Intelligence learns that the
+  /// user performed this action in your app (#55).
+  ///
+  /// [identifier] must match an intent declared `@IntentSpec(donatable: true)`;
+  /// [params] is the parameter map matching the intent's fields (the same shape
+  /// the generated handler receives). Calls `AppIntent.donate()` (stable iOS
+  /// 16+) on a reconstructed concrete intent; the iOS-27 donation symbols stay
+  /// inside the gated generated closure.
+  ///
+  /// iOS-only; a no-op on other platforms. See
+  /// `docs/adr/0003-donations-and-discovery.md`.
+  Future<void> donateIntent(String identifier, Map<String, dynamic> params) {
+    return AppIntentsPlatform.instance.donateIntent(identifier, params);
+  }
+
   /// Binds the on-screen entity to the current `NSUserActivity` so Siri can
   /// resolve "this" to it (#56). Call as the user navigates; pass the entity
   /// *type* identifier and instance [entityId]. iOS-only; a no-op elsewhere.

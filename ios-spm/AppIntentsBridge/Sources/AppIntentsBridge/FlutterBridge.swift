@@ -53,6 +53,14 @@ public actor FlutterBridge {
     /// generic (dicts only) so this plugin names no iOS-27 symbol. See ADR 0003.
     private var relevantEntitiesDonators: [String: @Sendable (sending [[String: Any]], sending String?) async throws -> Void] = [:]
 
+    /// Reverse executors for intent donation (#55), keyed by intent identifier.
+    ///
+    /// Same shape as `relevantEntitiesDonators` but per-intent. The closure
+    /// reconstructs the concrete `AppIntent` struct from the dict and calls
+    /// `intent.donate()` (stable iOS 16+). The bridge never names that symbol;
+    /// it lives only inside the `#if`-gated generated closure.
+    private var intentDonators: [String: @Sendable (sending [String: Any]) async throws -> Void] = [:]
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
@@ -67,6 +75,7 @@ public actor FlutterBridge {
         suggestedEntitiesExecutor = nil
         valueQueryExecutor = nil
         relevantEntitiesDonators.removeAll()
+        intentDonators.removeAll()
     }
 
     /// Sets the intent executor that handles communication with Flutter.
@@ -330,5 +339,52 @@ public actor FlutterBridge {
     /// Whether a donator is registered for the given entity type.
     public func hasRelevantEntitiesDonator(for entityIdentifier: String) -> Bool {
         return relevantEntitiesDonators[entityIdentifier] != nil
+    }
+
+    // MARK: - Intent Donation (#55)
+
+    /// Registers a donator closure for the given intent identifier.
+    ///
+    /// Called from `#if`-gated generated Swift at startup. The closure
+    /// reconstructs the concrete `AppIntent` from the param dict and calls
+    /// `intent.donate()`.
+    ///
+    /// - Parameters:
+    ///   - intentIdentifier: The intent identifier (matches `@IntentSpec.identifier`).
+    ///   - donator: Reconstructs and donates the intent from `params`.
+    public func registerIntentDonator(
+        intentIdentifier: String,
+        _ donator: @escaping @Sendable (sending [String: Any]) async throws -> Void
+    ) {
+        intentDonators[intentIdentifier] = donator
+    }
+
+    /// Donates an intent.
+    ///
+    /// Invoked by the plugin when Dart calls `donateIntent`. Looks up the
+    /// registered donator (which knows the concrete intent type) and calls it.
+    ///
+    /// - Parameters:
+    ///   - intentIdentifier: The intent identifier.
+    ///   - params: The parameter map used to reconstruct the intent.
+    /// - Throws: `AppIntentError.custom("DONATOR_NOT_REGISTERED", ...)` when no
+    ///           generated donator is registered for `intentIdentifier`.
+    public func donateIntent(
+        intentIdentifier: String,
+        params: sending [String: Any]
+    ) async throws {
+        guard let donator = intentDonators[intentIdentifier] else {
+            throw AppIntentError.custom(
+                code: "DONATOR_NOT_REGISTERED",
+                message: "No intent donator registered for \(intentIdentifier). "
+                    + "Call the generated register…IntentDonator() at startup."
+            )
+        }
+        try await donator(params)
+    }
+
+    /// Whether a donator is registered for the given intent identifier.
+    public func hasIntentDonator(for intentIdentifier: String) -> Bool {
+        return intentDonators[intentIdentifier] != nil
     }
 }
