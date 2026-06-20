@@ -925,10 +925,29 @@ class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
 - `AppSchemaDomain` enumerates the known iOS 27 domains (`messages`, `mail`,
   `photos`, `calendar`, `maps`, `imageGeneration`, `visualIntelligence`, …).
 - `AppSchemas.<domain>.<schema>` exposes verified identifiers (currently
-  `messages`, `mail`, `photos`; more added over time).
+  `messages`, `mail`, `photos`, `system`; more added over time).
 - The catalog is **not exhaustive** — the system matches by raw string, so any
   `'domain.schema'` value works. For a schema the catalog doesn't name yet:
   `schema: AppSchemas.of(AppSchemaDomain.calendar, 'event')` → `'calendar.event'`.
+
+#### iOS 17 → iOS 27 schema renames
+
+Some system schemas were renamed across OS versions; the catalog exposes the
+iOS 27 names. If you target iOS 17 specifically, use `AppSchemas.of` to build
+the older identifier yourself.
+
+| iOS 17 raw string | iOS 27 catalog accessor                |
+|-------------------|----------------------------------------|
+| `system.search`   | `AppSchemas.system.searchInApp`        |
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.app.search',
+  title: 'Search',
+  schema: AppSchemas.system.searchInApp, // == 'system.searchInApp' (iOS 27)
+)
+class SearchInAppIntentSpec extends IntentSpecBase { /* ... */ }
+```
 
 ### IntentValueQuery (#51) — structured search
 

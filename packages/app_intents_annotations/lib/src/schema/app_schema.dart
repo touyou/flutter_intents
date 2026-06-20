@@ -136,6 +136,9 @@ abstract final class AppSchemas {
 
   /// Schemas in the `photos` domain.
   static const PhotosSchemas photos = PhotosSchemas._();
+
+  /// Schemas in the `system` domain.
+  static const SystemSchemas system = SystemSchemas._();
 }
 
 /// Verified schemas in the `messages` domain.
@@ -208,4 +211,21 @@ final class PhotosSchemas {
 
   /// `photos.assetType` — asset type (`@AppEnum`).
   String get assetType => 'photos.assetType';
+}
+
+/// Verified schemas in the `system` domain.
+final class SystemSchemas {
+  const SystemSchemas._();
+
+  /// `system.searchInApp` — re-run the user's search inside your app's own
+  /// search UI (`@AppIntent`, iOS 27+).
+  ///
+  /// iOS 17 exposed this as `system.search`; iOS 27 renamed it to
+  /// `system.searchInApp`. Use the OS-appropriate identifier for the iOS
+  /// version you target; this catalog exposes the iOS 27 name. For the iOS 17
+  /// fallback identifier, use `AppSchemas.of(AppSchemaDomain.system, 'search')`.
+  String get searchInApp => 'system.searchInApp';
+
+  /// `system.open` — open a target entity in your app (`@AppIntent`, iOS 17+).
+  String get open => 'system.open';
 }

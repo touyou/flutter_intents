@@ -50,6 +50,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool cancellable;
           final List<IntentExecutionTarget>? executionTargets;
           final String? schema;
+          final bool donatable;
 
           const IntentSpec({
             required this.identifier,
@@ -65,6 +66,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.cancellable = false,
             this.executionTargets,
             this.schema,
+            this.donatable = false,
           });
         }
 
@@ -93,6 +95,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? enumType;
           final String? fileType;
           final String? entityCollectionType;
+          final bool useValueState;
 
           const IntentParam({
             required this.title,
@@ -102,6 +105,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.enumType,
             this.fileType,
             this.entityCollectionType,
+            this.useValueState = false,
           });
         }
       ''',

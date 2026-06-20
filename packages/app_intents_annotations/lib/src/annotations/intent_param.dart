@@ -39,6 +39,24 @@ class IntentParam {
   /// parameter type should be `List<String>`.
   final String? entityCollectionType;
 
+  /// Opt in to `IntentParameter.ValueState` reporting (WWDC26, iOS 18.2+
+  /// **stable** SDK — no `#if` gating required).
+  ///
+  /// Distinguishes three update-intent states for an optional parameter:
+  ///
+  /// - **unset**: the caller didn't mention this field (don't touch it).
+  /// - **cleared**: the caller explicitly cleared the value (set it to nil).
+  /// - **set**: the caller provided a new value.
+  ///
+  /// Only valid on an optional parameter (the Dart type ends with `?`). When
+  /// enabled, the generated Swift `perform()` reads `$field.valueState` and
+  /// adds a sibling `<field>State: "unset" | "cleared" | "set"` entry to the
+  /// params dict alongside the value. The Dart handler can branch on it; on
+  /// iOS &lt; 18.2 the state field is absent and the handler should treat the
+  /// param as best-effort optional (the article's pre-iOS-18.2 fallback). See
+  /// the WWDC 2026 "Code-along: Make your app available to Siri" session.
+  final bool useValueState;
+
   const IntentParam({
     required this.title,
     this.description,
@@ -47,5 +65,6 @@ class IntentParam {
     this.enumType,
     this.fileType,
     this.entityCollectionType,
+    this.useValueState = false,
   });
 }

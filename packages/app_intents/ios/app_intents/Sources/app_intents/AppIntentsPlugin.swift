@@ -25,6 +25,16 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     public static var relevantEntitiesDonationForwarder:
         (@Sendable (String, [[String: Any]], String?) async throws -> Void)?
 
+    /// Forwards a Dart `donateIntent` call to the reverse executor (#55).
+    ///
+    /// AppDelegate wires this to `FlutterBridge.shared.donateIntent`. The
+    /// generated `register<Intent>Donator()` closure reconstructs the concrete
+    /// intent from `params` and calls `intent.donate()` (stable iOS 16+, but
+    /// emitted inside the `donation` feature's `#if APP_INTENTS_WWDC26` block
+    /// for consistency). Parameters: `(identifier, params)`.
+    public static var intentDonationForwarder:
+        (@Sendable (String, [String: Any]) async throws -> Void)?
+
     /// Applies the iOS 26+ `appEntityIdentifier` AppEntity association to an
     /// onscreen `NSUserActivity` (#56). Wired in AppDelegate, where the concrete
     /// entity type is known (the association needs
@@ -222,6 +232,37 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             Task {
                 do {
                     try await forwarder(entityIdentifier, entities, context)
+                    result(nil)
+                } catch {
+                    result(FlutterError(
+                        code: "DONATION_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
+            }
+        case "donateIntent":
+            // #55: forward to the reverse executor via the intent donation
+            // forwarder wired in AppDelegate. AppDelegate connects this
+            // forwarder to FlutterBridge.shared.donateIntent, whose generated
+            // donator reconstructs the concrete intent struct from params and
+            // calls intent.donate().
+            guard let args = call.arguments as? [String: Any],
+                  let identifier = args["identifier"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "identifier is required", details: nil))
+                return
+            }
+            let params = (args["params"] as? [String: Any]) ?? [:]
+            guard let forwarder = Self.intentDonationForwarder else {
+                result(FlutterError(
+                    code: "DONATION_NOT_CONFIGURED",
+                    message: "Intent donation forwarder not wired. Set "
+                        + "AppIntentsPlugin.intentDonationForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    try await forwarder(identifier, params)
                     result(nil)
                 } catch {
                     result(FlutterError(

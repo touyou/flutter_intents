@@ -58,6 +58,16 @@ class MockAppIntentsPlatform
     });
   }
 
+  final List<Map<String, dynamic>> donatedIntents = [];
+
+  @override
+  Future<void> donateIntent(
+    String identifier,
+    Map<String, dynamic> params,
+  ) async {
+    donatedIntents.add({'identifier': identifier, 'params': params});
+  }
+
   final List<Map<String, dynamic>> onscreenCalls = [];
 
   @override
@@ -189,6 +199,21 @@ void main() {
         fakePlatform.donatedRelevantEntities.first['context'],
         'audio.nowPlaying',
       );
+    });
+
+    test('donateIntent delegates to platform (#55)', () async {
+      await appIntentsPlugin.donateIntent('com.example.taskapp.createTask', {
+        'title': 'Buy milk',
+      });
+
+      expect(fakePlatform.donatedIntents, hasLength(1));
+      expect(
+        fakePlatform.donatedIntents.first['identifier'],
+        'com.example.taskapp.createTask',
+      );
+      expect(fakePlatform.donatedIntents.first['params'], {
+        'title': 'Buy milk',
+      });
     });
 
     test(

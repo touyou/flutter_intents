@@ -302,6 +302,53 @@ void main() {
         expect(content.unionInfo!.className, equals('GalleryContent'));
       });
 
+      test('captures useValueState opt-in on optional param (#52)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(identifier: 'com.example.update', title: 'Update')
+          class UpdateIntent extends IntentSpecBase {
+            @IntentParam(title: 'Note', isOptional: true, useValueState: true)
+            final String? note;
+
+            UpdateIntent({this.note});
+          }
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'UpdateIntent'));
+        final note = result!.parameters.firstWhere(
+          (p) => p.fieldName == 'note',
+        );
+        expect(note.useValueState, isTrue);
+      });
+
+      test(
+        'useValueState on a non-optional param is a generation error (#52)',
+        () async {
+          final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(identifier: 'com.example.bad', title: 'Bad')
+            class BadIntent extends IntentSpecBase {
+              @IntentParam(title: 'Title', useValueState: true)
+              final String title;
+
+              BadIntent({required this.title});
+            }
+          ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'BadIntent')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains('requires an optional parameter'),
+              ),
+            ),
+          );
+        },
+      );
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
