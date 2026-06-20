@@ -322,6 +322,151 @@ void main() {
         expect(note.useValueState, isTrue);
       });
 
+      test('donatable: true accepts a primitive-only intent (#55)', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.donate',
+              title: 'Donate',
+              donatable: true,
+            )
+            class DonateIntent extends IntentSpecBase {
+              @IntentParam(title: 'Title')
+              final String title;
+
+              @IntentParam(title: 'Note', isOptional: true)
+              final String? note;
+
+              @IntentParam(title: 'Due', isOptional: true)
+              final DateTime? due;
+
+              DonateIntent({required this.title, this.note, this.due});
+            }
+          ''');
+        final result = analyzer.analyze(findClass(library, 'DonateIntent'));
+        expect(result, isNotNull);
+        expect(result!.donatable, isTrue);
+      });
+
+      test('donatable: true rejects entityType params (#55 MVP)', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              donatable: true,
+            )
+            class BadIntent extends IntentSpecBase {
+              @IntentParam(title: 'Task', entityType: 'TaskEntity')
+              final String taskId;
+
+              BadIntent({required this.taskId});
+            }
+          ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('only supports primitive'),
+            ),
+          ),
+        );
+      });
+
+      test('donatable: true rejects fileType params (#55 MVP)', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              donatable: true,
+            )
+            class BadIntent extends IntentSpecBase {
+              @IntentParam(title: 'Photo', fileType: 'public.image')
+              final String photoPath;
+
+              BadIntent({required this.photoPath});
+            }
+          ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('IntentFile'),
+            ),
+          ),
+        );
+      });
+
+      test(
+        'donatable: true rejects entityCollectionType params (#55 MVP)',
+        () async {
+          final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              donatable: true,
+            )
+            class BadIntent extends IntentSpecBase {
+              @IntentParam(title: 'Photos', entityCollectionType: 'PhotoEntity')
+              final List<String> photos;
+
+              BadIntent({required this.photos});
+            }
+          ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'BadIntent')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains('entityCollectionType'),
+              ),
+            ),
+          );
+        },
+      );
+
+      test(
+        'donatable: true rejects non-primitive Dart types (#55 MVP)',
+        () async {
+          final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              donatable: true,
+            )
+            class BadIntent extends IntentSpecBase {
+              @IntentParam(title: 'Tags')
+              final List<String> tags;
+
+              BadIntent({required this.tags});
+            }
+          ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'BadIntent')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains('non-primitive type'),
+              ),
+            ),
+          );
+        },
+      );
+
       test(
         'useValueState on a non-optional param is a generation error (#52)',
         () async {

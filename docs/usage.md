@@ -1068,6 +1068,18 @@ if #available(iOS 27.0, *) {
   registerSongEntityRelevantEntitiesDonator()
 }
 
+// #55 intent donation (@IntentSpec(donatable: true)): forward Dart → the
+// generated per-intent donator. The reverse executor rebuilds the concrete
+// intent struct from params and calls `intent.donate()` (stable iOS 16+).
+AppIntentsPlugin.intentDonationForwarder = { id, params in
+  try await FlutterBridge.shared.donateIntent(
+    intentIdentifier: id, params: params)
+}
+// Register each intent's generated donator (one call per donatable intent):
+if #available(iOS 17.0, *) {
+  registerCreateTaskIntentSpecDonator()
+}
+
 // #56 onscreen association: set appEntityIdentifier from the concrete entity type.
 if #available(iOS 26.0, *) {
   AppIntentsPlugin.onscreenEntityBinder = { activity, entityIdentifier, entityId in

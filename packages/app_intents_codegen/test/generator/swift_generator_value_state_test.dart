@@ -49,9 +49,14 @@ void main() {
       // Swift 6 / non-frozen enum: explicit @unknown default guards the switch.
       expect(result, contains('@unknown default:'));
 
-      // The sibling state entry is added to the FlutterBridge params dict.
+      // FlutterBridge mode now builds the params dict imperatively when any
+      // param opts into valueState, so the state sibling is added via an
+      // `if let` guard (matching the cache-mode wire shape) rather than as a
+      // mandatory `as Any`-cast nil entry.
       expect(result, contains('"note": note'));
-      expect(result, contains('"noteState": noteState as Any'));
+      expect(result, contains('if let noteStateValue = noteState {'));
+      expect(result, contains('params["noteState"] = noteStateValue'));
+      expect(result, isNot(contains('noteState as Any')));
     });
 
     test('does NOT emit valueState for params without the opt-in', () {
@@ -93,10 +98,12 @@ void main() {
           ],
         ),
       );
-      // Both fields' values go into the dict; only `note` has a state sibling.
+      // Both fields' values go into the imperatively-built dict; only `note`
+      // has a state sibling, added via `if let` so iOS<18.2 keeps the key absent.
       expect(result, contains('"eventId": eventId'));
       expect(result, contains('"note": note'));
-      expect(result, contains('"noteState": noteState as Any'));
+      expect(result, contains('if let noteStateValue = noteState {'));
+      expect(result, contains('params["noteState"] = noteStateValue'));
       // No state local for eventId.
       expect(result, isNot(contains('eventIdState')));
     });

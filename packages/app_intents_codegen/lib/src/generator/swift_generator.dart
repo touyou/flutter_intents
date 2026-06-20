@@ -716,33 +716,59 @@ class SwiftGenerator {
     IntentInfo info,
     String baseIndent,
   ) {
+    final hasValueState = info.parameters.any((p) => p.useValueState);
+    if (hasValueState) {
+      // When any param opts into IntentParameter.ValueState (#52), build the
+      // dict imperatively so the optional `<field>State` local can be omitted
+      // when nil (iOS < 18.2). This matches the cache-mode wire shape — the
+      // Dart handler can distinguish "no state info" (absent key) from a
+      // present state, instead of having to disambiguate `NSNull` from a
+      // legitimately-cleared value.
+      buffer.writeln('${baseIndent}var params: [String: Any] = [');
+      for (var i = 0; i < info.parameters.length; i++) {
+        final param = info.parameters[i];
+        final comma = i < info.parameters.length - 1 ? ',' : '';
+        final valueExpr = _paramValueExpression(param);
+        buffer.writeln(
+          '$baseIndent$_indent"${param.fieldName}": $valueExpr$comma',
+        );
+      }
+      buffer.writeln('$baseIndent]');
+      for (final param in info.parameters) {
+        if (!param.useValueState) continue;
+        buffer.writeln(
+          '${baseIndent}if let ${param.fieldName}StateValue = ${param.fieldName}State {',
+        );
+        buffer.writeln(
+          '$baseIndent${_indent}params["${param.fieldName}State"] = ${param.fieldName}StateValue',
+        );
+        buffer.writeln('$baseIndent}');
+      }
+      buffer.writeln(
+        '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+      );
+      buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
+      buffer.writeln('$baseIndent${_indent}params: params');
+      buffer.writeln('$baseIndent)');
+      return;
+    }
+
+    // Fast path: no ValueState opt-in → emit the dict literal inline as before.
     buffer.writeln(
       '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
     );
     buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
-    // Build the (key, valueExpr) list: every param contributes its value entry;
-    // params with useValueState also contribute a sibling "<field>State" entry
-    // populated by [_writeValueStateSerializations].
-    final entries = <(String, String)>[];
-    for (final param in info.parameters) {
-      entries.add((param.fieldName, _paramValueExpression(param)));
-      if (param.useValueState) {
-        // Cast to Any so the dict's `[String: Any]` accepts the nil-on-iOS<18.2
-        // case without bridging to NSNull errors.
-        entries.add((
-          '${param.fieldName}State',
-          '${param.fieldName}State as Any',
-        ));
-      }
-    }
-    if (entries.isEmpty) {
+    if (info.parameters.isEmpty) {
       buffer.writeln('$baseIndent${_indent}params: [:]');
     } else {
       buffer.writeln('$baseIndent${_indent}params: [');
-      for (var i = 0; i < entries.length; i++) {
-        final (key, valueExpr) = entries[i];
-        final comma = i < entries.length - 1 ? ',' : '';
-        buffer.writeln('$baseIndent$_indent$_indent"$key": $valueExpr$comma');
+      for (var i = 0; i < info.parameters.length; i++) {
+        final param = info.parameters[i];
+        final comma = i < info.parameters.length - 1 ? ',' : '';
+        final valueExpr = _paramValueExpression(param);
+        buffer.writeln(
+          '$baseIndent$_indent$_indent"${param.fieldName}": $valueExpr$comma',
+        );
       }
       buffer.writeln('$baseIndent$_indent]');
     }
