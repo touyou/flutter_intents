@@ -1,3 +1,11 @@
+## 0.12.0
+
+- New API `AppIntents().donateIntent(identifier, params)` (#55): wraps `AppIntent.donate()` (stable iOS 16+) so the Dart side can record an executed intent for Siri / Apple Intelligence to learn from. The call is forwarded through `AppIntentsPlugin.intentDonationForwarder` (set in AppDelegate, mirroring `relevantEntitiesDonationForwarder`) to `FlutterBridge.shared.donateIntent`, which invokes the per-intent reverse-executor emitted by `@IntentSpec(donatable: true)` codegen. iOS-only; a no-op on other platforms.
+- iOS native:
+  - `AppIntentsPlugin.intentDonationForwarder` static hook for AppDelegate wiring. The `donateIntent` MethodChannel case returns `DONATION_NOT_CONFIGURED` when the forwarder is not set.
+  - `FlutterBridge.shared.registerIntentDonator(intentIdentifier:_:)` / `donateIntent(intentIdentifier:params:)` / `hasIntentDonator(for:)`; the donators dictionary is cleared by `clearExecutors()` alongside the other executor slots.
+- Docs (`docs/usage.md`): adds the `intentDonationForwarder` wiring example next to the existing `relevantEntitiesDonationForwarder` block, plus the matching `register<Intent>Donator()` call site.
+
 ## 0.11.0
 
 - WWDC26 experimental bridges (opt-in; exercised only when experimental Swift generation is enabled):
