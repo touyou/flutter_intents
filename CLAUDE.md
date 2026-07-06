@@ -251,14 +251,14 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
-- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — **⚠️ alpha10 relocated this API; verify import path on first build failure**
+- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — unchanged as of alpha10, verified by a successful build (see below)
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
-- **alpha10 (July 1, 2026) BREAKING**: All `@AppFunction` methods must reside in a class that is (or is within) an `AppFunctionService` annotated with `@AppFunctionServiceEntryPoint`. `KotlinGenerator` currently emits a plain `GeneratedAppFunctions` class — this needs updating. `AppFunctionConfiguration` is deprecated and will be removed. The `KotlinGenerator` and regenerated `GeneratedAppFunctions.kt` have NOT yet been updated for these alpha10 changes. See `packages/app_intents_codegen/lib/src/generator/kotlin_generator.dart:156` (`_generateAppFunctionsClass`) for the code that must change.
+- **`appfunctions-service` publishing lag (as of alpha10, July 2026)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
   `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03, after
