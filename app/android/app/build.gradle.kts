@@ -46,9 +46,9 @@ ksp {
 }
 
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha10")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
 }
 
 flutter {
