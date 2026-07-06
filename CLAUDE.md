@@ -251,16 +251,17 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
-- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`)
+- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — **⚠️ alpha10 relocated this API; verify import path on first build failure**
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
+- **alpha10 (July 1, 2026) BREAKING**: All `@AppFunction` methods must reside in a class that is (or is within) an `AppFunctionService` annotated with `@AppFunctionServiceEntryPoint`. `KotlinGenerator` currently emits a plain `GeneratedAppFunctions` class — this needs updating. `AppFunctionConfiguration` is deprecated and will be removed. The `KotlinGenerator` and regenerated `GeneratedAppFunctions.kt` have NOT yet been updated for these alpha10 changes. See `packages/app_intents_codegen/lib/src/generator/kotlin_generator.dart:156` (`_generateAppFunctionsClass`) for the code that must change.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
-  `appfunctions:1.0.0-alpha09`). Bumping to **Kotlin 2.4.0** (released 2026-06-03, after
+  `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03, after
   both KSP 2.3.9 and alpha09) fails `:app:kspDebugKotlin` with
   `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
   contains illegal characters: :` — the AppFunctions compiler emits a colon-bearing
