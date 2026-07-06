@@ -29,7 +29,7 @@ platform :ios, '17.0'
 
 #### Android
 
-`appfunctions:1.0.0-alpha09` requires **Android Gradle Plugin 9.1.0+**, **Gradle 9.3.1+**, and **compileSdk 37**.
+`appfunctions:1.0.0-alpha10` requires **Android Gradle Plugin 9.1.0+**, **Gradle 9.3.1+**, and **compileSdk 37**.
 Update `android/app/build.gradle.kts` (`minSdk = 36` because AppFunctions requires Android 16):
 
 ```kotlin
@@ -58,9 +58,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
+    // appfunctions-service alpha10 was not yet published on Google Maven as of July 2026
+    // (release notes list it, but the artifact 404s) — pin one version behind until it lands.
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
 }
 
 ksp {
@@ -83,7 +85,7 @@ Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.pr
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
-> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha09` AAR metadata.
+> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha10` AAR metadata.
 
 ### 3. iOS Native Setup (AppIntentsBridge)
 

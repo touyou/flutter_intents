@@ -34,7 +34,7 @@ docs/
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
-| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha09** |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha10** (`appfunctions-service` pinned at alpha09 pending Google Maven publish — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 
@@ -251,24 +251,27 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
-- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`)
+- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — unchanged as of alpha10, verified by a successful build (see below)
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
+- **`appfunctions-service` publishing lag (as of alpha10, July 2026)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
-  `appfunctions:1.0.0-alpha09`). Bumping to **Kotlin 2.4.0** (released 2026-06-03, after
-  both KSP 2.3.9 and alpha09) fails `:app:kspDebugKotlin` with
+  `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
+  `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
   `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
   contains illegal characters: :` — the AppFunctions compiler emits a colon-bearing
   identifier that Kotlin 2.4.0's stricter escaping rejects, inside KSP's `KspAAWorkerAction`
-  (Analysis API). Both KSP (2.3.9) and appfunctions (alpha09) are already the latest
-  releases, so there is no toolchain knob to fix it — it needs a future KSP **or**
-  appfunctions release that supports Kotlin 2.4.0. **Decision rule**: hold/close any
-  Kotlin bump PR until a newer KSP or appfunctions alpha lands; re-test the bump then.
+  (Analysis API). At the time of that bisection (PR #48), KSP (2.3.9) and appfunctions
+  (alpha09) were the latest releases, so there was no toolchain knob to fix it.
+  **Decision rule**: hold/close any Kotlin bump PR until a newer KSP or appfunctions alpha
+  lands; re-test the bump then. **appfunctions has since moved to alpha10 (this bump) —
+  the Kotlin 2.4.0 bump has NOT been re-tested against it; re-test before accepting a
+  Kotlin bump PR.**
   (Verified via bisection in PR #48 — the build-script DSL migration below is independent
   and lands fine on 2.2.20.)
 
@@ -557,7 +560,7 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha09` needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum)
+1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10` needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum; pin `appfunctions-service` to alpha09 until Google publishes the alpha10 artifact — see Gotchas below)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.2.1" apply false

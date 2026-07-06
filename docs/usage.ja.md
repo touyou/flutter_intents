@@ -29,7 +29,7 @@ platform :ios, '17.0'
 
 #### Android
 
-`appfunctions:1.0.0-alpha09` は **Android Gradle Plugin 9.1.0+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
+`appfunctions:1.0.0-alpha10` は **Android Gradle Plugin 9.1.0+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
 `android/app/build.gradle.kts` を更新します（`minSdk = 36` は AppFunctions が Android 16 を必要とするため）:
 
 ```kotlin
@@ -58,9 +58,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
+    // appfunctions-service の alpha10 は2026年7月時点でまだ Google Maven に公開されていない
+    // （リリースノートには記載があるがアーティファクトが404）ため、公開されるまで1つ前のバージョンに固定する。
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha09")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
 }
 
 ksp {
@@ -83,7 +85,7 @@ android.builtInKotlin=false
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
-> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha09` の AAR メタデータに由来します。
+> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha10` の AAR メタデータに由来します。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 
