@@ -47,10 +47,7 @@ ksp {
 
 dependencies {
     implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
-    // appfunctions-service alpha10 has not actually been published to Google Maven yet
-    // (the release notes page lists it, but the artifact 404s) — keep this pinned to
-    // alpha09 until Google publishes it, or the build fails to resolve dependencies.
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
+    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha10")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
 }
 
