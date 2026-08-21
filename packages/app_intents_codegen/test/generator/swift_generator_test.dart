@@ -2,6 +2,7 @@ import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/enum_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
+import 'package:source_gen/source_gen.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -1828,7 +1829,7 @@ void main() {
         },
       );
 
-      test('uses the entity\'s id field name for the cache filter', () {
+      test('normalizes the id property to `id` for the cache filter', () {
         final entityInfo = EntityInfo(
           className: 'TaskEntity',
           identifier: 'com.example.task',
@@ -1851,10 +1852,118 @@ void main() {
 
         final result = generator.generateEntity(entityInfo);
 
+        // `AppEntity: Identifiable` requires a property literally named `id`,
+        // so the Swift stored property is normalized regardless of the Dart
+        // field name; filtering therefore reads `$0.id`.
+        expect(result, contains('var id: String'));
+        expect(result, isNot(contains('var taskId: String')));
         expect(
           result,
-          contains(r'cached.filter { identifiers.contains($0.taskId) }'),
+          contains(r'cached.filter { identifiers.contains($0.id) }'),
         );
+        // The Dart field name survives as the cache/dictionary key.
+        expect(result, contains(r'dict["taskId"]'));
+      });
+
+      test('emits an Identifiable-conforming `id` property for a non-`id` '
+          '@EntityId field name', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'teamId',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        // `AppEntity` refines `Identifiable`, which requires a property
+        // literally named `id`. Emitting `var teamId` instead produced
+        // "type 'TeamEntity' does not conform to protocol 'AppEntity'".
+        expect(result, contains('var id: String'));
+        expect(result, isNot(contains('var teamId: String')));
+        // Construction uses the normalized label...
+        expect(result, contains('TeamEntity(id: id, name: name)'));
+        // ...while the dictionary key stays the Dart field name, because
+        // that is what the Dart cache projection writes.
+        expect(result, contains(r'guard let id = dict["teamId"] as? String'));
+      });
+
+      test('throws when @EntityId is on a non-`id` field and another field is '
+          'named `id`', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'teamId',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.none,
+              exposeAsProperty: true,
+              propertyTitle: 'Legacy Id',
+            ),
+          ],
+        );
+
+        // Normalizing would emit two `var id` declarations, so this must be
+        // a build-time error rather than silently non-compiling Swift.
+        expect(
+          () => generator.generateEntity(entityInfo),
+          throwsA(isA<InvalidGenerationSourceError>()),
+        );
+        expect(
+          () => generator.generateAll(entities: [entityInfo]),
+          throwsA(isA<InvalidGenerationSourceError>()),
+        );
+      });
+
+      test('leaves an already-`id` field name untouched', () {
+        final entityInfo = EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+          ],
+        );
+
+        final result = generator.generateEntity(entityInfo);
+
+        expect(result, contains('var id: String'));
+        expect(result, contains(r'guard let id = dict["id"] as? String'));
       });
     });
 
