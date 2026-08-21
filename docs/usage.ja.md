@@ -1131,6 +1131,14 @@ let teams = cache.entities(
 | `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)` | 生の `UserDefaults` キー |
 | `cache.storageKey(forEntityIdentifier:)` | このインスタンスの storage identifier を使った生キー |
 | `cache.entries(forCacheKey:)` | 生の `[[String: Any]]` ペイロード |
+| `cache.isAccessible` | App Group を開けなかった場合に `false` |
+
+`isAccessible` が要るのは、空の結果だけでは区別がつかないためです。Extension に
+App Groups の entitlement が無いと `UserDefaults(suiteName:)` は nil を返し、
+すべての読み取りが `[]` になります。これは「アプリがまだ何も書いていない」状態と
+同じ見た目です。この場合はエラーログを出しますが、空リストを正常扱いする前に
+`isAccessible` を確認してください。
+
 
 `AppIntentsEntityCache(userDefaults:storageIdentifier:)` は解決済みの suite を受け取るので、
 テストで便利です。
@@ -1216,6 +1224,9 @@ struct TeamWidget: Widget {
 既定値にしたい場合のみ `@WidgetConfigurationSpec(generateDefaultResult: true)` で
 opt-in してください。既定では未設定パラメータは `nil` で届き、フォールバックは
 timeline provider が決めます。
+エンティティごとに query は1つしか生成しないため、同じエンティティを参照する
+configuration はこのフラグの値を揃える必要があります。食い違いは codegen が
+エラーで落とします（片方が黙ってもう片方の挙動を引き継ぐのを防ぐため）。
 
 ### 対応パラメータ型
 
@@ -1223,9 +1234,20 @@ timeline provider が決めます。
 `@EntitySpec` を付けたクラス。エンティティパラメータは常に optional で出力されます
 （必須にするとユーザーが選ぶまでウィジェットが描画されなくなるため）。
 
-セットアップが成立しない場合は codegen が明示的なエラーで落ちます: 参照先のエンティティが
-存在しない / 永続キャッシュを持たない / `@EntityId`・`@EntityTitle` を欠く、の各ケース。
-これは意図的で、放置すると「候補が何も出ないピッカー」という静かな失敗になるためです。
+参照先エンティティの role フィールドは `String` である必要があります
+（`@EntitySubtitle` / `@EntityImage` は `String?` も可）。App Group のキャッシュは
+文字列しか運ばないためです。
+
+セットアップが成立しない場合は codegen が明示的なエラーで落ちます:
+
+- 参照先のエンティティが存在しない / 永続キャッシュを持たない
+- エンティティが `@EntityId` / `@EntityTitle` を欠く
+- role フィールドの型が `String` / `String?` でない
+- id 以外の role フィールドの名前が `id`（生成される `Identifiable` プロパティと衝突する）
+- 同じエンティティを共有する configuration が `generateDefaultResult` で食い違う
+
+これは意図的で、放置すると「候補が何も出ないピッカー」という静かな失敗になるか、
+Xcode でしか気づけないコンパイルエラーになるためです。
 
 ## ベストプラクティス
 

@@ -104,6 +104,12 @@ public struct AppIntentsEntityCache: Sendable {
 
     /// Creates a reader over an App Group's shared `UserDefaults`.
     ///
+    /// If the App Group is not reachable from this target, the reader is
+    /// created anyway (so a widget still renders) but every read returns an
+    /// empty list and ``isAccessible`` is `false`. That case is logged, because
+    /// otherwise a missing entitlement is indistinguishable from an empty
+    /// cache — an empty configuration picker with no error anywhere.
+    ///
     /// - Parameters:
     ///   - appGroupIdentifier: The App Group the main app passed to
     ///     `AppIntentsPlugin.configure(appGroupIdentifier:)`. The reading target
@@ -115,6 +121,16 @@ public struct AppIntentsEntityCache: Sendable {
         self.appGroupIdentifier = appGroupIdentifier
         self.storageIdentifier = storageIdentifier
         self.defaults = UserDefaults(suiteName: appGroupIdentifier)
+
+        if self.defaults == nil {
+            NSLog(
+                "[AppIntentsEntityCache] ERROR: UserDefaults(suiteName: \"%@\") returned nil. " +
+                "Add the App Groups entitlement for this identifier to THIS target " +
+                "(Signing & Capabilities → App Groups); it is separate from the main app's. " +
+                "Every cache read will return an empty list until then.",
+                appGroupIdentifier
+            )
+        }
     }
 
     /// Creates a reader over an explicit `UserDefaults` instance.
@@ -125,6 +141,14 @@ public struct AppIntentsEntityCache: Sendable {
         self.storageIdentifier = storageIdentifier
         self.defaults = userDefaults
     }
+
+    /// Whether the underlying storage could be opened.
+    ///
+    /// `false` means the App Groups entitlement is missing or its identifier
+    /// does not match — **not** that the cache is empty. Check this before
+    /// treating an empty result as "the app has not written anything yet"; the
+    /// two are otherwise indistinguishable.
+    public var isAccessible: Bool { defaults != nil }
 
     // MARK: - Key derivation
 
@@ -166,8 +190,10 @@ public struct AppIntentsEntityCache: Sendable {
     /// The raw cached payload for a cache key.
     ///
     /// The Dart side may write either a JSON string or a pre-decoded array of
-    /// maps; both are accepted here. Returns an empty array when the key is
-    /// absent or the payload cannot be decoded.
+    /// maps; both are accepted here.
+    /// Returns an empty array when the key is absent, the payload cannot be
+    /// decoded, or the App Group is unreachable — see ``isAccessible`` to tell
+    /// the last case apart.
     public func entries(forCacheKey cacheKey: String) -> [[String: Any]] {
         guard let defaults else { return [] }
         // Pick up writes made by the main app's process.

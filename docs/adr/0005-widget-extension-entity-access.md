@@ -105,7 +105,31 @@ Extension 側に初期化タイミングの問題を持ち込む。ビルド時�
 参照されたエンティティが `persistedCacheKey` も `enumerable`/`indexed` も持たない場合、
 生成しても**キャッシュが存在しないので必ず空になる**。これは issue が問題視した
 「静かに壊れる」そのものなので、`InvalidGenerationSourceError` で生成時に落とす。
-`@EntityId` / `@EntityTitle` 欠落も同様。
+検証する条件は次のとおり:
+
+| 条件 | 落とす理由 |
+|------|-----------|
+| 参照先エンティティが未定義 | 生成できない |
+| 永続キャッシュを持たない | ピッカーが必ず空になる（静かな失敗） |
+| `@EntityId` / `@EntityTitle` 欠落 | キャッシュからエンティティを組み立てられない |
+| role フィールドの型が `String` / `String?` でない | キャッシュは文字列しか運ばないので、`var id: Int` に `cached.id`（`String`）を代入する非コンパイル出力になる |
+| id 以外の role フィールド名が `id` | 下記の identifier 正規化と衝突して `var id` の二重宣言になる |
+| 同一エンティティを共有する configuration が `generateDefaultResult` で食い違う | query はエンティティ単位で1つしか生成しないため、片方が黙ってもう片方の挙動を引き継ぐ |
+
+いずれも「Xcode でしか気づけない」か「実行時に静かに空になる」失敗を、生成時の
+明示的なエラーに前倒しするためのもの。
+
+### App Group が開けない場合は黙らない
+
+`UserDefaults(suiteName:)` が nil を返す（= 読み取り側ターゲットに App Groups
+entitlement が無い / 識別子が違う）と、すべての読み取りが `[]` になる。これは
+「アプリがまだ何も書いていない」と見分けがつかず、issue が問題視した
+「候補が黙って空になる」状態そのものになる。そこで:
+
+- `AppIntentsEntityCache` のイニシャライザで nil を検知したら NSLog でエラーを出す
+  （プラグイン側 `AppIntentsPlugin.configure` / `storage` と同じ扱い）
+- `public var isAccessible: Bool` を公開し、呼び出し側が「到達不能」と「空」を
+  区別できるようにする
 
 ### Swift の identifier プロパティ名は `id` に正規化する
 
@@ -123,6 +147,11 @@ Dart の `@EntityId` フィールド名は任意なので、Swift 側では常�
 golden/unit テストは「出した文字列が出たこと」しか見ないため、コンパイルできない Swift を
 通してしまう（CLAUDE.md の "How to verify" 参照）。本件では実際にこの経路で
 **2 件のバグを検出した**（optional scalar が `Int??` になる／`Identifiable` 不適合）。
+
+加えてセルフレビューで、著者由来の文字列（title / description / displayImageName /
+App Group 識別子）を Swift の文字列リテラルへ未エスケープで埋め込んでいた点を修正した。
+`"` を含むタイトルは非コンパイル出力になり、`\(` は Swift の文字列補間として
+黙って再解釈される。`_swiftLiteral` で `\` `"` 改行・タブをエスケープする。
 
 生成 Swift は `AppIntentsBridge` をモジュールとしてビルドしたうえで
 `swiftc -typecheck` を **Xcode 26.5（安定）と Xcode 27 beta 5 の両 iPhoneOS SDK** に対して実行し、

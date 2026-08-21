@@ -168,10 +168,10 @@ class WidgetSwiftGenerator {
     buffer.writeln('/// different and would read the wrong key.');
     buffer.writeln('enum $cacheConfigName {');
     buffer.writeln(
-      '${_indent}static let appGroupIdentifier = "$appGroupIdentifier"',
+      '${_indent}static let appGroupIdentifier = "${_swiftLiteral(appGroupIdentifier)}"',
     );
     buffer.writeln(
-      '${_indent}static let storageIdentifier = "$storageIdentifier"',
+      '${_indent}static let storageIdentifier = "${_swiftLiteral(storageIdentifier)}"',
     );
     buffer.writeln();
     buffer.writeln('${_indent}static var cache: AppIntentsEntityCache {');
@@ -205,7 +205,7 @@ class WidgetSwiftGenerator {
     );
     buffer.writeln(
       '$_indent$_indent'
-      'TypeDisplayRepresentation(name: "${info.title}")',
+      'TypeDisplayRepresentation(name: "${_swiftLiteral(info.title)}")',
     );
     buffer.writeln();
     buffer.writeln(
@@ -244,7 +244,7 @@ class WidgetSwiftGenerator {
       '$_indent/// App Group cache key written from Dart via setCachedValue.',
     );
     buffer.writeln(
-      '${_indent}static let cacheKey = "${info.effectiveCacheKey}"',
+      '${_indent}static let cacheKey = "${_swiftLiteral(info.effectiveCacheKey!)}"',
     );
     buffer.writeln();
 
@@ -290,15 +290,36 @@ class WidgetSwiftGenerator {
     buffer.writeln('}');
   }
 
-  /// Whether any configuration referencing [info] asked for `defaultResult()`.
+  /// Whether the query for [info] should implement `defaultResult()`.
+  ///
+  /// Only one query is generated per entity, so the per-configuration
+  /// `generateDefaultResult` flag cannot differ between configurations that
+  /// share an entity — one of them would silently get behavior it did not ask
+  /// for. Disagreement is rejected here instead of resolved arbitrarily.
   bool _wantsDefaultResult(
     EntityInfo info,
     List<WidgetConfigurationInfo> configurations,
   ) {
-    return configurations.any(
-      (config) =>
-          config.generateDefaultResult &&
-          config.referencedEntityTypes.contains(info.className),
+    final sharing = configurations
+        .where(
+          (config) => config.referencedEntityTypes.contains(info.className),
+        )
+        .toList();
+    if (sharing.isEmpty) return false;
+
+    final wants = sharing.where((c) => c.generateDefaultResult).toList();
+    if (wants.isEmpty) return false;
+    if (wants.length == sharing.length) return true;
+
+    final optedOut = sharing.where((c) => !c.generateDefaultResult);
+    throw InvalidGenerationSourceError(
+      'Entity `${info.className}` is referenced by widget configurations that '
+      'disagree on `generateDefaultResult`: '
+      '${wants.map((c) => c.className).join(', ')} opted in, while '
+      '${optedOut.map((c) => c.className).join(', ')} did not. Only one '
+      '`${widgetQueryName(info.className)}` is generated per entity, so the '
+      'flag would apply to all of them. Set `generateDefaultResult` to the '
+      'same value on every @WidgetConfigurationSpec that uses this entity.',
     );
   }
 
@@ -426,7 +447,7 @@ class WidgetSwiftGenerator {
         args.add('image: .init(systemName: ${image.fieldName})');
       } else if (info.displayImageName != null) {
         args.add(
-          'image: .init(named: "${info.displayImageName}", isTemplate: true)',
+          'image: .init(named: "${_swiftLiteral(info.displayImageName!)}", isTemplate: true)',
         );
       }
       buffer.writeln(
@@ -448,12 +469,12 @@ class WidgetSwiftGenerator {
     buffer.writeln('struct ${config.swiftName}: WidgetConfigurationIntent {');
     buffer.writeln(
       '${_indent}static var title: LocalizedStringResource = '
-      '"${config.title}"',
+      '"${_swiftLiteral(config.title)}"',
     );
     if (config.description != null) {
       buffer.writeln(
         '${_indent}static var description: IntentDescription = '
-        'IntentDescription("${config.description}")',
+        'IntentDescription("${_swiftLiteral(config.description!)}")',
       );
     }
     buffer.writeln(
@@ -466,7 +487,7 @@ class WidgetSwiftGenerator {
     buffer.writeln('$_indent/// widget configurations.');
     buffer.writeln(
       '${_indent}static var persistentIdentifier: String '
-      '{ "${config.identifier}" }',
+      '{ "${_swiftLiteral(config.identifier)}" }',
     );
 
     for (final param in config.parameters) {
@@ -483,9 +504,9 @@ class WidgetSwiftGenerator {
     WidgetConfigurationInfo config,
     WidgetParamInfo param,
   ) {
-    final args = <String>['title: "${param.title}"'];
+    final args = <String>['title: "${_swiftLiteral(param.title)}"'];
     if (param.description != null) {
-      args.add('description: "${param.description}"');
+      args.add('description: "${_swiftLiteral(param.description!)}"');
     }
     buffer.writeln('$_indent@Parameter(${args.join(', ')})');
 
@@ -532,8 +553,9 @@ class WidgetSwiftGenerator {
       if (prop != null) props[role] = prop;
     }
 
-    if (props[EntityPropertyRole.id] == null ||
-        props[EntityPropertyRole.title] == null) {
+    final id = props[EntityPropertyRole.id];
+    final title = props[EntityPropertyRole.title];
+    if (id == null || title == null) {
       throw InvalidGenerationSourceError(
         'Entity `${info.className}` is used by a @WidgetConfigurationSpec but '
         'is missing an @EntityId or @EntityTitle field. Both are required to '
@@ -541,8 +563,72 @@ class WidgetSwiftGenerator {
       );
     }
 
+    // The App Group payload only ever carries strings (the Dart side writes
+    // JSON / a map of string fields), and `AppIntentsCachedEntity` exposes them
+    // as `String` / `String?`. A non-String role field would compile into an
+    // assignment of `String` to e.g. `Int`, so reject it here rather than
+    // letting Xcode report it against generated code.
+    for (final entry in props.entries) {
+      final prop = entry.value;
+      final nullableAllowed =
+          entry.key == EntityPropertyRole.subtitle ||
+          entry.key == EntityPropertyRole.image;
+      final allowed = nullableAllowed
+          ? const ['String', 'String?']
+          : const ['String'];
+      if (!allowed.contains(prop.dartType)) {
+        throw InvalidGenerationSourceError(
+          'Entity `${info.className}` is used by a @WidgetConfigurationSpec, '
+          'but its ${_roleName(entry.key)} field `${prop.fieldName}` is '
+          '`${prop.dartType}`. A Widget Extension can only read the App Group '
+          'cache, which carries strings, so this field must be '
+          '${allowed.map((t) => '`$t`').join(' or ')}. '
+          'Change the field type, or expose a string projection of it.',
+        );
+      }
+    }
+
+    // `_swiftPropertyName` renames the @EntityId field to `id` because
+    // `AppEntity` refines `Identifiable`. If another role field is itself named
+    // `id`, that rename collides and emits two `var id` declarations.
+    for (final entry in props.entries) {
+      if (entry.key == EntityPropertyRole.id) continue;
+      if (entry.value.fieldName == 'id') {
+        throw InvalidGenerationSourceError(
+          'Entity `${info.className}` names its ${_roleName(entry.key)} field '
+          '`id`, which collides with the generated identifier property. '
+          '`AppEntity` refines `Identifiable`, so the @EntityId field '
+          '(`${id.fieldName}`) is always emitted as `id` in Swift. Rename the '
+          '${_roleName(entry.key)} field.',
+        );
+      }
+    }
+
     return props;
   }
+
+  /// The annotation name for a role, used in generation-time error messages.
+  String _roleName(EntityPropertyRole role) => switch (role) {
+    EntityPropertyRole.id => '@EntityId',
+    EntityPropertyRole.title => '@EntityTitle',
+    EntityPropertyRole.subtitle => '@EntitySubtitle',
+    EntityPropertyRole.image => '@EntityImage',
+    _ => role.name,
+  };
+
+  /// Escapes [value] for embedding inside a Swift `"..."` string literal.
+  ///
+  /// Author-supplied strings (titles, descriptions, image names) reach the
+  /// generated Swift verbatim. Without escaping, a double quote produces Swift
+  /// that does not compile, and a backslash-paren sequence would be silently
+  /// reinterpreted as Swift string interpolation against a symbol that does not
+  /// exist.
+  String _swiftLiteral(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('\n', '\\n')
+      .replaceAll('\r', '\\r')
+      .replaceAll('\t', '\\t');
 
   /// Converts a Dart scalar type to its Swift equivalent.
   String _swiftType(String dartType, {String? owner}) {

@@ -1167,6 +1167,14 @@ Other members, when you want to read or observe the value yourself:
 | `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)` | the raw `UserDefaults` key |
 | `cache.storageKey(forEntityIdentifier:)` | the raw key, using this reader's storage identifier |
 | `cache.entries(forCacheKey:)` | the raw `[[String: Any]]` payload |
+| `cache.isAccessible` | `false` when the App Group could not be opened |
+
+`isAccessible` matters because an empty result is otherwise ambiguous. If the
+extension is missing the App Groups entitlement, `UserDefaults(suiteName:)`
+returns nil and every read yields `[]` — identical to "the app has not written
+anything yet". The reader logs an error in that case; check `isAccessible`
+before treating an empty list as normal.
+
 
 `AppIntentsEntityCache(userDefaults:storageIdentifier:)` takes an already
 resolved suite, which is handy in tests.
@@ -1252,7 +1260,10 @@ app's global setting" fallback: once the value is baked in, changing the in-app
 setting no longer moves those widgets. Opt in with
 `@WidgetConfigurationSpec(generateDefaultResult: true)` when a
 snapshot-at-add-time default is what you want. Otherwise an unconfigured
-parameter arrives as `nil`, and the timeline provider decides the fallback.
+parameter arrives as `nil`, and the timeline provider decides the fallback. Because only one query is generated per entity, every configuration that
+references the same entity must set the same value — codegen rejects a
+disagreement instead of letting one configuration silently inherit the other's
+behavior.
 
 ### Supported parameter types
 
@@ -1261,10 +1272,21 @@ any class annotated with `@EntitySpec`. Entity parameters are always emitted
 optional — a required entity blocks the widget from rendering until the user
 picks one.
 
-Codegen fails with an explicit error when the setup cannot work: a referenced
-entity that is unknown, that persists no cache, or that lacks `@EntityId` /
-`@EntityTitle`. That is deliberate — those cases would otherwise produce a
-picker that silently shows no options.
+The referenced entity's role fields must be `String` (`@EntitySubtitle` and
+`@EntityImage` may be `String?`), because the App Group cache only carries
+strings.
+
+Codegen fails with an explicit error when the setup cannot work:
+
+- a referenced entity that is unknown, or that persists no cache
+- an entity lacking `@EntityId` / `@EntityTitle`
+- a role field whose type is not `String` / `String?`
+- a non-id role field literally named `id` (it would collide with the generated
+  `Identifiable` property)
+- configurations sharing an entity that disagree on `generateDefaultResult`
+
+That is deliberate — most of those cases would otherwise produce a picker that
+silently shows no options, or generated Swift that fails to compile in Xcode.
 
 ## Best Practices
 

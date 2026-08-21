@@ -159,6 +159,38 @@ struct EntityCacheTests {
         #expect(cache.entries(forCacheKey: "broken").isEmpty)
     }
 
+    @Test("An unreachable App Group reports isAccessible == false")
+    func unreachableAppGroup() {
+        // On a device, a missing App Groups entitlement makes
+        // UserDefaults(suiteName:) return nil. A test process is not sandboxed,
+        // so an arbitrary suite name would succeed here; `NSGlobalDomain` is a
+        // reserved name that is documented to return nil, which exercises the
+        // same branch. Reads must stay safe, but the caller has to be able to
+        // tell this apart from "the cache is empty".
+        let cache = AppIntentsEntityCache(
+            appGroupIdentifier: "NSGlobalDomain",
+            storageIdentifier: "com.example.app"
+        )
+
+        #expect(cache.isAccessible == false)
+        #expect(cache.entries(forCacheKey: "any").isEmpty)
+        #expect(cache.entities(forEntityIdentifier: "com.example.missing").isEmpty)
+        // Key derivation still works without storage.
+        #expect(cache.storageKey(forCacheKey: "any") == "app_intents.com.example.app.cache.any")
+    }
+
+    @Test("A reachable suite reports isAccessible == true")
+    func reachableSuite() {
+        let cache = AppIntentsEntityCache(
+            userDefaults: makeDefaults("reachable"),
+            storageIdentifier: "com.example.app"
+        )
+
+        #expect(cache.isAccessible == true)
+        // An empty result here genuinely means "nothing written yet".
+        #expect(cache.entities(forEntityIdentifier: "com.example.missing").isEmpty)
+    }
+
     @Test("A custom persistedCacheKey overrides the default key")
     func customPersistedCacheKey() {
         let defaults = makeDefaults("customKey")

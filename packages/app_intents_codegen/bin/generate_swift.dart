@@ -155,10 +155,20 @@ Future<void> generateSwift({
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
-  if (analyzeResult.isEmpty) {
+  // Gate on the annotations this generator actually consumes. A project that
+  // declares only @WidgetConfigurationSpec has nothing to emit here — its
+  // output belongs to `generate_widget_swift` and a separate Xcode target.
+  if (!analyzeResult.hasAppTargetAnnotations) {
     stdout.writeln(
       'No @IntentSpec, @EntitySpec, @EnumSpec, or @AppShortcutsProvider annotations found.',
     );
+    if (analyzeResult.widgetConfigurations.isNotEmpty) {
+      stdout.writeln(
+        'Found ${analyzeResult.widgetConfigurations.length} '
+        '@WidgetConfigurationSpec annotation(s). Generate those with '
+        '`dart run app_intents_codegen:generate_widget_swift`.',
+      );
+    }
     exit(0);
   }
 

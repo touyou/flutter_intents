@@ -49,6 +49,8 @@ docs/
   - `@WidgetConfigurationSpec` / `@WidgetParameter` / `WidgetConfigurationSpecBase` + `WidgetConfigurationAnalyzer` + `WidgetSwiftGenerator` → `<Entity>WidgetEntity` (`AppEntity`), `<Entity>WidgetQuery` (`EnumerableEntityQuery`, cache-only), `<Config>` (`WidgetConfigurationIntent`).
   - CLI `dart run app_intents_codegen:generate_widget_swift` (`--app-group` / `--storage-identifier` required, baked into the output) + `make widget-gen`. Output goes to a **separate file for the Widget Extension target only**.
   - `isDiscoverable` defaults to `false`; `defaultResult()` is **not** generated unless `generateDefaultResult: true` (it would bake an add-time snapshot and break the "unconfigured widgets follow the global setting" fallback).
+  - Generation-time validation (all of these would otherwise be a silent empty picker or an Xcode-only compile error): unknown entity, entity with no persisted cache, missing `@EntityId`/`@EntityTitle`, a role field that is not `String`/`String?`, a non-id role field named `id`, and configurations sharing an entity that disagree on `generateDefaultResult` (only one query is emitted per entity).
+  - Author-supplied strings go through `_swiftLiteral` before being embedded in Swift string literals — an unescaped `"` breaks the build and `\(` is silently reinterpreted as interpolation.
   - Verified: `swiftc -typecheck` of the generated Swift against **both** the stable Xcode 26.5 and Xcode 27 beta 5 iPhoneOS SDKs (with `AppIntentsBridge` built as a module), covering non-`id` `@EntityId`, `defaultResult()`, scalar/optional params and `displayImageName`. See `docs/adr/0005-widget-extension-entity-access.md`.
 - **WWDC26 experimental codegen (opt-in, #52 Intent execution control)**
   - `ExperimentalFeatures` config (`lib/src/experimental/experimental_features.dart`): master switch + per-feature set; default OFF reproduces stable output byte-for-byte
@@ -311,7 +313,8 @@ literally named `id`, Swift infers `Identifiable.ID == ObjectIdentifier` and the
 conformance fails with a confusing `'ObjectIdentifier' does not conform to
 'EntityIdentifierConvertible'`. The Dart `@EntityId` field name is arbitrary, so
 `WidgetSwiftGenerator` normalizes it (`_swiftPropertyName`) and passes the Dart
-name separately as the cached-payload `idKey:`. **`SwiftGenerator` (the app-target
+name separately as the cached-payload `idKey:`; it also rejects a *non-id* role
+field named `id`, which would collide with that rename. **`SwiftGenerator` (the app-target
 generator) does not yet do this** — a non-`id` `@EntityId` produces output that
 does not compile. Tracked separately.
 

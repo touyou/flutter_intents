@@ -49,12 +49,19 @@ class AnalyzeResult {
   });
 
   /// Whether any annotations were found.
-  bool get isEmpty =>
-      intents.isEmpty &&
-      entities.isEmpty &&
-      enums.isEmpty &&
-      shortcuts.isEmpty &&
-      widgetConfigurations.isEmpty;
+  bool get isEmpty => !hasAppTargetAnnotations && widgetConfigurations.isEmpty;
+
+  /// Whether anything the **app target** generator consumes was found.
+  ///
+  /// [widgetConfigurations] are deliberately excluded: they are generated into
+  /// a separate Widget Extension file by `generate_widget_swift`, so a project
+  /// that declares only widget configurations has nothing for `generate_swift`
+  /// to emit and should not get an otherwise-empty `GeneratedAppIntents.swift`.
+  bool get hasAppTargetAnnotations =>
+      intents.isNotEmpty ||
+      entities.isNotEmpty ||
+      enums.isNotEmpty ||
+      shortcuts.isNotEmpty;
 }
 
 /// Scans and analyzes Dart source files for @IntentSpec, @EntitySpec,

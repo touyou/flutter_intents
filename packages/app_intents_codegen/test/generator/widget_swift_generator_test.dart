@@ -11,6 +11,8 @@ const _generator = WidgetSwiftGenerator(
 
 EntityInfo teamEntity({
   String idField = 'id',
+  String idType = 'String',
+  String titleField = 'name',
   bool enumerable = true,
   String? persistedCacheKey,
   bool withSubtitle = false,
@@ -27,11 +29,11 @@ EntityInfo teamEntity({
     properties: [
       EntityPropertyInfo(
         fieldName: idField,
-        dartType: 'String',
+        dartType: idType,
         role: EntityPropertyRole.id,
       ),
-      const EntityPropertyInfo(
-        fieldName: 'name',
+      EntityPropertyInfo(
+        fieldName: titleField,
         dartType: 'String',
         role: EntityPropertyRole.title,
       ),
@@ -405,6 +407,57 @@ void main() {
       });
     });
 
+    group('Swift string escaping', () {
+      test('escapes quotes and backslashes in author-supplied strings', () {
+        final swift = _generator.generateAll(
+          configurations: [
+            WidgetConfigurationInfo(
+              className: 'SelectTeamWidgetConfig',
+              identifier: 'com.example.selectTeam',
+              title: r'Displayed "team"',
+              description: r'Backslash \ and \(name)',
+              parameters: const [
+                WidgetParamInfo(
+                  name: 'team',
+                  dartType: 'TeamEntitySpec?',
+                  title: r'Team "picker"',
+                  entityType: 'TeamEntitySpec',
+                ),
+              ],
+            ),
+          ],
+          entities: [teamEntity()],
+        );
+
+        expect(swift, contains(r'"Displayed \"team\""'));
+        expect(swift, contains(r'"Backslash \\ and \\(name)"'));
+        expect(swift, contains(r'title: "Team \"picker\""'));
+        // No unescaped quote may survive inside a literal.
+        expect(swift, isNot(contains('"Displayed "team""')));
+      });
+
+      test('escapes the entity type display name', () {
+        final swift = _generator.generateAll(
+          configurations: [selectTeamConfig()],
+          entities: [
+            EntityInfo(
+              className: 'TeamEntitySpec',
+              identifier: 'com.example.joinedTeam',
+              title: r'The "Team"',
+              pluralTitle: 'Teams',
+              enumerable: true,
+              properties: teamEntity().properties,
+            ),
+          ],
+        );
+
+        expect(
+          swift,
+          contains(r'TypeDisplayRepresentation(name: "The \"Team\"")'),
+        );
+      });
+    });
+
     group('validation', () {
       test('rejects an unknown entity type', () {
         expect(
@@ -461,6 +514,129 @@ void main() {
             ),
           ),
         );
+      });
+
+      test('rejects a non-String @EntityId field', () {
+        // The App Group payload only carries strings, so an `int` id would
+        // compile into `var id: Int` fed from `cached.id` (a String).
+        expect(
+          () => _generator.generateAll(
+            configurations: [selectTeamConfig()],
+            entities: [teamEntity(idField: 'rowId', idType: 'int')],
+          ),
+          throwsA(
+            isA<InvalidGenerationSourceError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('`rowId`'), contains('must be `String`')),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a non-String @EntitySubtitle field', () {
+        expect(
+          () => _generator.generateAll(
+            configurations: [selectTeamConfig()],
+            entities: [teamEntity(withSubtitle: true, subtitleType: 'int?')],
+          ),
+          throwsA(
+            isA<InvalidGenerationSourceError>().having(
+              (e) => e.message,
+              'message',
+              contains('@EntitySubtitle'),
+            ),
+          ),
+        );
+      });
+
+      test('accepts a nullable String subtitle and image', () {
+        expect(
+          () => _generator.generateAll(
+            configurations: [selectTeamConfig()],
+            entities: [teamEntity(withSubtitle: true, withImage: true)],
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('rejects a non-id role field named `id`', () {
+        // `_swiftPropertyName` renames the @EntityId field to `id`, so a title
+        // field literally named `id` would emit two `var id` declarations.
+        expect(
+          () => _generator.generateAll(
+            configurations: [selectTeamConfig()],
+            entities: [teamEntity(idField: 'teamId', titleField: 'id')],
+          ),
+          throwsA(
+            isA<InvalidGenerationSourceError>().having(
+              (e) => e.message,
+              'message',
+              contains('collides with the generated identifier property'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects configurations that disagree on generateDefaultResult', () {
+        // Only one query is generated per entity, so the opted-out config would
+        // silently inherit defaultResult().
+        expect(
+          () => _generator.generateAll(
+            configurations: [
+              selectTeamConfig(generateDefaultResult: true),
+              WidgetConfigurationInfo(
+                className: 'OtherTeamWidgetConfig',
+                identifier: 'com.example.otherTeam',
+                title: 'Other team',
+                parameters: const [
+                  WidgetParamInfo(
+                    name: 'team',
+                    dartType: 'TeamEntitySpec?',
+                    title: 'Team',
+                    entityType: 'TeamEntitySpec',
+                  ),
+                ],
+              ),
+            ],
+            entities: [teamEntity()],
+          ),
+          throwsA(
+            isA<InvalidGenerationSourceError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('disagree on `generateDefaultResult`'),
+                contains('OtherTeamWidgetConfig'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('allows configurations that agree on generateDefaultResult', () {
+        final swift = _generator.generateAll(
+          configurations: [
+            selectTeamConfig(generateDefaultResult: true),
+            WidgetConfigurationInfo(
+              className: 'OtherTeamWidgetConfig',
+              identifier: 'com.example.otherTeam',
+              title: 'Other team',
+              generateDefaultResult: true,
+              parameters: const [
+                WidgetParamInfo(
+                  name: 'team',
+                  dartType: 'TeamEntitySpec?',
+                  title: 'Team',
+                  entityType: 'TeamEntitySpec',
+                ),
+              ],
+            ),
+          ],
+          entities: [teamEntity()],
+        );
+
+        expect(swift, contains('func defaultResult() async ->'));
       });
 
       test('rejects an unsupported scalar parameter type', () {

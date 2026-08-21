@@ -72,6 +72,11 @@ class WidgetConfigurationSpec {
   /// Enable it only when a snapshot-at-add-time default is what you want. When
   /// `false`, an unconfigured parameter arrives as `nil` and the widget's
   /// timeline provider decides what to fall back to.
+  ///
+  /// Only one entity query is generated per entity, so every
+  /// [WidgetConfigurationSpec] that references the same entity must agree on
+  /// this flag. Codegen rejects a disagreement rather than letting one
+  /// configuration silently inherit the other's behavior.
   final bool generateDefaultResult;
 
   const WidgetConfigurationSpec({
@@ -91,6 +96,11 @@ class WidgetConfigurationSpec {
 ///   cache-backed `AppEntity` + `EnumerableEntityQuery` pair for the Widget
 ///   Extension target, and an entity picker in the widget's edit sheet.
 /// - `String`, `int`, `double`, `bool` generate a plain `@Parameter`.
+///
+/// The referenced entity's `@EntityId` / `@EntityTitle` / `@EntitySubtitle` /
+/// `@EntityImage` fields must be `String` (subtitle and image may be `String?`):
+/// the App Group cache only carries strings, so any other type could not be
+/// read back.
 ///
 /// Prefer optional (`?`) entity fields: a non-optional entity parameter forces
 /// iOS to demand a value before the widget can render.
