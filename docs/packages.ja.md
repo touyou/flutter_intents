@@ -401,7 +401,7 @@ Dartアノテーションからコードを生成するツール。
 - glob: ^2.1.0
 - path: ^1.9.0
 - yaml: ^3.1.0
-- app_intents_annotations: ^0.11.0
+- app_intents_annotations: ^0.13.0
 
 ### 実装済み機能
 
@@ -448,7 +448,7 @@ Dartアノテーションからコードを生成するツール。
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.11.0
+  app_intents_codegen: ^0.13.0
 ```
 
 ```bash
@@ -581,13 +581,17 @@ ios-spm/
             ├── AppIntentsBridge.swift  # モジュールエントリーポイント
             ├── FlutterBridge.swift     # メイン通信ブリッジ
             ├── ErrorHandling.swift     # AppIntentErrorエラー型
-            └── EntityImage.swift       # EntityImageSource列挙型
+            ├── EntityImage.swift       # EntityImageSource列挙型
+            └── EntityCache.swift       # AppIntentsEntityCache（App Extension 向け読み取り専用キャッシュ）
 ```
 
 ### 統合方法
 
-1. `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/`のファイルを`ios/Runner/AppIntentsBridge/`にコピー
-2. Xcodeプロジェクトに追加
+1. Swift Package Manager でパッケージを追加する。Xcode の **File → Add Package Dependencies**
+   から `AppIntentsBridge` プロダクトを選択する（Example App は `ios-spm/AppIntentsBridge`
+   へのローカルパッケージ参照を使用）。ソースを `ios/Runner/` に**コピーしない** —
+   パッケージにファイルが増えるとコピーは陳腐化する。
+2. 必要な箇所で `import AppIntentsBridge` する
 3. AppDelegateでexecutorを設定:
 
 ```swift
