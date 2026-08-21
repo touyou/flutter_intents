@@ -31,7 +31,7 @@ flutter_intents/
 ├── packages/
 │   ├── app_intents_annotations/  # アノテーション定義
 │   ├── app_intents/              # Flutterプラグイン
-│   │   └── ios/AppIntentsBridge/ # iOS Swift Package（プラグインに同梱）
+│   │   └── ios/app_intents/      # iOS Swift Package（プラグイン + AppIntentsBridge）
 │   └── app_intents_codegen/      # コード生成ツール
 ├── app/                          # サンプルアプリ
 └── docs/                         # ドキュメント

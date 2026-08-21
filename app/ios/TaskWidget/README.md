@@ -1,7 +1,17 @@
-# WidgetConfigurationIntent codegen (issue #98)
+# TaskWidget — WidgetConfigurationIntent example (issues #98 / #102)
 
-`GeneratedIntents/GeneratedWidgetIntents.swift` is generated from
-`app/lib/widgets/select_task_widget_config.dart` by:
+A real WidgetKit **app-extension target** in `Runner.xcodeproj`. It exists to
+exercise the generated `WidgetConfigurationIntent` the way a downstream app
+would: in an extension process, with no Flutter engine, reading the App Group
+entity cache.
+
+| File | Generated? | What it is |
+|---|---|---|
+| `GeneratedIntents/GeneratedWidgetIntents.swift` | yes (`make widget-gen`) | `SelectTaskWidgetConfig` + cache-backed `AppEntity` / `EnumerableEntityQuery` |
+| `TaskWidget.swift` | no | Minimal `Widget` + `AppIntentTimelineProvider` + `WidgetBundle` |
+| `Info.plist`, `TaskWidget.entitlements` | no | Extension point + the `group.com.example.app` App Group |
+
+Regenerate the first one with:
 
 ```bash
 make widget-gen
@@ -16,75 +26,53 @@ cd app && dart run app_intents_codegen:generate_widget_swift \
   --storage-identifier com.example.app
 ```
 
-It contains a `WidgetConfigurationIntent` plus a cache-backed `AppEntity` and
-`EnumerableEntityQuery`, so a Home Screen widget can be configured
-("long-press → Edit Widget") with a task picker.
+No Dart code is generated for a `@WidgetConfigurationSpec`: nothing runs in
+Dart, so there is no handler and no `part` directive.
 
-## Status
+## How the extension gets `AppIntentsBridge`
 
-- **Compile-verified only** (`swiftc -typecheck` against both the stable
-  Xcode 26.5 and the Xcode 27 beta iPhoneOS SDKs, with `AppIntentsBridge`
-  built as a module). It is **not** wired into an Xcode Widget Extension
-  target — creating one requires an extension target, an entitlement, and a
-  widget bundle, which is out of scope for the example app.
-- No Dart code is generated for a `@WidgetConfigurationSpec`: nothing runs in
-  Dart, so there is no handler and no `part` directive.
+The generated file opens with `import AppIntentsBridge`. The target links the
+**`AppIntentsBridge` product of the plugin's own Swift package**, added as a
+local package at:
 
-## Why this file is separate
+```
+ios/Flutter/ephemeral/Packages/.packages/app_intents
+```
+
+Flutter's Swift Package Manager integration creates that symlink, so the path
+needs no Podfile and survives `app_intents` upgrades. It links only
+`AppIntentsBridge` — **not** `app-intents`, which imports Flutter and must never
+be linked into an extension. See `docs/usage.md` →
+"Consuming AppIntentsBridge" for the other routes.
+
+## Why this file set is separate from the app target
 
 A Widget Extension **cannot start a Flutter engine**, so the `FlutterBridge`
-round-trip the app target's `GeneratedAppIntents.swift` uses is unavailable
-there. The generated query instead reads the App Group cache that
+round-trip that the app target's `GeneratedAppIntents.swift` uses is unavailable
+here. The generated query instead reads the App Group cache that
 `TaskRepository` already writes (`com.example.taskapp.cache.tasks`) through
 `AppIntentsEntityCache` (issue #97).
 
 Separation is also **mandatory for correctness**: including the same App Intent
 type in both the app target and an extension target duplicates it in
-`Metadata.appIntents`, and iOS then fails to resolve the intent at runtime.
-That is why the generated entity is named `TaskEntitySpecWidgetEntity` rather
-than reusing the app target's `TaskEntitySpec` — if both files ever land in one
+`Metadata.appIntents`, and iOS then fails to resolve the intent at runtime. That
+is why the generated entity is named `TaskEntitySpecWidgetEntity` rather than
+reusing the app target's `TaskEntitySpec` — if both files ever land in one
 target, you get a compile error instead of a silent runtime failure.
 
-## Wiring it up
+## Two things to know about the widget itself
 
-1. In Xcode, add a **Widget Extension** target (e.g. `TaskWidget`) to
-   `Runner.xcworkspace`. Set its minimum deployment to iOS 17.0.
-2. Add `GeneratedIntents/GeneratedWidgetIntents.swift` to that target —
-   **and only that target**.
-3. Add the `AppIntentsBridge` Swift package to the Widget Extension target.
-   In this repository that is the local package at
-   `packages/app_intents/ios/AppIntentsBridge`; in a downstream app it is
-   `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` (or the
-   `app_intents_bridge` pod). See `docs/usage.md` →
-   "Consuming AppIntentsBridge".
-4. Give the extension the **App Groups** entitlement for
-   `group.com.example.app` — the same group the app passes to
-   `AppIntentsPlugin.configure(appGroupIdentifier:)`. Without it the cache is
-   unreadable and the picker silently shows no options.
-5. Write the widget itself (not generated — it differs per app):
+- `configuration.task` is `nil` for an unconfigured instance; `TaskTimelineProvider`
+  falls back rather than baking in an add-time snapshot. See `generateDefaultResult`
+  in `@WidgetConfigurationSpec` for why no default is generated.
+- The extension carries its **own** App Groups entitlement. It is separate from
+  the app's, and without it `UserDefaults(suiteName:)` returns nil and the
+  configuration picker is silently empty (`AppIntentsEntityCache.isAccessible`
+  is how you tell that apart from an empty cache).
 
-   ```swift
-   struct TaskWidget: Widget {
-       var body: some WidgetConfiguration {
-           AppIntentConfiguration(
-               kind: "TaskWidget",
-               intent: SelectTaskWidgetConfig.self,
-               provider: TaskTimelineProvider()
-           ) { entry in
-               TaskWidgetView(entry: entry)
-           }
-       }
-   }
-   ```
+## Status
 
-   In `TaskTimelineProvider`, `configuration.task` is `nil` for an unconfigured
-   instance — decide the fallback there. See `generateDefaultResult` in
-   `@WidgetConfigurationSpec` for why no default is baked in by default.
-
-## Storage identifier
-
-`--storage-identifier` must be the **host app's** bundle identifier
-(`com.example.app`), or whatever explicit `storageIdentifier` the app passes to
-`AppIntentsPlugin.configure`. The extension's own
-`Bundle.main.bundleIdentifier` is `com.example.app.TaskWidget`, which would
-namespace the cache key differently and read nothing.
+Build-verified: `flutter build ios --debug --no-codesign` produces
+`Runner.app/PlugIns/TaskWidget.appex`. Not exercised on a device or simulator
+home screen — placing the widget and confirming the picker populates is still
+a manual step.

@@ -1,3 +1,14 @@
+## [Unreleased]
+
+- **Fix: on the CocoaPods route the module was named `app_intents_bridge`, so `import AppIntentsBridge` did not resolve (#105).** `app_intents_bridge.podspec` now declares `s.module_name = 'AppIntentsBridge'`, so all three routes take the same import line — the one every `generate_widget_swift` output emits. The old failure was easy to misread: the import itself often reported nothing and only the types surfaced, as `Cannot find 'AppIntentsEntityCache' in scope`. Verified by reading the generated modulemap, which now says `framework module AppIntentsBridge`.
+- **`AppIntentsBridge` is now a second product of the plugin's own Swift package** rather than a separate package beside it (#102 follow-up). This is what lets an app that has moved off CocoaPods reach it: Flutter's Swift Package Manager integration symlinks each plugin at `ios/Flutter/ephemeral/Packages/.packages/<plugin_name>`, which is the only stable path a downstream Xcode project can name, and Xcode normalizes local-package paths lexically so a `../` hop out of that symlink does not resolve. The recommended route is now:
+
+  *File → Add Package Dependencies… → Add Local…* → `ios/Flutter/ephemeral/Packages/.packages/app_intents` → add the **`AppIntentsBridge`** library (not `app-intents`, which links Flutter).
+
+  The path needs no Podfile, and it survives `app_intents` upgrades. The CocoaPods pod and the root-manifest `.package(url:)` route are unchanged and still work.
+
+  **Migration**: if you added the package by path in 0.14.0 (`ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge`), re-point it at `ios/Flutter/ephemeral/Packages/.packages/app_intents` and select the `AppIntentsBridge` library. CocoaPods and `.package(url:)` users need no change beyond the version bump.
+
 ## 0.14.0
 
 - **Fix: `AppIntentsBridge` could not be reached from a downstream app (#102).** The Swift package now ships **inside this pub package** at `ios/AppIntentsBridge/`, so `import AppIntentsBridge` — which the `generate_widget_swift` output requires — resolves without a separately versioned dependency. Three consumption routes, all building the same sources:
