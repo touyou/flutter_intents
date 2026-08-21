@@ -37,10 +37,21 @@ docs/
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha10** (`appfunctions-service` pinned at alpha09 pending Google Maven publish — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
+| App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
+| WidgetConfigurationIntent | **Separate target + separate CLI** (`generate_widget_swift`); cache-only queries |
 
 ## Implementation Status
 
 ### Completed
+- **App Extension entity access + WidgetConfigurationIntent codegen (#97 / #98)**
+  - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `ios-spm/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
+  - Dart-side mirror `AppIntentsEntityCacheKey.forEntity(identifier)` so `setCachedValue` keys are not literals.
+  - `@WidgetConfigurationSpec` / `@WidgetParameter` / `WidgetConfigurationSpecBase` + `WidgetConfigurationAnalyzer` + `WidgetSwiftGenerator` → `<Entity>WidgetEntity` (`AppEntity`), `<Entity>WidgetQuery` (`EnumerableEntityQuery`, cache-only), `<Config>` (`WidgetConfigurationIntent`).
+  - CLI `dart run app_intents_codegen:generate_widget_swift` (`--app-group` / `--storage-identifier` required, baked into the output) + `make widget-gen`. Output goes to a **separate file for the Widget Extension target only**.
+  - `isDiscoverable` defaults to `false`; `defaultResult()` is **not** generated unless `generateDefaultResult: true` (it would bake an add-time snapshot and break the "unconfigured widgets follow the global setting" fallback).
+  - Generation-time validation (all of these would otherwise be a silent empty picker or an Xcode-only compile error): unknown entity, entity with no persisted cache, missing `@EntityId`/`@EntityTitle`, a role field that is not `String`/`String?`, a non-id role field named `id`, and configurations sharing an entity that disagree on `generateDefaultResult` (only one query is emitted per entity).
+  - Author-supplied strings go through `_swiftLiteral` before being embedded in Swift string literals — an unescaped `"` breaks the build and `\(` is silently reinterpreted as interpolation.
+  - Verified: `swiftc -typecheck` of the generated Swift against **both** the stable Xcode 26.5 and Xcode 27 beta 5 iPhoneOS SDKs (with `AppIntentsBridge` built as a module), covering non-`id` `@EntityId`, `defaultResult()`, scalar/optional params and `displayImageName`. See `docs/adr/0005-widget-extension-entity-access.md`.
 - **WWDC26 experimental codegen (opt-in, #52 Intent execution control)**
   - `ExperimentalFeatures` config (`lib/src/experimental/experimental_features.dart`): master switch + per-feature set; default OFF reproduces stable output byte-for-byte
   - CLI `generate_swift`: `--experimental-wwdc26` (master) + `--experimental=long-running,app-schema` (per-feature)
@@ -258,7 +269,7 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
-- **`appfunctions-service` publishing lag (as of alpha10, July 2026)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
+- **`appfunctions-service` publishing lag (still unresolved as of 2026-08-21)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. **Re-checked 2026-08-21 (PR #83, closed)**: `appfunctions-service` alpha10 POM still returns HTTP 404 on both `google()` and `mavenCentral` (`maven-metadata.xml` tops out at alpha09), while `appfunctions`/`appfunctions-compiler` alpha10 return 200 — the pin must stay. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
   `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
@@ -268,15 +279,72 @@ Options:
   identifier that Kotlin 2.4.0's stricter escaping rejects, inside KSP's `KspAAWorkerAction`
   (Analysis API). At the time of that bisection (PR #48), KSP (2.3.9) and appfunctions
   (alpha09) were the latest releases, so there was no toolchain knob to fix it.
-  **Decision rule**: hold/close any Kotlin bump PR until a newer KSP or appfunctions alpha
-  lands; re-test the bump then. **appfunctions has since moved to alpha10 (this bump) —
-  the Kotlin 2.4.0 bump has NOT been re-tested against it; re-test before accepting a
-  Kotlin bump PR.**
+  **Decision rule**: hold/close any Kotlin bump PR until a newer **appfunctions** alpha
+  lands; re-test the bump then.
+
+  **Re-tested 2026-08-21 (PR #90, Kotlin 2.4.10) — still broken.** By then both
+  preconditions had advanced (appfunctions alpha09 → **alpha10**, KSP 2.3.9 →
+  **2.3.11**), so the full "everything latest" combination was testable for the first
+  time. Three real `flutter build apk --debug` runs:
+
+  | Kotlin | KSP | appfunctions | Result |
+  |---|---|---|---|
+  | 2.2.20 | 2.3.9 | alpha10 | ✅ baseline |
+  | **2.4.10** | **2.3.11** | alpha10 | ❌ same `Can't escape identifier` failure |
+  | 2.2.20 | **2.3.11** | alpha10 | ✅ |
+
+  The third run **isolates the cause to Kotlin 2.4.x, not KSP** — bumping KSP alone is
+  safe. So a KSP bump is NOT a reason to re-test a Kotlin bump; only a new **appfunctions**
+  alpha (which is what emits the colon-bearing identifier) is.
   (Verified via bisection in PR #48 — the build-script DSL migration below is independent
   and lands fine on 2.2.20.)
 
 ### Entity Identifier Consistency
 The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
+
+### Entity Cache Key Format (public API surface)
+
+The raw App Group `UserDefaults` key is `app_intents.<storageId>.cache.<cacheKey>`,
+where `<storageId>` is `configure(storageIdentifier:)` → `Bundle.main.bundleIdentifier`
+→ `_appGroupIdentifier` → `"app_intents"`. This format is **duplicated in two
+modules on purpose**:
+
+- `AppIntentsPlugin.cachePrefix` (`packages/app_intents/ios/...`) — writes it
+- `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)`
+  (`ios-spm/AppIntentsBridge`) — reads it, for App Extensions
+
+The plugin cannot depend on `AppIntentsBridge` (it `import Flutter`s; the bridge
+must stay linkable from extensions), so **changing the format means changing both**,
+and it is a breaking change for any extension. `EntityCacheTests` asserts the
+literal string on the bridge side; the plugin carries a cross-reference comment.
+The Dart mirror of the *inner* key is `AppIntentsEntityCacheKey.forEntity`.
+
+### AppEntity requires an `id` property
+
+`AppEntity` refines `Identifiable`. If the generated struct has no property
+literally named `id`, Swift infers `Identifiable.ID == ObjectIdentifier` and the
+conformance fails with a confusing `'ObjectIdentifier' does not conform to
+'EntityIdentifierConvertible'`. The Dart `@EntityId` field name is arbitrary, so
+**both Swift generators normalize it to `id`** via their own `_swiftPropertyName`
+helper, and both reject a *non-id* role field named `id`, which would collide
+with that rename:
+
+- `WidgetSwiftGenerator` — passes the Dart name separately as the cached-payload
+  `idKey:`.
+- `SwiftGenerator` (app target) — the Dart name survives only as the
+  cache/dictionary key (`dict["teamId"]`), which is what the Dart cache
+  projection writes.
+
+When touching `SwiftGenerator`:
+
+- Use `_swiftPropertyName(prop)` for any new site that emits an entity stored
+  property, initializer label, or `self.x = x` assignment. Never emit
+  `prop.fieldName` directly for the id-role property.
+- Sites reading the identifier off a Swift value (`$0.id`, `entity.id`, `team.id`
+  in intent param serialization) hardcode `id` — that is correct, not a bug.
+
+Golden string tests passed the entire time this was broken, because they only
+assert `contains(...)`. **Verify entity changes with `swiftc -typecheck`.**
 
 ### MethodChannel Type Serialization
 MethodChannel only supports specific types. Non-supported types need conversion:
@@ -392,7 +460,15 @@ Use conventional commit prefixes:
 1. `packages/app_intents_codegen/lib/src/analyzer/` - Add analyzer
 2. `packages/app_intents_codegen/lib/src/generator/` - Add generator
 3. `packages/app_intents_codegen/lib/src/builder.dart` - Integrate with builder
-4. `packages/app_intents_codegen/test/` - Add tests
+4. `packages/app_intents_codegen/lib/src/cli/analyze_sources.dart` - Surface it to the CLIs
+5. `packages/app_intents_codegen/test/` - Add tests
+
+### Widget Extension Codegen (#98)
+1. `packages/app_intents_annotations/lib/src/annotations/widget_configuration_spec.dart`
+2. `packages/app_intents_codegen/lib/src/analyzer/widget_configuration_analyzer.dart`
+3. `packages/app_intents_codegen/lib/src/generator/widget_swift_generator.dart`
+4. `packages/app_intents_codegen/bin/generate_widget_swift.dart` - CLI entrypoint
+5. `app/ios/TaskWidget/README.md` - Xcode wiring for the example app
 
 ### Extending Plugin
 1. `packages/app_intents/lib/app_intents_platform_interface.dart` - Add abstract method
@@ -619,6 +695,7 @@ make android       # Build and run Example App on Android emulator/device
 make android-build # Build Android APK only (no run)
 make codegen       # Run Dart code generation (build_runner)
 make swift-gen     # Generate Swift code from annotations
+make widget-gen    # Generate Widget Extension Swift (WidgetConfigurationIntent)
 make kotlin-gen    # Generate Kotlin code for Android AppFunctions
 make test          # Run all tests
 make clean         # Clean build artifacts

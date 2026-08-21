@@ -1100,6 +1100,7 @@ class SwiftGenerator {
   }
 
   void _generateEntityBody(StringBuffer buffer, EntityInfo info) {
+    _validateIdPropertyName(info);
     if (_usesExperimentalEntitySchema(info)) {
       // App Schema (#49) is iOS 27+: the entity, its query and extensions all
       // move to iOS 27 in the experimental branch. The #else branch keeps the
@@ -1360,12 +1361,8 @@ class SwiftGenerator {
     StringBuffer buffer,
     EntityInfo info,
   ) {
-    final idField =
-        info.properties
-            .where((p) => p.role == EntityPropertyRole.id)
-            .firstOrNull
-            ?.fieldName ??
-        'id';
+    // Reads the Swift stored property, which is always `id`.
+    const idField = 'id';
     final titleField =
         info.properties
             .where((p) => p.role == EntityPropertyRole.title)
@@ -1545,6 +1542,37 @@ class SwiftGenerator {
     }
   }
 
+  /// The Swift stored-property name for [prop].
+  ///
+  /// `AppEntity` refines `Identifiable`, which requires a property literally
+  /// named `id`; the Dart field backing `@EntityId` may be called anything
+  /// (`teamId`, `uuid`, ...). So the identifier property is always emitted as
+  /// `id` and the Dart field name survives only as the cache/dictionary key
+  /// (see [_writeEntityDictMapping]). Every other property keeps its Dart name.
+  String _swiftPropertyName(EntityPropertyInfo prop) =>
+      prop.role == EntityPropertyRole.id ? 'id' : prop.fieldName;
+
+  /// Rejects the one case [_swiftPropertyName] cannot normalize: the `@EntityId`
+  /// field is named something other than `id`, while a *different* property is
+  /// literally named `id`. Normalizing would emit two `var id` declarations.
+  void _validateIdPropertyName(EntityInfo info) {
+    final idProp = info.properties
+        .where((p) => p.role == EntityPropertyRole.id)
+        .firstOrNull;
+    if (idProp == null || idProp.fieldName == 'id') return;
+    final collides = info.properties.any(
+      (p) => p.role != EntityPropertyRole.id && p.fieldName == 'id',
+    );
+    if (!collides) return;
+    throw InvalidGenerationSourceError(
+      'Entity `${info.className}` marks `${idProp.fieldName}` with @EntityId '
+      'but also declares a separate field named `id`. The generated Swift '
+      'entity must expose its identifier as `id` (AppEntity refines '
+      'Identifiable), so both fields would collide. Rename the non-identifier '
+      '`id` field, or move @EntityId onto it.',
+    );
+  }
+
   /// Writes the entity's stored properties, using `@Property(...)` for fields
   /// marked with `@EntityProperty`.
   void _writeEntityProperties(StringBuffer buffer, EntityInfo info) {
@@ -1553,7 +1581,7 @@ class SwiftGenerator {
       if (prop.exposeAsProperty) {
         buffer.writeln('$_indent${_propertyAttribute(prop)}');
       }
-      buffer.writeln('${_indent}var ${prop.fieldName}: $swiftType');
+      buffer.writeln('${_indent}var ${_swiftPropertyName(prop)}: $swiftType');
     }
   }
 
@@ -1588,18 +1616,18 @@ class SwiftGenerator {
     final params = ordered
         .map((prop) {
           final swiftType = dartTypeToSwiftType(prop.dartType);
+          final name = _swiftPropertyName(prop);
           if (prop.exposeAsProperty) {
-            return '${prop.fieldName}: $swiftType = '
+            return '$name: $swiftType = '
                 '${_defaultForSwiftType(swiftType, prop.fieldName)}';
           }
-          return '${prop.fieldName}: $swiftType';
+          return '$name: $swiftType';
         })
         .join(', ');
     buffer.writeln('${_indent}init($params) {');
     for (final prop in ordered) {
-      buffer.writeln(
-        '$_indent${_indent}self.${prop.fieldName} = ${prop.fieldName}',
-      );
+      final name = _swiftPropertyName(prop);
+      buffer.writeln('$_indent${_indent}self.$name = $name');
     }
     buffer.writeln('$_indent}');
   }
@@ -1761,7 +1789,8 @@ class SwiftGenerator {
       '${_indent}func entities(for identifiers: [String]) async throws -> [${info.className}] {',
     );
     if (cacheKey != null) {
-      final idField = idProp?.fieldName ?? 'id';
+      // Filtering reads the Swift stored property, which is always `id`.
+      const idField = 'id';
       buffer.writeln(
         '$_indent${_indent}if let cached = Self._readCachedEntities() {',
       );
@@ -1907,11 +1936,15 @@ class SwiftGenerator {
     EntityPropertyInfo? subtitleProp,
     EntityPropertyInfo? imageProp,
   ) {
-    final id = idProp?.fieldName ?? 'id';
+    // The dictionary key is the Dart field name (that is what the Dart cache
+    // projection writes); the Swift local and initializer label are normalized
+    // to `id` to match the stored property (see [_swiftPropertyName]).
+    final idKey = idProp?.fieldName ?? 'id';
+    const id = 'id';
     final title = titleProp?.fieldName ?? 'title';
 
     buffer.writeln(
-      '$_indent$_indent${_indent}guard let $id = dict["$id"] as? String,',
+      '$_indent$_indent${_indent}guard let $id = dict["$idKey"] as? String,',
     );
     buffer.writeln(
       '$_indent$_indent$_indent${_indent}let $title = dict["$title"] as? String else {',

@@ -2,4 +2,5 @@
 library;
 
 export 'app_intent_error.dart';
+export 'entity_cache_key.dart';
 export 'intent_execution_request.dart';
