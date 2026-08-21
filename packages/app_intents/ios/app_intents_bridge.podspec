@@ -23,7 +23,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'app_intents_bridge'
-  s.version          = '0.13.0'
+  s.version          = '0.14.0'
   s.summary          = 'Flutter-free Swift bridge shared by the app_intents plugin and its App Extensions.'
   s.description      = <<-DESC
 The Swift side of the app_intents Flutter plugin: the FlutterBridge executor

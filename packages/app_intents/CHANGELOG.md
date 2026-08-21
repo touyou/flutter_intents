@@ -1,4 +1,4 @@
-## [Unreleased]
+## 0.14.0
 
 - **Fix: `AppIntentsBridge` could not be reached from a downstream app (#102).** The Swift package now ships **inside this pub package** at `ios/AppIntentsBridge/`, so `import AppIntentsBridge` — which the `generate_widget_swift` output requires — resolves without a separately versioned dependency. Three consumption routes, all building the same sources:
   - **Local Swift package** — add `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` via *File → Add Package Dependencies… → Add Local…*.

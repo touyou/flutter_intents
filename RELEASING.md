@@ -41,8 +41,15 @@ In a single commit, update:
 - `packages/app_intents/ios/app_intents_bridge.podspec` → `s.version`
 - `README.md` and `README.ja.md` — bump the `^X.Y.Z` numbers in the Quick
   Start dependency block
+- `packages/app_intents/README.md`,
+  `packages/app_intents_annotations/README.md`,
+  `packages/app_intents_codegen/README.md` — same `^X.Y.Z` block, shown on
+  pub.dev
 - `docs/usage.md`, `docs/usage.ja.md`, `docs/packages.md`,
   `docs/packages.ja.md` — bump the `^X.Y.Z` numbers in their dependency blocks
+
+Do **not** commit `pubspec.lock` churn from local `pub get` runs; past release
+commits leave the lock files untouched.
 
 Nothing verifies the two podspec versions, so they are the easiest thing here to
 forget: `app_intents.podspec` was left at `0.11.0` through the entire 0.12.0
