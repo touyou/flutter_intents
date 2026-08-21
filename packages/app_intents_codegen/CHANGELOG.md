@@ -1,5 +1,7 @@
-## [Unreleased]
+## 0.14.0
 
+- Widens the `analyzer` constraint to `>=7.0.0 <15.0.0`, so this package can be used alongside `analyzer` 14.x. Verified against `analyzer` 14.1.0 / `_fe_analyzer_shared` 105.0.0: analysis is clean, the full test suite passes, and `build_runner`, `generate_swift`, `generate_widget_swift` and `generate_kotlin` all produce byte-identical output to the 13.x resolution.
+- Bumps `app_intents_annotations` dependency to `^0.14.0`.
 - Docs: the Swift emitted by `generate_widget_swift` opens with `import AppIntentsBridge`; that package now ships inside the `app_intents` pub package, so a Widget Extension target can resolve it. See `docs/usage.md` → "Consuming AppIntentsBridge" (#102).
 
 ## 0.13.0
