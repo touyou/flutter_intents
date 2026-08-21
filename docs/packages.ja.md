@@ -510,9 +510,17 @@ app_intents_codegen/
 
 ---
 
-## ios-spm (Swift Package)
+## AppIntentsBridge (Swift Package)
 
-iOS App Intents統合用のSwift Package。
+iOS App Intents統合用のSwift Package。`packages/app_intents/ios/AppIntentsBridge/` にあります。
+
+`app_intents` pub パッケージの中に置いているのは意図的です。生成された
+`WidgetConfigurationIntent` のコードを使う App Extension はこのモジュールをリンクする
+必要があり、プラグインと同梱しておけば両者のバージョンがずれません。
+リポジトリルートにも同じ `AppIntentsBridge` プロダクトを持つ `Package.swift` があるので
+`.package(url:)` でも解決できます。どちらのマニフェストも同じソースを指しています。
+3 つの導入経路（ローカル Swift Package / `app_intents_bridge` pod / リモート Swift Package）は
+`docs/usage.ja.md` の「AppIntentsBridge の導入」を参照してください。
 
 ### Package.swift
 
@@ -573,23 +581,25 @@ public enum AppIntentError: LocalizedError {
 ### ファイル構成
 
 ```
-ios-spm/
+packages/app_intents/ios/
+├── app_intents.podspec             # Flutter プラグインの pod
+├── app_intents_bridge.podspec      # 下記ソース用の独立 pod
 └── AppIntentsBridge/
-    ├── Package.swift
-    └── Sources/
-        └── AppIntentsBridge/
-            ├── AppIntentsBridge.swift  # モジュールエントリーポイント
-            ├── FlutterBridge.swift     # メイン通信ブリッジ
-            ├── ErrorHandling.swift     # AppIntentErrorエラー型
-            ├── EntityImage.swift       # EntityImageSource列挙型
-            └── EntityCache.swift       # AppIntentsEntityCache（App Extension 向け読み取り専用キャッシュ）
+    ├── Package.swift               # ローカル Swift Package（下流から参照可能）
+    ├── Sources/
+    │   └── AppIntentsBridge/
+    │       ├── AppIntentsBridge.swift  # モジュールエントリーポイント
+    │       ├── FlutterBridge.swift     # メイン通信ブリッジ
+    │       ├── ErrorHandling.swift     # AppIntentErrorエラー型
+    │       ├── EntityCache.swift       # AppIntentsEntityCache（App Extension 向け読み取り専用キャッシュ）
+    │       └── EntityImage.swift       # EntityImageSource列挙型
+    └── Tests/
 ```
 
 ### 統合方法
 
-1. Swift Package Manager でパッケージを追加する。Xcode の **File → Add Package Dependencies**
-   から `AppIntentsBridge` プロダクトを選択する（Example App は `ios-spm/AppIntentsBridge`
-   へのローカルパッケージ参照を使用）。ソースを `ios/Runner/` に**コピーしない** —
+1. ターゲットにモジュールを追加する（`docs/usage.ja.md` の
+   「AppIntentsBridge の導入」を参照）。ソースを `ios/Runner/` に**コピーしない** —
    パッケージにファイルが増えるとコピーは陳腐化する。
 2. 必要な箇所で `import AppIntentsBridge` する
 3. AppDelegateでexecutorを設定:

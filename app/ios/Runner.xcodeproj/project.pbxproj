@@ -262,7 +262,7 @@
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
 				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */,
-				2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../ios-spm/AppIntentsBridge" */,
+				2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -762,9 +762,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../ios-spm/AppIntentsBridge" */ = {
+		2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../ios-spm/AppIntentsBridge";
+			relativePath = "../../packages/app_intents/ios/AppIntentsBridge";
 		};
 		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -775,7 +775,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		2C585DCB2F7A1B15008FD54D /* AppIntentsBridge */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../ios-spm/AppIntentsBridge" */;
+			package = 2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */;
 			productName = AppIntentsBridge;
 		};
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {

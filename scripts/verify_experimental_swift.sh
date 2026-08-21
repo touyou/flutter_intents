@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CODEGEN="$REPO_ROOT/packages/app_intents_codegen"
-BRIDGE="$REPO_ROOT/ios-spm/AppIntentsBridge/Sources/AppIntentsBridge"
+BRIDGE="$REPO_ROOT/packages/app_intents/ios/AppIntentsBridge/Sources/AppIntentsBridge"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

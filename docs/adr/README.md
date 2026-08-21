@@ -12,6 +12,12 @@
 > 言語について: 既存の `docs/*.md` / `*.ja.md` はユーザー向けガイドのため二言語ペアですが、
 > ADR は内部の設計記録のため日本語のみで記述します。
 
+> パスについて: 各 ADR は執筆時点の記録なので本文は書き換えていません。`AppIntentsBridge`
+> の Swift Package は issue #102 の対応で `ios-spm/AppIntentsBridge` から
+> **`packages/app_intents/ios/AppIntentsBridge`** へ移動しています（pub パッケージに同梱して
+> 下流アプリ・App Extension から参照できるようにするため）。ADR 本文中の `ios-spm/...` は
+> この新しいパスに読み替えてください。
+
 ## 背景: 完了済みとの決定的な違い
 
 issue #59 でこれまでマージ済みの項目（#52 / #49 / #50 / #53 / #57、PR #60〜#67）は

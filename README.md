@@ -31,9 +31,9 @@ flutter_intents/
 ├── packages/
 │   ├── app_intents_annotations/  # Annotation definitions
 │   ├── app_intents/              # Flutter plugin
+│   │   └── ios/AppIntentsBridge/ # iOS Swift Package (ships with the plugin)
 │   └── app_intents_codegen/      # Code generator
 ├── app/                          # Example app
-├── ios-spm/                      # iOS Swift Package
 └── docs/                         # Documentation
 ```
 

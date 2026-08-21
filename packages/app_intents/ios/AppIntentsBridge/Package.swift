@@ -3,6 +3,18 @@
 
 import PackageDescription
 
+// This manifest ships inside the published `app_intents` pub package, so an app
+// that depends on `app_intents` can add the bridge to a target — a Widget
+// Extension in particular — without a second, separately versioned dependency:
+//
+//     File → Add Package Dependencies… → Add Local…
+//     ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge
+//
+// CocoaPods users get the same sources through `app_intents_bridge.podspec`
+// one directory up. See `docs/usage.md` → "Consuming AppIntentsBridge".
+//
+// The repository root carries a second manifest with the same product name so
+// that `.package(url:)` keeps resolving; both point at these sources.
 let package = Package(
     name: "AppIntentsBridge",
     platforms: [

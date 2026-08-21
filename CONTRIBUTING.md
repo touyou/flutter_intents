@@ -45,9 +45,9 @@ filing a public issue.
 flutter_intents/
 ├── packages/
 │   ├── app_intents/              # Flutter plugin
+│   │   └── ios/AppIntentsBridge/ # Swift Package (ships with the plugin)
 │   ├── app_intents_annotations/  # Dart annotations
 │   └── app_intents_codegen/      # Code generator
-├── ios-spm/                      # Swift Package
 ├── app/                          # Example app
 └── docs/                         # Documentation
 ```
@@ -132,7 +132,7 @@ cd packages/app_intents && flutter test
 cd app && flutter test
 
 # Run Swift package tests
-cd ios-spm/AppIntentsBridge && swift test
+cd packages/app_intents/ios/AppIntentsBridge && swift test
 
 # Run iOS example app
 make ios

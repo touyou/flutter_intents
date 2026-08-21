@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- No user-facing changes; released in lockstep with `app_intents` 0.14.0 (#102).
+
 ## 0.13.0
 
 - `@WidgetConfigurationSpec` / `@WidgetParameter` + `WidgetConfigurationSpecBase` — declare a WidgetKit `WidgetConfigurationIntent` in Dart so a widget's configuration UI can offer entity pickers (#98). The widget itself is native SwiftUI; these annotations only describe the configuration surface that `app_intents_codegen` lowers to Swift.

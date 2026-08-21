@@ -26,7 +26,7 @@
 - [ ] `app_intents` (Flutter plugin)
 - [ ] `app_intents_annotations`
 - [ ] `app_intents_codegen`
-- [ ] iOS native (`ios-spm/AppIntentsBridge` or `packages/app_intents/ios`)
+- [ ] iOS native (`packages/app_intents/ios`, including `ios/AppIntentsBridge`)
 - [ ] Android native (`packages/app_intents/android`)
 - [ ] Example app (`app/`)
 - [ ] Docs / repo meta

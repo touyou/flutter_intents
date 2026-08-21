@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- Docs: the Swift emitted by `generate_widget_swift` opens with `import AppIntentsBridge`; that package now ships inside the `app_intents` pub package, so a Widget Extension target can resolve it. See `docs/usage.md` → "Consuming AppIntentsBridge" (#102).
+
 ## 0.13.0
 
 - **Fix: entity `@EntityId` fields not named `id` generated Swift that does not compile.** `AppEntity` refines `Identifiable`, which requires a stored property literally named `id`; `SwiftGenerator` emitted the Dart field name verbatim, so `@EntityId` on e.g. `teamId` produced `type 'X' does not conform to protocol 'AppEntity'` / `'Identifiable'` (and a confusing `'ObjectIdentifier' does not conform to 'EntityIdentifierConvertible'`). The Swift identifier property is now always emitted as `id`, while the Dart field name survives as the cache/dictionary key (`dict["teamId"]`) — matching what the Dart cache projection writes, and matching the rest of the generator, which already read `<entity>.id` unconditionally when serializing entity-typed intent parameters. Entities whose field is already named `id` generate byte-identical output. The unnormalizable case (`@EntityId` on a non-`id` field *plus* a separate field named `id`) now throws `InvalidGenerationSourceError` instead of emitting two `var id` declarations.

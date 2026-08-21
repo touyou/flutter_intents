@@ -1,3 +1,13 @@
+## [Unreleased]
+
+- **Fix: `AppIntentsBridge` could not be reached from a downstream app (#102).** The Swift package now ships **inside this pub package** at `ios/AppIntentsBridge/`, so `import AppIntentsBridge` — which the `generate_widget_swift` output requires — resolves without a separately versioned dependency. Three consumption routes, all building the same sources:
+  - **Local Swift package** — add `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` via *File → Add Package Dependencies… → Add Local…*.
+  - **CocoaPods** — new standalone `app_intents_bridge` podspec (no Flutter dependency, so an App Extension target can take it): `pod 'app_intents_bridge', :path => '.symlinks/plugins/app_intents/ios'`.
+  - **Remote Swift package** — the repository root manifest still exposes the same `AppIntentsBridge` product for `.package(url:)`.
+
+  `app_intents.podspec` deliberately does not include these sources, so a target may take both pods without duplicate symbols. Previously the package lived only in the repository's `ios-spm/` subdirectory, which neither pub nor CocoaPods shipped and which SPM cannot resolve over a Git URL.
+- Docs: `AppIntentsEntityCacheKey.forEntity` now states that its result is the **cache key**, not the raw `UserDefaults` key — the plugin namespaces it as `app_intents.<storageIdentifier>.cache.<cacheKey>`. Reading with the un-namespaced key returns `nil` silently, which only surfaces as an empty widget configuration picker (#102). Same note added to `docs/usage.md`.
+
 ## 0.13.0
 
 - `AppIntentsEntityCacheKey.forEntity` — Dart-side mirror of the App Group cache key used by the persisted-entity fallback, so the key is no longer an undocumented internal string that callers must hand-write (#97). Symmetric with `AppIntentsEntityCache` / `AppIntentsCachedEntity` in the `AppIntentsBridge` Swift package, which lets an App Extension (e.g. a Widget Extension, which cannot start a Flutter engine) read the cached entity list.
