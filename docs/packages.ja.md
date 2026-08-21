@@ -401,7 +401,7 @@ Dartアノテーションからコードを生成するツール。
 - glob: ^2.1.0
 - path: ^1.9.0
 - yaml: ^3.1.0
-- app_intents_annotations: ^0.14.0
+- app_intents_annotations: ^0.15.0
 
 ### 実装済み機能
 
@@ -448,7 +448,7 @@ Dartアノテーションからコードを生成するツール。
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.14.0
+  app_intents_codegen: ^0.15.0
 ```
 
 ```bash

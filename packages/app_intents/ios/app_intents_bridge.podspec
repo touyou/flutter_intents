@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   # symptom is indirect: the import itself may not report `No such module`,
   # only the types come out as `Cannot find 'AppIntentsEntityCache' in scope`.
   s.module_name      = 'AppIntentsBridge'
-  s.version          = '0.14.0'
+  s.version          = '0.15.0'
   s.summary          = 'Flutter-free Swift bridge shared by the app_intents plugin and its App Extensions.'
   s.description      = <<-DESC
 The Swift side of the app_intents Flutter plugin: the FlutterBridge executor

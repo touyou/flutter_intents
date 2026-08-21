@@ -1,6 +1,7 @@
-## [Unreleased]
+## 0.15.0
 
 - No codegen changes. The `import AppIntentsBridge` line that `generate_widget_swift` emits now resolves on the CocoaPods route too (#105), and the module ships as a product of the plugin's Swift package (#102 follow-up) — see the `app_intents` changelog and `docs/usage.md` → "Consuming AppIntentsBridge".
+- Bumps `app_intents_annotations` dependency to `^0.15.0`.
 
 ## 0.14.0
 
