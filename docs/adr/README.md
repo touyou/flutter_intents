@@ -1,10 +1,11 @@
 # Architecture Decision Records (ADR)
 
 このディレクトリは、`app_intents` プラグインに対する**設計上の意思決定**を記録します。
-特に WWDC26 App Intents の残課題（issue #59 のうち、純 codegen では閉じず、
-**ブリッジ/ランタイム設計の判断が必要**な項目）の設計案を扱います。
+当初は WWDC26 App Intents の残課題（issue #59 のうち、純 codegen では閉じず、
+**ブリッジ/ランタイム設計の判断が必要**な項目）の設計案を扱っていましたが、
+以降は同種の判断を要する設計記録全般を置きます。
 
-これらの ADR は当初は実装に先行する提案として書かれましたが、現在はいずれも
+0001〜0004 は当初は実装に先行する提案として書かれましたが、現在はいずれも
 **Accepted — 実装済み**（PR #68, commit `70306e6`）です。各 ADR の Status 欄が
 最新の状態を示します（一部に意図的に先送り（deferred）した項目があり、各 ADR 内に明記）。
 
@@ -38,6 +39,7 @@ opt-in ゲートの効き方が「データの向き」で割れます。各 ADR
 | [0002](0002-cross-app-entity-sharing.md) | #54 | アプリ間エンティティ共有（export / import） | 中〜高 | export: 単独 / import: 0001 |
 | [0003](0003-donations-and-discovery.md) | #55残 | ドネーションと発見性（RelevantEntities / IntentDonationManager / SyncableEntity） | 高（本体侵入） | — |
 | [0004](0004-onscreen-awareness-feasibility.md) | #56 | オンスクリーン認識・スニペットビューの実現可能性 | 調査（GO/NO-GO） | — |
+| [0005](0005-widget-extension-entity-access.md) | #97 / #98 | App Extension からのエンティティ参照と WidgetConfigurationIntent codegen | 中 | #26 |
 
 関連: #58（ビジュアルインテリジェンス）は #51 の `Input` を `SemanticContentDescriptor`
 （ピクセルバッファ）に特殊化したケースで、ネイティブ完結が前提。0001 で線引きを示し、

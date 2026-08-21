@@ -69,9 +69,6 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA405189F9E48E16956D4D8C /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
-		AABB0001111122223333444 /* FlutterBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlutterBridge.swift; sourceTree = "<group>"; };
-		AABB0001111122223333445 /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
-		AABB0001111122223333446 /* EntityImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityImage.swift; sourceTree = "<group>"; };
 		AABB0001111122223333447 /* GeneratedAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedAppIntents.swift; sourceTree = "<group>"; };
 		D7376319A12269DE6411C932 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -152,7 +149,6 @@
 			isa = PBXGroup;
 			children = (
 				2C61F42C2F7A31B10020B0D3 /* Runner.entitlements */,
-				AABB000111112222333344C /* AppIntentsBridge */,
 				AABB000111112222333344D /* GeneratedIntents */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
@@ -164,16 +160,6 @@
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
-			sourceTree = "<group>";
-		};
-		AABB000111112222333344C /* AppIntentsBridge */ = {
-			isa = PBXGroup;
-			children = (
-				AABB0001111122223333444 /* FlutterBridge.swift */,
-				AABB0001111122223333445 /* ErrorHandling.swift */,
-				AABB0001111122223333446 /* EntityImage.swift */,
-			);
-			path = AppIntentsBridge;
 			sourceTree = "<group>";
 		};
 		AABB000111112222333344D /* GeneratedIntents */ = {

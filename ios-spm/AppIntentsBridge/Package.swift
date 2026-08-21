@@ -6,7 +6,10 @@ import PackageDescription
 let package = Package(
     name: "AppIntentsBridge",
     platforms: [
-        .iOS(.v17)
+        .iOS(.v17),
+        // Only so `swift test` can build the package on a Mac host; the
+        // package itself is iOS-facing.
+        .macOS(.v14)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.

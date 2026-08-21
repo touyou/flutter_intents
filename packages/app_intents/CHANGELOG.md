@@ -1,3 +1,8 @@
+## 0.13.0
+
+- `AppIntentsEntityCacheKey.forEntity` — Dart-side mirror of the App Group cache key used by the persisted-entity fallback, so the key is no longer an undocumented internal string that callers must hand-write (#97). Symmetric with `AppIntentsEntityCache` / `AppIntentsCachedEntity` in the `AppIntentsBridge` Swift package, which lets an App Extension (e.g. a Widget Extension, which cannot start a Flutter engine) read the cached entity list.
+- Fixes the iOS podspec version, which was left at `0.11.0` during the 0.12.0 release.
+
 ## 0.12.0
 
 - New API `AppIntents().donateIntent(identifier, params)` (#55): wraps `AppIntent.donate()` (stable iOS 16+) so the Dart side can record an executed intent for Siri / Apple Intelligence to learn from. The call is forwarded through `AppIntentsPlugin.intentDonationForwarder` (set in AppDelegate, mirroring `relevantEntitiesDonationForwarder`) to `FlutterBridge.shared.donateIntent`, which invokes the per-intent reverse-executor emitted by `@IntentSpec(donatable: true)` codegen. iOS-only; a no-op on other platforms.

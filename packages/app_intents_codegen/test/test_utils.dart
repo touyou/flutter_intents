@@ -34,6 +34,8 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/bases/entity_spec_base.dart';
         export 'src/models/person_name.dart';
         export 'src/annotations/union_value.dart';
+        export 'src/annotations/widget_configuration_spec.dart';
+        export 'src/bases/widget_configuration_spec_base.dart';
       ''',
       'app_intents_annotations|lib/src/annotations/intent_spec.dart': '''
         class IntentSpec {
@@ -245,6 +247,42 @@ Future<LibraryElement> resolveSource(String source) async {
 
         class AppShortcutsProvider {
           const AppShortcutsProvider();
+        }
+      ''',
+      'app_intents_annotations|lib/src/annotations/widget_configuration_spec.dart':
+          '''
+        class WidgetConfigurationSpec {
+          final String identifier;
+          final String title;
+          final String? description;
+          final bool isDiscoverable;
+          final bool generateDefaultResult;
+
+          const WidgetConfigurationSpec({
+            required this.identifier,
+            required this.title,
+            this.description,
+            this.isDiscoverable = false,
+            this.generateDefaultResult = false,
+          });
+        }
+
+        class WidgetParameter {
+          final String title;
+          final String? description;
+          final String? entityType;
+
+          const WidgetParameter({
+            required this.title,
+            this.description,
+            this.entityType,
+          });
+        }
+      ''',
+      'app_intents_annotations|lib/src/bases/widget_configuration_spec_base.dart':
+          '''
+        abstract class WidgetConfigurationSpecBase {
+          const WidgetConfigurationSpecBase();
         }
       ''',
       'test_lib|lib/test.dart': source,
