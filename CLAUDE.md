@@ -37,10 +37,21 @@ docs/
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha10** (`appfunctions-service` pinned at alpha09 pending Google Maven publish — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
+| App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
+| WidgetConfigurationIntent | **Separate target + separate CLI** (`generate_widget_swift`); cache-only queries |
 
 ## Implementation Status
 
 ### Completed
+- **App Extension entity access + WidgetConfigurationIntent codegen (#97 / #98)**
+  - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `ios-spm/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
+  - Dart-side mirror `AppIntentsEntityCacheKey.forEntity(identifier)` so `setCachedValue` keys are not literals.
+  - `@WidgetConfigurationSpec` / `@WidgetParameter` / `WidgetConfigurationSpecBase` + `WidgetConfigurationAnalyzer` + `WidgetSwiftGenerator` → `<Entity>WidgetEntity` (`AppEntity`), `<Entity>WidgetQuery` (`EnumerableEntityQuery`, cache-only), `<Config>` (`WidgetConfigurationIntent`).
+  - CLI `dart run app_intents_codegen:generate_widget_swift` (`--app-group` / `--storage-identifier` required, baked into the output) + `make widget-gen`. Output goes to a **separate file for the Widget Extension target only**.
+  - `isDiscoverable` defaults to `false`; `defaultResult()` is **not** generated unless `generateDefaultResult: true` (it would bake an add-time snapshot and break the "unconfigured widgets follow the global setting" fallback).
+  - Generation-time validation (all of these would otherwise be a silent empty picker or an Xcode-only compile error): unknown entity, entity with no persisted cache, missing `@EntityId`/`@EntityTitle`, a role field that is not `String`/`String?`, a non-id role field named `id`, and configurations sharing an entity that disagree on `generateDefaultResult` (only one query is emitted per entity).
+  - Author-supplied strings go through `_swiftLiteral` before being embedded in Swift string literals — an unescaped `"` breaks the build and `\(` is silently reinterpreted as interpolation.
+  - Verified: `swiftc -typecheck` of the generated Swift against **both** the stable Xcode 26.5 and Xcode 27 beta 5 iPhoneOS SDKs (with `AppIntentsBridge` built as a module), covering non-`id` `@EntityId`, `defaultResult()`, scalar/optional params and `displayImageName`. See `docs/adr/0005-widget-extension-entity-access.md`.
 - **WWDC26 experimental codegen (opt-in, #52 Intent execution control)**
   - `ExperimentalFeatures` config (`lib/src/experimental/experimental_features.dart`): master switch + per-feature set; default OFF reproduces stable output byte-for-byte
   - CLI `generate_swift`: `--experimental-wwdc26` (master) + `--experimental=long-running,app-schema` (per-feature)
@@ -278,6 +289,35 @@ Options:
 ### Entity Identifier Consistency
 The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
 
+### Entity Cache Key Format (public API surface)
+
+The raw App Group `UserDefaults` key is `app_intents.<storageId>.cache.<cacheKey>`,
+where `<storageId>` is `configure(storageIdentifier:)` → `Bundle.main.bundleIdentifier`
+→ `_appGroupIdentifier` → `"app_intents"`. This format is **duplicated in two
+modules on purpose**:
+
+- `AppIntentsPlugin.cachePrefix` (`packages/app_intents/ios/...`) — writes it
+- `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)`
+  (`ios-spm/AppIntentsBridge`) — reads it, for App Extensions
+
+The plugin cannot depend on `AppIntentsBridge` (it `import Flutter`s; the bridge
+must stay linkable from extensions), so **changing the format means changing both**,
+and it is a breaking change for any extension. `EntityCacheTests` asserts the
+literal string on the bridge side; the plugin carries a cross-reference comment.
+The Dart mirror of the *inner* key is `AppIntentsEntityCacheKey.forEntity`.
+
+### AppEntity requires an `id` property
+
+`AppEntity` refines `Identifiable`. If the generated struct has no property
+literally named `id`, Swift infers `Identifiable.ID == ObjectIdentifier` and the
+conformance fails with a confusing `'ObjectIdentifier' does not conform to
+'EntityIdentifierConvertible'`. The Dart `@EntityId` field name is arbitrary, so
+`WidgetSwiftGenerator` normalizes it (`_swiftPropertyName`) and passes the Dart
+name separately as the cached-payload `idKey:`; it also rejects a *non-id* role
+field named `id`, which would collide with that rename. **`SwiftGenerator` (the app-target
+generator) does not yet do this** — a non-`id` `@EntityId` produces output that
+does not compile. Tracked separately.
+
 ### MethodChannel Type Serialization
 MethodChannel only supports specific types. Non-supported types need conversion:
 
@@ -392,7 +432,15 @@ Use conventional commit prefixes:
 1. `packages/app_intents_codegen/lib/src/analyzer/` - Add analyzer
 2. `packages/app_intents_codegen/lib/src/generator/` - Add generator
 3. `packages/app_intents_codegen/lib/src/builder.dart` - Integrate with builder
-4. `packages/app_intents_codegen/test/` - Add tests
+4. `packages/app_intents_codegen/lib/src/cli/analyze_sources.dart` - Surface it to the CLIs
+5. `packages/app_intents_codegen/test/` - Add tests
+
+### Widget Extension Codegen (#98)
+1. `packages/app_intents_annotations/lib/src/annotations/widget_configuration_spec.dart`
+2. `packages/app_intents_codegen/lib/src/analyzer/widget_configuration_analyzer.dart`
+3. `packages/app_intents_codegen/lib/src/generator/widget_swift_generator.dart`
+4. `packages/app_intents_codegen/bin/generate_widget_swift.dart` - CLI entrypoint
+5. `app/ios/TaskWidget/README.md` - Xcode wiring for the example app
 
 ### Extending Plugin
 1. `packages/app_intents/lib/app_intents_platform_interface.dart` - Add abstract method
@@ -619,6 +667,7 @@ make android       # Build and run Example App on Android emulator/device
 make android-build # Build Android APK only (no run)
 make codegen       # Run Dart code generation (build_runner)
 make swift-gen     # Generate Swift code from annotations
+make widget-gen    # Generate Widget Extension Swift (WidgetConfigurationIntent)
 make kotlin-gen    # Generate Kotlin code for Android AppFunctions
 make test          # Run all tests
 make clean         # Clean build artifacts

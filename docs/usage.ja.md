@@ -1061,6 +1061,194 @@ if #available(iOS 26.0, *) {
 > Xcode が必要）。生成出力を `-D APP_INTENTS_WWDC26` の有/無の両方で type-check するため、
 > WWDC26 形と安定フォールバック形の両方がコンパイル可能であることが保証されます。
 
+## WidgetKit の Widget Extension
+
+Widget Extension は **Flutter エンジンを起動できない**ため、アプリ本体ターゲットの
+生成 Intent が使う `FlutterBridge` 往復は Extension からは使えません。Extension が必要とする
+データは、`app_intents` が cold-start fallback のために永続化している
+**App Group のエンティティキャッシュ**から取るしかありません。
+
+これを支える仕組みが 2 つあります。
+
+- `AppIntentsEntityCache` — キャッシュを読む read-only の Swift API。手書きの Extension
+  コードがキー命名をハードコードしなくて済みます（issue #97）
+- `@WidgetConfigurationSpec` — `WidgetConfigurationIntent` とキャッシュ参照のエンティティ
+  ピッカーを codegen。手書き自体が不要になります（issue #98）
+
+### 前提条件
+
+キャッシュはアプリが書き込んで初めて存在します。
+
+1. アプリ本体と Extension の**両方**のターゲットで App Groups を設定
+   （Signing & Capabilities → App Groups）。識別子は同一にすること
+2. アプリ側で `AppIntentsPlugin.configure(appGroupIdentifier:)`（Swift）と
+   `AppIntents().configureStorage(appGroupIdentifier:)`（Dart）を呼ぶ
+3. エンティティに永続キャッシュを持たせる（`@EntitySpec(enumerable: true)` または
+   明示的な `persistedCacheKey:`）。そして Dart からエンティティ一覧を書き込む:
+
+   ```dart
+   await AppIntents().setCachedValue(
+     AppIntentsEntityCacheKey.forEntity('com.example.joinedTeam'),
+     jsonEncode(teams.map((t) => {'id': t.id, 'name': t.name}).toList()),
+   );
+   ```
+
+   `AppIntentsEntityCacheKey.forEntity` は codegen が使う既定キー
+   （`app_intents.entities.<identifier>`）と同じ文字列を返します。リテラル直書きより
+   こちらを使ってください。
+
+### 手書き Swift からキャッシュを読む (#97)
+
+Widget Extension ターゲットに `AppIntentsBridge` Swift Package を追加してから:
+
+```swift
+import AppIntentsBridge
+
+let cache = AppIntentsEntityCache(
+    appGroupIdentifier: "group.com.example.app",
+    storageIdentifier: "com.example.app"  // ホストアプリ の bundle identifier
+)
+
+let teams = cache.entities(
+    forEntityIdentifier: "com.example.joinedTeam",
+    idKey: "id",
+    titleKey: "name"
+)
+// -> [AppIntentsCachedEntity]（id / title / subtitle / imageName / values を持つ）
+```
+
+`storageIdentifier` は**ホストアプリの** bundle identifier
+（または `AppIntentsPlugin.configure` に明示的に渡した `storageIdentifier`）でなければ
+なりません。Extension 自身の `Bundle.main.bundleIdentifier` は
+`com.example.app.MyWidget` のように異なり、キーの名前空間がずれます。推論せず**必須引数に
+している**のはこのためです。
+
+値を自前で読む・監視したい場合のメンバー:
+
+| メンバー | 戻り値 |
+|----------|--------|
+| `AppIntentsEntityCache.defaultCacheKey(forEntityIdentifier:)` | `app_intents.entities.<identifier>` |
+| `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)` | 生の `UserDefaults` キー |
+| `cache.storageKey(forEntityIdentifier:)` | このインスタンスの storage identifier を使った生キー |
+| `cache.entries(forCacheKey:)` | 生の `[[String: Any]]` ペイロード |
+| `cache.isAccessible` | App Group を開けなかった場合に `false` |
+
+`isAccessible` が要るのは、空の結果だけでは区別がつかないためです。Extension に
+App Groups の entitlement が無いと `UserDefaults(suiteName:)` は nil を返し、
+すべての読み取りが `[]` になります。これは「アプリがまだ何も書いていない」状態と
+同じ見た目です。この場合はエラーログを出しますが、空リストを正常扱いする前に
+`isAccessible` を確認してください。
+
+
+`AppIntentsEntityCache(userDefaults:storageIdentifier:)` は解決済みの suite を受け取るので、
+テストで便利です。
+
+### 設定 Intent の生成 (#98)
+
+Dart 側で設定を宣言します。ハンドラも `part` ディレクティブもありません
+（Dart では何も動かないので、Dart コードは生成されません）:
+
+```dart
+import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+@WidgetConfigurationSpec(
+  identifier: 'com.example.selectTeam',
+  title: 'Displayed team',
+  description: 'Choose which team this widget shows.',
+)
+class SelectTeamWidgetConfig extends WidgetConfigurationSpecBase {
+  @WidgetParameter(title: 'Team')
+  final TeamEntitySpec? team;
+
+  @WidgetParameter(title: 'Show completed')
+  final bool showCompleted;
+
+  const SelectTeamWidgetConfig({this.team, this.showCompleted = false});
+}
+```
+
+Extension ターゲット用のディレクトリへ生成します:
+
+```bash
+cd app && dart run app_intents_codegen:generate_widget_swift \
+  -o ios/MyWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app
+```
+
+| オプション | 説明 |
+|-----------|------|
+| `-i, --input` | 入力ディレクトリ（既定: `lib`） |
+| `-o, --output` | 出力ディレクトリ（必須） |
+| `-f, --file` | 出力ファイル名（既定: `GeneratedWidgetIntents.swift`） |
+| `--app-group` | App Group 識別子（必須） |
+| `--storage-identifier` | ホストアプリの bundle identifier（必須） |
+
+生成物は `<Entity>WidgetEntity`（`AppEntity`）、
+`<Entity>WidgetQuery`（`EnumerableEntityQuery`、キャッシュのみ参照）、
+そして `WidgetConfigurationIntent` 本体です。
+
+> **生成ファイルは Widget Extension ターゲットにのみ追加してください。**
+> 同じ App Intent 型をアプリ本体ターゲットと Extension ターゲットの両方に含めると
+> `Metadata.appIntents` が重複し、実行時に Intent を解決できなくなります。
+> 生成エンティティを本体側の `<Entity>` ではなく `<Entity>WidgetEntity` という名前に
+> しているのはこのためで、誤って同一ターゲットに入れた場合は実行時の静かな失敗ではなく
+> コンパイルエラーになります。
+
+ウィジェット本体はアプリごとに違うため生成しません:
+
+```swift
+struct TeamWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: "TeamWidget",
+            intent: SelectTeamWidgetConfig.self,
+            provider: TeamTimelineProvider()
+        ) { entry in
+            TeamWidgetView(entry: entry)
+        }
+    }
+}
+```
+
+### 知っておきたい 2 つの既定値
+
+**`isDiscoverable` の既定は `false`。** 設定 Intent はウィジェットを設定するためのもので、
+ショートカットアプリの単独アクションとして出るのは大抵ノイズです。単体でも意味がある場合のみ
+`isDiscoverable: true` にしてください。
+
+**`defaultResult()` は既定で生成しません。** 実装すると、未編集のウィジェットインスタンスの
+設定値が*ウィジェットを追加した時点の値*で埋まります。これは「未設定のウィジェットは
+アプリ内のグローバル設定に追従する」という一般的なフォールバック設計と両立しません
+（値が焼き付いた後はアプリ内設定を変えてもウィジェットが動かない）。追加時点のスナップショットを
+既定値にしたい場合のみ `@WidgetConfigurationSpec(generateDefaultResult: true)` で
+opt-in してください。既定では未設定パラメータは `nil` で届き、フォールバックは
+timeline provider が決めます。
+エンティティごとに query は1つしか生成しないため、同じエンティティを参照する
+configuration はこのフラグの値を揃える必要があります。食い違いは codegen が
+エラーで落とします（片方が黙ってもう片方の挙動を引き継ぐのを防ぐため）。
+
+### 対応パラメータ型
+
+`String` / `int` / `double` / `bool` / `DateTime`（および nullable 形）と、
+`@EntitySpec` を付けたクラス。エンティティパラメータは常に optional で出力されます
+（必須にするとユーザーが選ぶまでウィジェットが描画されなくなるため）。
+
+参照先エンティティの role フィールドは `String` である必要があります
+（`@EntitySubtitle` / `@EntityImage` は `String?` も可）。App Group のキャッシュは
+文字列しか運ばないためです。
+
+セットアップが成立しない場合は codegen が明示的なエラーで落ちます:
+
+- 参照先のエンティティが存在しない / 永続キャッシュを持たない
+- エンティティが `@EntityId` / `@EntityTitle` を欠く
+- role フィールドの型が `String` / `String?` でない
+- id 以外の role フィールドの名前が `id`（生成される `Identifiable` プロパティと衝突する）
+- 同じエンティティを共有する configuration が `generateDefaultResult` で食い違う
+
+これは意図的で、放置すると「候補が何も出ないピッカー」という静かな失敗になるか、
+Xcode でしか気づけないコンパイルエラーになるためです。
+
 ## ベストプラクティス
 
 ### 1. Intent識別子の命名
