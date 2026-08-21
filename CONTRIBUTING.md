@@ -45,7 +45,7 @@ filing a public issue.
 flutter_intents/
 ├── packages/
 │   ├── app_intents/              # Flutter plugin
-│   │   └── ios/AppIntentsBridge/ # Swift Package (ships with the plugin)
+│   │   └── ios/app_intents/      # Swift Package: plugin + AppIntentsBridge
 │   ├── app_intents_annotations/  # Dart annotations
 │   └── app_intents_codegen/      # Code generator
 ├── app/                          # Example app
@@ -132,7 +132,10 @@ cd packages/app_intents && flutter test
 cd app && flutter test
 
 # Run Swift package tests
-cd packages/app_intents/ios/AppIntentsBridge && swift test
+# The bridge sources live in the plugin's iOS-only Swift package, so `swift test`
+# cannot build them on a Mac host. Run them on a simulator via the root manifest:
+xcodebuild test -scheme AppIntentsBridge \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"
 
 # Run iOS example app
 make ios

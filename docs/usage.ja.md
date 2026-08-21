@@ -95,18 +95,27 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 
 #### AppIntentsBridge の導入
 
-ソースは**公開されている `app_intents` pub パッケージの中**、`ios/AppIntentsBridge/` に
-同梱されています。プロジェクトに合う経路を選んでください。3 つとも同じファイルをビルドし、
-A と B は `pubspec.yaml` に書いた `app_intents` のバージョンに自動的に追従します。
+`AppIntentsBridge` は**プラグイン自身の Swift Package の 2 つ目の product** で、公開されている
+`app_intents` pub パッケージに同梱されています。プロジェクトに合う経路を選んでください。
+3 つとも同じファイルをビルドし、A と B は `pubspec.yaml` に書いた `app_intents` の
+バージョンに自動的に追従します。
 
-**A. ローカル Swift Package（Podfile がある構成なら推奨）**
+**A. ローカル Swift Package（推奨）**
 
-1. `flutter pub get` の後、一度 `pod install`（または `flutter build ios`）を実行し、
-   `ios/.symlinks/plugins/` を生成する
+CocoaPods を使っているかどうかに関係なく使えます。必要なのは Flutter の Swift Package Manager
+サポートだけで、これは既定で有効です。
+
+1. `flutter pub get` の後、一度 `flutter build ios` を実行し、
+   `ios/Flutter/ephemeral/Packages/.packages/` を生成する
 2. Xcode で **File → Add Package Dependencies… → Add Local…**
-3. `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` を選ぶ
-4. `AppIntentsBridge` ライブラリを必要なターゲット（`Runner`、Widget Extension、
-   あるいは両方）に追加する
+3. `ios/Flutter/ephemeral/Packages/.packages/app_intents` を選ぶ
+4. **`AppIntentsBridge`** ライブラリを必要なターゲット（Widget Extension、必要なら `Runner`）に
+   追加する。`app-intents` ライブラリのほうは Flutter をリンクするので、Extension ターゲットには
+   **追加しないこと**
+
+このパスは `app_intents` のバージョンを上げても変わりません（Flutter が同じ場所に symlink を
+貼り直すため）。`ephemeral/` は git 管理外なので、クローン直後は一度 `flutter build ios` を
+実行してから Xcode を開いてください。
 
 **B. CocoaPods**
 
@@ -128,6 +137,11 @@ target 'MyWidgetExtension' do
 end
 ```
 
+pod 名は `app_intents_bridge` ですが `module_name = 'AppIntentsBridge'` を宣言しているので、
+この経路でも import 文は `import AppIntentsBridge` です（生成コードや SPM 経路と同じ行）。
+0.15.0 より前はこの宣言が無く、CocoaPods 経由だけモジュール名が `app_intents_bridge` に
+なっていました（#105）。
+
 `app_intents` 本体の pod にはこれらのソースは**含まれていない**ので、`Runner` ターゲットに
 この pod を追加してもシンボルは重複しません。ただし `Runner` は既にプラグインをリンクして
 いるため、通常は経路 A のほうが簡単です。
@@ -144,12 +158,12 @@ Git でピン留めしたい場合は、リポジトリルートに同じ `AppIn
 `app_intents` のバージョンに対応するタグ（`vX.Y.Z`）にピン留めしてください。A / B と違い、
 この依存は pub とは別管理になります。
 
-> **Podfile が無い場合は経路 C を使ってください。** `ios/.symlinks/` は CocoaPods が
-> Podfile を評価する際に `flutter_install_all_ios_pods` が生成するもので、それ以外に
-> 生成経路はありません。全プラグインが Swift Package になったときに Flutter ツール自身が
-> 勧める `pod deintegrate` を実行して Podfile を消した構成では、`flutter pub get` も
-> `flutter build ios` もこのディレクトリを作りません。経路 A と B はどちらもこれに依存
-> するため、その場合は経路 C が唯一のサポート経路です。
+> **経路 B は Podfile が必要ですが、経路 A は不要です。** `ios/.symlinks/` は CocoaPods が
+> Podfile を評価する際に `flutter_install_all_ios_pods` が生成するもので、それ以外に生成経路は
+> ありません（`pod deintegrate` 済みの構成には存在しません）。経路 A が使う
+> `ios/Flutter/ephemeral/Packages/.packages/` は Flutter 自身の Swift Package Manager 統合が
+> 生成するので、CocoaPods を外した後も機能します。経路 C はどちらも不要ですが、pub とは
+> 別にバージョン管理する必要があります。
 
 > **Widget Extension**: `generate_widget_swift` が生成する Swift は
 > `import AppIntentsBridge` から始まるため、Extension ターゲットにも上記いずれかの導入が

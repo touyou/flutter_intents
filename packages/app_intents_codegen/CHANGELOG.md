@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- No codegen changes. The `import AppIntentsBridge` line that `generate_widget_swift` emits now resolves on the CocoaPods route too (#105), and the module ships as a product of the plugin's Swift package (#102 follow-up) — see the `app_intents` changelog and `docs/usage.md` → "Consuming AppIntentsBridge".
+
 ## 0.14.0
 
 - Widens the `analyzer` constraint to `>=7.0.0 <15.0.0`, so this package can be used alongside `analyzer` 14.x. Verified against `analyzer` 14.1.0 / `_fe_analyzer_shared` 105.0.0: analysis is clean, the full test suite passes, and `build_runner`, `generate_swift`, `generate_widget_swift` and `generate_kotlin` all produce byte-identical output to the 13.x resolution.

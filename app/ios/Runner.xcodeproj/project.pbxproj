@@ -11,17 +11,29 @@
 		21AAF2ED341DA20A68B42CA4 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E56E737745B6A81D433F660 /* Pods_Runner.framework */; };
 		2C585DCC2F7A1B15008FD54D /* AppIntentsBridge in Frameworks */ = {isa = PBXBuildFile; productRef = 2C585DCB2F7A1B15008FD54D /* AppIntentsBridge */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		3A3ABAA4FD5920D16F5BB38D /* TaskWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DE6DDE7CEBB29E96786FA475 /* TaskWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		637ACE206BED8184780BA9A8 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3034802CE9A530D488DA9365 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		7DB345ADBFA758E074F767A4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1964A7EB90291B45B835629 /* Foundation.framework */; };
+		80B0C314EE01BCBB3AC8F535 /* AppIntentsBridge in Frameworks */ = {isa = PBXBuildFile; productRef = 307DA72CA401814FA34D542A /* AppIntentsBridge */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		9AD1911B0131FA0B0AD35B46 /* GeneratedWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61EB27CED4358D37E7A53C3 /* GeneratedWidgetIntents.swift */; };
 		AABB000111112222333344B /* GeneratedAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB0001111122223333447 /* GeneratedAppIntents.swift */; };
+		D39607A720BE0ED9CEFE0BA8 /* TaskWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A0ECC16B8F2AEE79F43A3A /* TaskWidget.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		145DFF090D981B21CA31F50E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 05DA4855EAE63C9F76E9D4A3;
+			remoteInfo = TaskWidget;
+		};
 		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
@@ -32,6 +44,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		3BC5F8BDB43AFAADCBD007CE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3A3ABAA4FD5920D16F5BB38D /* TaskWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -47,6 +70,7 @@
 /* Begin PBXFileReference section */
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		15D9B98C3DD8AED32E555025 /* TaskWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = TaskWidget.entitlements; sourceTree = "<group>"; };
 		18126627AE926ABA13D4B1B9 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		2C61F42C2F7A31B10020B0D3 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		3034802CE9A530D488DA9365 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -55,6 +79,7 @@
 		33CCD73CAAA6584987946096 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		39D8DC37123EAB418CEA96DF /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		42A0ECC16B8F2AEE79F43A3A /* TaskWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskWidget.swift; sourceTree = "<group>"; };
 		6141B669E8877DDBAFE236B5 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -70,7 +95,11 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA405189F9E48E16956D4D8C /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		AABB0001111122223333447 /* GeneratedAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedAppIntents.swift; sourceTree = "<group>"; };
+		C1964A7EB90291B45B835629 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		C44359F15E42DD6AB987A134 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D61EB27CED4358D37E7A53C3 /* GeneratedWidgetIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeneratedWidgetIntents.swift; sourceTree = "<group>"; };
 		D7376319A12269DE6411C932 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
+		DE6DDE7CEBB29E96786FA475 /* TaskWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TaskWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,9 +121,30 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9DD70824E74B128182159CFD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DB345ADBFA758E074F767A4 /* Foundation.framework in Frameworks */,
+				80B0C314EE01BCBB3AC8F535 /* AppIntentsBridge in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		20B867AB8E8C4DBF9CDA982C /* TaskWidget */ = {
+			isa = PBXGroup;
+			children = (
+				B53B749B811997CC03D988EC /* GeneratedIntents */,
+				42A0ECC16B8F2AEE79F43A3A /* TaskWidget.swift */,
+				C44359F15E42DD6AB987A134 /* Info.plist */,
+				15D9B98C3DD8AED32E555025 /* TaskWidget.entitlements */,
+			);
+			name = TaskWidget;
+			path = TaskWidget;
+			sourceTree = "<group>";
+		};
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -103,11 +153,20 @@
 			path = RunnerTests;
 			sourceTree = "<group>";
 		};
+		3A7AFFD7E3211535AA2D89D1 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				C1964A7EB90291B45B835629 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		7357E40EF72DDD1C4EE46EFB /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				8E56E737745B6A81D433F660 /* Pods_Runner.framework */,
 				3034802CE9A530D488DA9365 /* Pods_RunnerTests.framework */,
+				3A7AFFD7E3211535AA2D89D1 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -133,6 +192,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				CF1CEFFF0BB501A4CBC17579 /* Pods */,
 				7357E40EF72DDD1C4EE46EFB /* Frameworks */,
+				20B867AB8E8C4DBF9CDA982C /* TaskWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -141,6 +201,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				DE6DDE7CEBB29E96786FA475 /* TaskWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -170,6 +231,15 @@
 			path = GeneratedIntents;
 			sourceTree = "<group>";
 		};
+		B53B749B811997CC03D988EC /* GeneratedIntents */ = {
+			isa = PBXGroup;
+			children = (
+				D61EB27CED4358D37E7A53C3 /* GeneratedWidgetIntents.swift */,
+			);
+			name = GeneratedIntents;
+			path = GeneratedIntents;
+			sourceTree = "<group>";
+		};
 		CF1CEFFF0BB501A4CBC17579 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
@@ -186,6 +256,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		05DA4855EAE63C9F76E9D4A3 /* TaskWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F90AFE6EB72B9BDA023F2C24 /* Build configuration list for PBXNativeTarget "TaskWidget" */;
+			buildPhases = (
+				263DBACDEFC1BC73BA3BD798 /* Sources */,
+				9DD70824E74B128182159CFD /* Frameworks */,
+				910C4C9BD7EF31AC640D1771 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TaskWidget;
+			packageProductDependencies = (
+				307DA72CA401814FA34D542A /* AppIntentsBridge */,
+			);
+			productName = TaskWidget;
+			productReference = DE6DDE7CEBB29E96786FA475 /* TaskWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
@@ -215,12 +305,14 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				3BC5F8BDB43AFAADCBD007CE /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				433A8CD96501FF3DC302B18F /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EFF2359E4FD1E24E5F818DEA /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -261,8 +353,8 @@
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
-				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */,
-				2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */,
+				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
+				2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "app_intents" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -270,12 +362,20 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				05DA4855EAE63C9F76E9D4A3 /* TaskWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		331C807F294A63A400263BE5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		910C4C9BD7EF31AC640D1771 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -395,6 +495,15 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		263DBACDEFC1BC73BA3BD798 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D39607A720BE0ED9CEFE0BA8 /* TaskWidget.swift in Sources */,
+				9AD1911B0131FA0B0AD35B46 /* GeneratedWidgetIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807D294A63A400263BE5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -421,6 +530,12 @@
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
 		};
+		EFF2359E4FD1E24E5F818DEA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TaskWidget;
+			target = 05DA4855EAE63C9F76E9D4A3 /* TaskWidget */;
+			targetProxy = 145DFF090D981B21CA31F50E /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -443,6 +558,25 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		01E7B2975437BEF104B99010 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_ENTITLEMENTS = TaskWidget/TaskWidget.entitlements;
+				CODE_SIGN_IDENTITY = "";
+				INFOPLIST_FILE = TaskWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app.TaskWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Profile;
+		};
 		249021D3217E4FDB00AE95B9 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -567,6 +701,25 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
 			};
 			name = Profile;
+		};
+		6870CFDCE423584B8964B182 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_ENTITLEMENTS = TaskWidget/TaskWidget.entitlements;
+				CODE_SIGN_IDENTITY = "";
+				INFOPLIST_FILE = TaskWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app.TaskWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
 		};
 		97C147031CF9000F007C117D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -726,6 +879,24 @@
 			};
 			name = Release;
 		};
+		ABDBD10CDCEF2675929D6D25 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_ENTITLEMENTS = TaskWidget/TaskWidget.entitlements;
+				CODE_SIGN_IDENTITY = "";
+				INFOPLIST_FILE = TaskWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app.TaskWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -759,14 +930,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F90AFE6EB72B9BDA023F2C24 /* Build configuration list for PBXNativeTarget "TaskWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6870CFDCE423584B8964B182 /* Release */,
+				ABDBD10CDCEF2675929D6D25 /* Debug */,
+				01E7B2975437BEF104B99010 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */ = {
+		2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "app_intents" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../packages/app_intents/ios/AppIntentsBridge";
+			relativePath = Flutter/ephemeral/Packages/.packages/app_intents;
 		};
-		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */ = {
+		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};
@@ -775,7 +956,12 @@
 /* Begin XCSwiftPackageProductDependency section */
 		2C585DCB2F7A1B15008FD54D /* AppIntentsBridge */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "../../packages/app_intents/ios/AppIntentsBridge" */;
+			package = 2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "app_intents" */;
+			productName = AppIntentsBridge;
+		};
+		307DA72CA401814FA34D542A /* AppIntentsBridge */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2C585DCA2F7A19DC008FD54D /* XCLocalSwiftPackageReference "app_intents" */;
 			productName = AppIntentsBridge;
 		};
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {

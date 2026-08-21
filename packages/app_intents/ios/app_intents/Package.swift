@@ -11,10 +11,19 @@ let package = Package(
     products: [
         // The library name uses "-" because Swift Package Manager does not allow
         // "_" in product names (Flutter maps the plugin name accordingly).
-        .library(name: "app-intents", targets: ["app_intents"])
+        .library(name: "app-intents", targets: ["app_intents"]),
+        // The Flutter-free half, exposed separately so an App Extension target
+        // can link it. It lives in this package (rather than one of its own) so
+        // that an SPM-only Flutter app can reach it at the stable path
+        // `ios/Flutter/ephemeral/Packages/.packages/app_intents`, without a
+        // Podfile and without a second, separately versioned dependency.
+        .library(name: "AppIntentsBridge", targets: ["AppIntentsBridge"])
     ],
     dependencies: [],
     targets: [
+        .target(
+            name: "AppIntentsBridge"
+        ),
         .target(
             name: "app_intents",
             dependencies: [],
