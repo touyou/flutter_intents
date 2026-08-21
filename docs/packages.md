@@ -581,13 +581,17 @@ ios-spm/
             ├── AppIntentsBridge.swift  # Module entry point
             ├── FlutterBridge.swift     # Main communication bridge
             ├── ErrorHandling.swift     # AppIntentError type
-            └── EntityImage.swift       # EntityImageSource enum
+            ├── EntityImage.swift       # EntityImageSource enum
+            └── EntityCache.swift       # AppIntentsEntityCache (App Extension read-only cache)
 ```
 
 ### Integration Steps
 
-1. Copy files from `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/` to `ios/Runner/AppIntentsBridge/`
-2. Add to Xcode project
+1. Add the package via Swift Package Manager: **File → Add Package Dependencies** in Xcode,
+   then select the `AppIntentsBridge` product (the example app uses a local package
+   reference to `ios-spm/AppIntentsBridge`). Do **not** copy the sources into
+   `ios/Runner/` — a copy goes stale as the package gains files.
+2. `import AppIntentsBridge` where you need it
 3. Set executor in AppDelegate:
 
 ```swift

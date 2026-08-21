@@ -581,13 +581,17 @@ ios-spm/
             ├── AppIntentsBridge.swift  # モジュールエントリーポイント
             ├── FlutterBridge.swift     # メイン通信ブリッジ
             ├── ErrorHandling.swift     # AppIntentErrorエラー型
-            └── EntityImage.swift       # EntityImageSource列挙型
+            ├── EntityImage.swift       # EntityImageSource列挙型
+            └── EntityCache.swift       # AppIntentsEntityCache（App Extension 向け読み取り専用キャッシュ）
 ```
 
 ### 統合方法
 
-1. `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/`のファイルを`ios/Runner/AppIntentsBridge/`にコピー
-2. Xcodeプロジェクトに追加
+1. Swift Package Manager でパッケージを追加する。Xcode の **File → Add Package Dependencies**
+   から `AppIntentsBridge` プロダクトを選択する（Example App は `ios-spm/AppIntentsBridge`
+   へのローカルパッケージ参照を使用）。ソースを `ios/Runner/` に**コピーしない** —
+   パッケージにファイルが増えるとコピーは陳腐化する。
+2. 必要な箇所で `import AppIntentsBridge` する
 3. AppDelegateでexecutorを設定:
 
 ```swift
