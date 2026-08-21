@@ -1,3 +1,9 @@
+## 0.13.0
+
+- **Fix: entity `@EntityId` fields not named `id` generated Swift that does not compile.** `AppEntity` refines `Identifiable`, which requires a stored property literally named `id`; `SwiftGenerator` emitted the Dart field name verbatim, so `@EntityId` on e.g. `teamId` produced `type 'X' does not conform to protocol 'AppEntity'` / `'Identifiable'` (and a confusing `'ObjectIdentifier' does not conform to 'EntityIdentifierConvertible'`). The Swift identifier property is now always emitted as `id`, while the Dart field name survives as the cache/dictionary key (`dict["teamId"]`) — matching what the Dart cache projection writes, and matching the rest of the generator, which already read `<entity>.id` unconditionally when serializing entity-typed intent parameters. Entities whose field is already named `id` generate byte-identical output. The unnormalizable case (`@EntityId` on a non-`id` field *plus* a separate field named `id`) now throws `InvalidGenerationSourceError` instead of emitting two `var id` declarations.
+- `@WidgetConfigurationSpec` codegen + the `generate_widget_swift` CLI — emits a `WidgetConfigurationIntent` plus a cache-backed `EntityQuery` for a Widget Extension target, which reads the App Group entity cache instead of going through `FlutterBridge` (#98). `WidgetSwiftGenerator` applies the same `id` normalization described above.
+- Bumps `app_intents_annotations` dependency to `^0.13.0`.
+
 ## 0.12.0
 
 - `@IntentSpec(donatable: true)` (#55, requires `--experimental=donation`): emits a `#if APP_INTENTS_WWDC26`-gated `register<Intent>Donator()` reverse-executor that reconstructs the concrete intent from a `[String: Any]` params dict and calls `intent.donate()` (stable iOS 16+). Analyzer enforces the MVP primitive-only contract; rejects `entityType` / `enumType` / `fileType` / `entityCollectionType` / `@UnionValue` / non-primitive Dart types at codegen time.

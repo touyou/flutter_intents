@@ -401,7 +401,7 @@ Tool for generating code from Dart annotations.
 - glob: ^2.1.0
 - path: ^1.9.0
 - yaml: ^3.1.0
-- app_intents_annotations: ^0.11.0
+- app_intents_annotations: ^0.13.0
 
 ### Implemented Features
 
@@ -448,7 +448,7 @@ Tool for generating code from Dart annotations.
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.11.0
+  app_intents_codegen: ^0.13.0
 ```
 
 ```bash
@@ -581,13 +581,17 @@ ios-spm/
             ├── AppIntentsBridge.swift  # Module entry point
             ├── FlutterBridge.swift     # Main communication bridge
             ├── ErrorHandling.swift     # AppIntentError type
-            └── EntityImage.swift       # EntityImageSource enum
+            ├── EntityImage.swift       # EntityImageSource enum
+            └── EntityCache.swift       # AppIntentsEntityCache (App Extension read-only cache)
 ```
 
 ### Integration Steps
 
-1. Copy files from `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/` to `ios/Runner/AppIntentsBridge/`
-2. Add to Xcode project
+1. Add the package via Swift Package Manager: **File → Add Package Dependencies** in Xcode,
+   then select the `AppIntentsBridge` product (the example app uses a local package
+   reference to `ios-spm/AppIntentsBridge`). Do **not** copy the sources into
+   `ios/Runner/` — a copy goes stale as the package gains files.
+2. `import AppIntentsBridge` where you need it
 3. Set executor in AppDelegate:
 
 ```swift

@@ -5,3 +5,4 @@ export 'entity_analyzer.dart';
 export 'enum_analyzer.dart';
 export 'intent_analyzer.dart';
 export 'shortcut_analyzer.dart';
+export 'widget_configuration_analyzer.dart';

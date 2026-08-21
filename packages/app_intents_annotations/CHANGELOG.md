@@ -1,3 +1,7 @@
+## 0.13.0
+
+- `@WidgetConfigurationSpec` / `@WidgetParameter` + `WidgetConfigurationSpecBase` — declare a WidgetKit `WidgetConfigurationIntent` in Dart so a widget's configuration UI can offer entity pickers (#98). The widget itself is native SwiftUI; these annotations only describe the configuration surface that `app_intents_codegen` lowers to Swift.
+
 ## 0.12.0
 
 - `@IntentSpec(donatable: true)` — opt-in for `AppIntent.donate()` so Siri / Apple Intelligence learns the user performed the action in-app (#55). Inert unless the `donation` experimental feature is enabled in `app_intents_codegen`. MVP restricts to primitive parameter types (`String` / `int` / `double` / `bool` / `DateTime`, optionals allowed); entity / file / enum / union / collection params are rejected at codegen time.

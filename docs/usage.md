@@ -7,11 +7,11 @@
 ```yaml
 # pubspec.yaml
 dependencies:
-  app_intents: ^0.11.0
-  app_intents_annotations: ^0.11.0
+  app_intents: ^0.13.0
+  app_intents_annotations: ^0.13.0
 
 dev_dependencies:
-  app_intents_codegen: ^0.11.0
+  app_intents_codegen: ^0.13.0
   build_runner: ^2.4.0
 ```
 
@@ -1096,6 +1096,197 @@ if #available(iOS 26.0, *) {
 > beta Xcode with the iOS 27 SDK). It type-checks the generated output twice —
 > with and without `-D APP_INTENTS_WWDC26` — so both the WWDC26 and stable
 > fallback forms are guaranteed to compile.
+
+## WidgetKit Widget Extensions
+
+A Widget Extension **cannot start a Flutter engine**, so the `FlutterBridge`
+round-trip that the app target's generated intents use is unavailable there.
+Everything an extension needs must come from the **App Group entity cache**
+that `app_intents` already persists for the cold-start fallback.
+
+Two pieces support this:
+
+- `AppIntentsEntityCache` — a read-only Swift API for that cache, so
+  hand-written extension code never hardcodes the key naming (issue #97).
+- `@WidgetConfigurationSpec` — codegen for a `WidgetConfigurationIntent` and
+  its cache-backed entity picker, so there is nothing to hand-write at all
+  (issue #98).
+
+### Prerequisites
+
+The cache only exists when the app writes it, so:
+
+1. Configure App Groups on **both** the app and the extension target
+   (Signing & Capabilities → App Groups), using the same identifier.
+2. In the app, call `AppIntentsPlugin.configure(appGroupIdentifier:)` (Swift)
+   and `AppIntents().configureStorage(appGroupIdentifier:)` (Dart).
+3. Give the entity a persisted cache — `@EntitySpec(enumerable: true)` or an
+   explicit `persistedCacheKey:` — and write the entity list from Dart:
+
+   ```dart
+   await AppIntents().setCachedValue(
+     AppIntentsEntityCacheKey.forEntity('com.example.joinedTeam'),
+     jsonEncode(teams.map((t) => {'id': t.id, 'name': t.name}).toList()),
+   );
+   ```
+
+   `AppIntentsEntityCacheKey.forEntity` produces the same default key codegen
+   uses (`app_intents.entities.<identifier>`) — prefer it over a literal.
+
+### Reading the cache from hand-written Swift (#97)
+
+Add the `AppIntentsBridge` Swift package to the Widget Extension target, then:
+
+```swift
+import AppIntentsBridge
+
+let cache = AppIntentsEntityCache(
+    appGroupIdentifier: "group.com.example.app",
+    storageIdentifier: "com.example.app"  // the HOST APP's bundle identifier
+)
+
+let teams = cache.entities(
+    forEntityIdentifier: "com.example.joinedTeam",
+    idKey: "id",
+    titleKey: "name"
+)
+// -> [AppIntentsCachedEntity] with id / title / subtitle / imageName / values
+```
+
+`storageIdentifier` must be the **host app's** bundle identifier (or the
+explicit `storageIdentifier` passed to `AppIntentsPlugin.configure`). An
+extension's own `Bundle.main.bundleIdentifier` is different
+(`com.example.app.MyWidget`) and would namespace the key differently — which is
+why the API requires it rather than guessing.
+
+Other members, when you want to read or observe the value yourself:
+
+| Member | Returns |
+|--------|---------|
+| `AppIntentsEntityCache.defaultCacheKey(forEntityIdentifier:)` | `app_intents.entities.<identifier>` |
+| `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)` | the raw `UserDefaults` key |
+| `cache.storageKey(forEntityIdentifier:)` | the raw key, using this reader's storage identifier |
+| `cache.entries(forCacheKey:)` | the raw `[[String: Any]]` payload |
+| `cache.isAccessible` | `false` when the App Group could not be opened |
+
+`isAccessible` matters because an empty result is otherwise ambiguous. If the
+extension is missing the App Groups entitlement, `UserDefaults(suiteName:)`
+returns nil and every read yields `[]` — identical to "the app has not written
+anything yet". The reader logs an error in that case; check `isAccessible`
+before treating an empty list as normal.
+
+
+`AppIntentsEntityCache(userDefaults:storageIdentifier:)` takes an already
+resolved suite, which is handy in tests.
+
+### Generating the configuration intent (#98)
+
+Declare the configuration in Dart. There is no handler and no `part`
+directive — nothing runs in Dart, so no Dart code is generated:
+
+```dart
+import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+@WidgetConfigurationSpec(
+  identifier: 'com.example.selectTeam',
+  title: 'Displayed team',
+  description: 'Choose which team this widget shows.',
+)
+class SelectTeamWidgetConfig extends WidgetConfigurationSpecBase {
+  @WidgetParameter(title: 'Team')
+  final TeamEntitySpec? team;
+
+  @WidgetParameter(title: 'Show completed')
+  final bool showCompleted;
+
+  const SelectTeamWidgetConfig({this.team, this.showCompleted = false});
+}
+```
+
+Generate into a directory meant for the extension target:
+
+```bash
+cd app && dart run app_intents_codegen:generate_widget_swift \
+  -o ios/MyWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app
+```
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input` | Input directory (default: `lib`) |
+| `-o, --output` | Output directory (required) |
+| `-f, --file` | Output filename (default: `GeneratedWidgetIntents.swift`) |
+| `--app-group` | App Group identifier (required) |
+| `--storage-identifier` | The host app's bundle identifier (required) |
+
+The output contains `<Entity>WidgetEntity` (`AppEntity`),
+`<Entity>WidgetQuery` (`EnumerableEntityQuery`, cache-only) and the
+`WidgetConfigurationIntent` itself.
+
+> **Add the generated file to the Widget Extension target only.** Including the
+> same App Intent type in both the app target and an extension target
+> duplicates it in `Metadata.appIntents`, and iOS then fails to resolve the
+> intent at runtime. The generated entity is named `<Entity>WidgetEntity`
+> rather than reusing the app target's `<Entity>`, so a mistake here surfaces
+> as a compile error instead of a silent runtime failure.
+
+The widget itself is not generated (it differs per app):
+
+```swift
+struct TeamWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: "TeamWidget",
+            intent: SelectTeamWidgetConfig.self,
+            provider: TeamTimelineProvider()
+        ) { entry in
+            TeamWidgetView(entry: entry)
+        }
+    }
+}
+```
+
+### Two defaults worth knowing
+
+**`isDiscoverable` defaults to `false`.** A configuration intent exists to
+configure a widget; surfacing it as a standalone Shortcuts action is usually
+noise. Set `isDiscoverable: true` if the intent is genuinely useful on its own.
+
+**`defaultResult()` is not generated by default.** Implementing it pre-fills an
+unedited widget instance with a value captured *at the moment the widget was
+added*. That is incompatible with the common "unconfigured widgets follow the
+app's global setting" fallback: once the value is baked in, changing the in-app
+setting no longer moves those widgets. Opt in with
+`@WidgetConfigurationSpec(generateDefaultResult: true)` when a
+snapshot-at-add-time default is what you want. Otherwise an unconfigured
+parameter arrives as `nil`, and the timeline provider decides the fallback. Because only one query is generated per entity, every configuration that
+references the same entity must set the same value — codegen rejects a
+disagreement instead of letting one configuration silently inherit the other's
+behavior.
+
+### Supported parameter types
+
+`String`, `int`, `double`, `bool`, `DateTime` (and their nullable forms), plus
+any class annotated with `@EntitySpec`. Entity parameters are always emitted
+optional — a required entity blocks the widget from rendering until the user
+picks one.
+
+The referenced entity's role fields must be `String` (`@EntitySubtitle` and
+`@EntityImage` may be `String?`), because the App Group cache only carries
+strings.
+
+Codegen fails with an explicit error when the setup cannot work:
+
+- a referenced entity that is unknown, or that persists no cache
+- an entity lacking `@EntityId` / `@EntityTitle`
+- a role field whose type is not `String` / `String?`
+- a non-id role field literally named `id` (it would collide with the generated
+  `Identifiable` property)
+- configurations sharing an entity that disagree on `generateDefaultResult`
+
+That is deliberate — most of those cases would otherwise produce a picker that
+silently shows no options, or generated Swift that fails to compile in Xcode.
 
 ## Best Practices
 
