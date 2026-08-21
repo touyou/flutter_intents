@@ -269,7 +269,7 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
-- **`appfunctions-service` publishing lag (as of alpha10, July 2026)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
+- **`appfunctions-service` publishing lag (still unresolved as of 2026-08-21)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. **Re-checked 2026-08-21 (PR #83, closed)**: `appfunctions-service` alpha10 POM still returns HTTP 404 on both `google()` and `mavenCentral` (`maven-metadata.xml` tops out at alpha09), while `appfunctions`/`appfunctions-compiler` alpha10 return 200 — the pin must stay. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
   `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
@@ -279,10 +279,23 @@ Options:
   identifier that Kotlin 2.4.0's stricter escaping rejects, inside KSP's `KspAAWorkerAction`
   (Analysis API). At the time of that bisection (PR #48), KSP (2.3.9) and appfunctions
   (alpha09) were the latest releases, so there was no toolchain knob to fix it.
-  **Decision rule**: hold/close any Kotlin bump PR until a newer KSP or appfunctions alpha
-  lands; re-test the bump then. **appfunctions has since moved to alpha10 (this bump) —
-  the Kotlin 2.4.0 bump has NOT been re-tested against it; re-test before accepting a
-  Kotlin bump PR.**
+  **Decision rule**: hold/close any Kotlin bump PR until a newer **appfunctions** alpha
+  lands; re-test the bump then.
+
+  **Re-tested 2026-08-21 (PR #90, Kotlin 2.4.10) — still broken.** By then both
+  preconditions had advanced (appfunctions alpha09 → **alpha10**, KSP 2.3.9 →
+  **2.3.11**), so the full "everything latest" combination was testable for the first
+  time. Three real `flutter build apk --debug` runs:
+
+  | Kotlin | KSP | appfunctions | Result |
+  |---|---|---|---|
+  | 2.2.20 | 2.3.9 | alpha10 | ✅ baseline |
+  | **2.4.10** | **2.3.11** | alpha10 | ❌ same `Can't escape identifier` failure |
+  | 2.2.20 | **2.3.11** | alpha10 | ✅ |
+
+  The third run **isolates the cause to Kotlin 2.4.x, not KSP** — bumping KSP alone is
+  safe. So a KSP bump is NOT a reason to re-test a Kotlin bump; only a new **appfunctions**
+  alpha (which is what emits the colon-bearing identifier) is.
   (Verified via bisection in PR #48 — the build-script DSL migration below is independent
   and lands fine on 2.2.20.)
 
