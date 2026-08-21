@@ -1,7 +1,7 @@
 # Flutter Intents - Development Commands
 # Usage: make <target>
 
-.PHONY: help ios ios-build android android-build codegen swift-gen kotlin-gen test clean
+.PHONY: help ios ios-build android android-build codegen swift-gen widget-gen kotlin-gen test clean
 
 # Default target
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make android-build  Build Android APK only (no run)"
 	@echo "  make codegen        Run Dart code generation (build_runner)"
 	@echo "  make swift-gen      Generate Swift code from annotations"
+	@echo "  make widget-gen     Generate Widget Extension Swift code (WidgetConfigurationIntent)"
 	@echo "  make kotlin-gen     Generate Kotlin code for Android AppFunctions"
 	@echo "  make test           Run all Dart / Flutter tests (Swift package test omitted; see RELEASING.md)"
 	@echo "  make clean          Clean build artifacts"
@@ -43,6 +44,16 @@ swift-gen:
 	@cd app && dart run app_intents_codegen:generate_swift \
 	  --xcstrings ios/Runner/Localizable.xcstrings \
 	  -t translations.yaml
+
+# Generate Widget Extension Swift code from @WidgetConfigurationSpec.
+# Output goes to a directory meant for the Widget Extension target ONLY -
+# including the same App Intent type in both the app and an extension target
+# duplicates it in Metadata.appIntents and breaks intent resolution.
+widget-gen:
+	@cd app && dart run app_intents_codegen:generate_widget_swift \
+	  -o ios/TaskWidget/GeneratedIntents \
+	  --app-group group.com.example.app \
+	  --storage-identifier com.example.app
 
 # Generate Kotlin code for Android AppFunctions
 kotlin-gen:
