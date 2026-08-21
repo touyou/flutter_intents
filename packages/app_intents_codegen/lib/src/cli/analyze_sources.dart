@@ -13,10 +13,12 @@ import '../analyzer/entity_analyzer.dart';
 import '../analyzer/enum_analyzer.dart';
 import '../analyzer/intent_analyzer.dart';
 import '../analyzer/shortcut_analyzer.dart';
+import '../analyzer/widget_configuration_analyzer.dart';
 import '../generator/swift_generator.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
+import '../models/widget_configuration_info.dart';
 
 /// Result of analyzing source files for annotations.
 class AnalyzeResult {
@@ -32,16 +34,34 @@ class AnalyzeResult {
   /// Shortcuts found in the source files.
   final List<AppShortcutInfo> shortcuts;
 
+  /// Widget configuration intents found in the source files (#98).
+  ///
+  /// These are generated into a separate Widget Extension file, never into the
+  /// app target's output — see [WidgetSwiftGenerator].
+  final List<WidgetConfigurationInfo> widgetConfigurations;
+
   const AnalyzeResult({
     required this.intents,
     required this.entities,
     required this.enums,
     required this.shortcuts,
+    this.widgetConfigurations = const [],
   });
 
   /// Whether any annotations were found.
-  bool get isEmpty =>
-      intents.isEmpty && entities.isEmpty && enums.isEmpty && shortcuts.isEmpty;
+  bool get isEmpty => !hasAppTargetAnnotations && widgetConfigurations.isEmpty;
+
+  /// Whether anything the **app target** generator consumes was found.
+  ///
+  /// [widgetConfigurations] are deliberately excluded: they are generated into
+  /// a separate Widget Extension file by `generate_widget_swift`, so a project
+  /// that declares only widget configurations has nothing for `generate_swift`
+  /// to emit and should not get an otherwise-empty `GeneratedAppIntents.swift`.
+  bool get hasAppTargetAnnotations =>
+      intents.isNotEmpty ||
+      entities.isNotEmpty ||
+      enums.isNotEmpty ||
+      shortcuts.isNotEmpty;
 }
 
 /// Scans and analyzes Dart source files for @IntentSpec, @EntitySpec,
@@ -85,6 +105,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
       entities: [],
       enums: [],
       shortcuts: [],
+      widgetConfigurations: [],
     );
   }
 
@@ -94,6 +115,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final intentsMap = <String, IntentInfo>{};
   final entitiesMap = <String, EntityInfo>{};
   final enumsMap = <String, EnumInfo>{};
+  final widgetConfigurationsMap = <String, WidgetConfigurationInfo>{};
 
   final collection = AnalysisContextCollection(
     includedPaths: [absoluteInputDir],
@@ -104,6 +126,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final entityAnalyzer = const EntityAnalyzer();
   final shortcutAnalyzer = const ShortcutAnalyzer();
   final enumAnalyzer = const EnumAnalyzer();
+  final widgetConfigurationAnalyzer = const WidgetConfigurationAnalyzer();
   final allShortcuts = <AppShortcutInfo>[];
 
   for (final filePath in dartFiles) {
@@ -130,6 +153,18 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
             if (info != null && !entitiesMap.containsKey(info.identifier)) {
               entitiesMap[info.identifier] = info;
               stdout.writeln('  Found entity: ${info.className}');
+            }
+          }
+
+          // Check for @WidgetConfigurationSpec
+          if (widgetConfigurationAnalyzer.hasWidgetConfigurationSpecAnnotation(
+            element,
+          )) {
+            final info = widgetConfigurationAnalyzer.analyze(element);
+            if (info != null &&
+                !widgetConfigurationsMap.containsKey(info.identifier)) {
+              widgetConfigurationsMap[info.identifier] = info;
+              stdout.writeln('  Found widget configuration: ${info.className}');
             }
           }
 
@@ -162,6 +197,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final intents = intentsMap.values.toList();
   final entities = entitiesMap.values.toList();
   final enums = enumsMap.values.toList();
+  final widgetConfigurations = widgetConfigurationsMap.values.toList();
 
   // Resolve shortcut intentIdentifier to intent className
   final identifierToClassName = <String, String>{
@@ -181,7 +217,8 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   stdout.writeln('');
   stdout.writeln(
     'Found ${intents.length} intents, ${entities.length} entities, '
-    '${enums.length} enums, and ${resolvedShortcuts.length} shortcuts',
+    '${enums.length} enums, ${resolvedShortcuts.length} shortcuts, and '
+    '${widgetConfigurations.length} widget configurations',
   );
 
   return AnalyzeResult(
@@ -189,5 +226,6 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     entities: entities,
     enums: enums,
     shortcuts: resolvedShortcuts,
+    widgetConfigurations: widgetConfigurations,
   );
 }

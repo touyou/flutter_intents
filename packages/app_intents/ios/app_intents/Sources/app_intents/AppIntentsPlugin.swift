@@ -350,6 +350,16 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// to maintain backward compatibility with cache keys written before 0.7.6.
     /// In extension processes where `bundleIdentifier` differs, set `storageIdentifier`
     /// explicitly via `configure()` to ensure a consistent prefix.
+    ///
+    /// - Important: This format (`app_intents.<storageId>.cache.<key>`) is
+    ///   public API surface. `AppIntentsEntityCache` in the `AppIntentsBridge`
+    ///   Swift package mirrors it so App Extensions (which cannot start a
+    ///   Flutter engine) can read the persisted entity cache without hardcoding
+    ///   the key. The two modules are intentionally independent — this plugin
+    ///   has no dependency on `AppIntentsBridge` — so **changing this format
+    ///   requires changing `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)`
+    ///   too**, and is a breaking change for extensions. `EntityCacheTests`
+    ///   asserts the literal format on the other side.
     private static var cachePrefix: String {
         let id = _storageIdentifier
             ?? Bundle.main.bundleIdentifier

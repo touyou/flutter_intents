@@ -5,3 +5,4 @@ export 'entity_info.dart';
 export 'enum_info.dart';
 export 'intent_info.dart';
 export 'union_info.dart';
+export 'widget_configuration_info.dart';
