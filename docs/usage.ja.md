@@ -99,7 +99,7 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 同梱されています。プロジェクトに合う経路を選んでください。3 つとも同じファイルをビルドし、
 A と B は `pubspec.yaml` に書いた `app_intents` のバージョンに自動的に追従します。
 
-**A. ローカル Swift Package（推奨。CocoaPods 構成でも使えます）**
+**A. ローカル Swift Package（Podfile がある構成なら推奨）**
 
 1. `flutter pub get` の後、一度 `pod install`（または `flutter build ios`）を実行し、
    `ios/.symlinks/plugins/` を生成する
@@ -143,6 +143,13 @@ Git でピン留めしたい場合は、リポジトリルートに同じ `AppIn
 
 `app_intents` のバージョンに対応するタグ（`vX.Y.Z`）にピン留めしてください。A / B と違い、
 この依存は pub とは別管理になります。
+
+> **Podfile が無い場合は経路 C を使ってください。** `ios/.symlinks/` は CocoaPods が
+> Podfile を評価する際に `flutter_install_all_ios_pods` が生成するもので、それ以外に
+> 生成経路はありません。全プラグインが Swift Package になったときに Flutter ツール自身が
+> 勧める `pod deintegrate` を実行して Podfile を消した構成では、`flutter pub get` も
+> `flutter build ios` もこのディレクトリを作りません。経路 A と B はどちらもこれに依存
+> するため、その場合は経路 C が唯一のサポート経路です。
 
 > **Widget Extension**: `generate_widget_swift` が生成する Swift は
 > `import AppIntentsBridge` から始まるため、Extension ターゲットにも上記いずれかの導入が

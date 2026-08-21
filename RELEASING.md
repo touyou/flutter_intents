@@ -37,8 +37,21 @@ In a single commit, update:
 - `packages/app_intents/CHANGELOG.md` — add new release heading
 - `packages/app_intents_annotations/CHANGELOG.md` — add new release heading
 - `packages/app_intents_codegen/CHANGELOG.md` — add new release heading
+- `packages/app_intents/ios/app_intents.podspec` → `s.version`
+- `packages/app_intents/ios/app_intents_bridge.podspec` → `s.version`
 - `README.md` and `README.ja.md` — bump the `^X.Y.Z` numbers in the Quick
   Start dependency block
+- `docs/usage.md`, `docs/usage.ja.md`, `docs/packages.md`,
+  `docs/packages.ja.md` — bump the `^X.Y.Z` numbers in their dependency blocks
+
+Nothing verifies the two podspec versions, so they are the easiest thing here to
+forget: `app_intents.podspec` was left at `0.11.0` through the entire 0.12.0
+release. Check with:
+
+```bash
+grep -rn "s.version" packages/app_intents/ios/*.podspec
+grep -rn "^version:" packages/*/pubspec.yaml
+```
 
 Commit with `chore: Release vX.Y.Z`.
 
