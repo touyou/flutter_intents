@@ -55,8 +55,9 @@ void main() {
         );
         expect(result, contains('ValueRepresentation(exporting: { entity in'));
         expect(result, contains('IntentPerson('));
-        // Uses the entity's actual id/title field names, not literal id/title.
-        expect(result, contains('identifier: .applicationDefined(entity.uid)'));
+        // The id property is normalized to `id` (required by `Identifiable`);
+        // the title keeps its actual Dart field name.
+        expect(result, contains('identifier: .applicationDefined(entity.id)'));
         expect(result, contains('name: .displayName(entity.name)'));
         // handle has no default in the SDK initializer, so it is passed explicitly.
         expect(result, contains('handle: nil'));

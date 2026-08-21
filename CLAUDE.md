@@ -312,11 +312,26 @@ The Dart mirror of the *inner* key is `AppIntentsEntityCacheKey.forEntity`.
 literally named `id`, Swift infers `Identifiable.ID == ObjectIdentifier` and the
 conformance fails with a confusing `'ObjectIdentifier' does not conform to
 'EntityIdentifierConvertible'`. The Dart `@EntityId` field name is arbitrary, so
-`WidgetSwiftGenerator` normalizes it (`_swiftPropertyName`) and passes the Dart
-name separately as the cached-payload `idKey:`; it also rejects a *non-id* role
-field named `id`, which would collide with that rename. **`SwiftGenerator` (the app-target
-generator) does not yet do this** — a non-`id` `@EntityId` produces output that
-does not compile. Tracked separately.
+**both Swift generators normalize it to `id`** via their own `_swiftPropertyName`
+helper, and both reject a *non-id* role field named `id`, which would collide
+with that rename:
+
+- `WidgetSwiftGenerator` — passes the Dart name separately as the cached-payload
+  `idKey:`.
+- `SwiftGenerator` (app target) — the Dart name survives only as the
+  cache/dictionary key (`dict["teamId"]`), which is what the Dart cache
+  projection writes.
+
+When touching `SwiftGenerator`:
+
+- Use `_swiftPropertyName(prop)` for any new site that emits an entity stored
+  property, initializer label, or `self.x = x` assignment. Never emit
+  `prop.fieldName` directly for the id-role property.
+- Sites reading the identifier off a Swift value (`$0.id`, `entity.id`, `team.id`
+  in intent param serialization) hardcode `id` — that is correct, not a bug.
+
+Golden string tests passed the entire time this was broken, because they only
+assert `contains(...)`. **Verify entity changes with `swiftc -typecheck`.**
 
 ### MethodChannel Type Serialization
 MethodChannel only supports specific types. Non-supported types need conversion:
