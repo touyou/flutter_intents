@@ -11,7 +11,7 @@ packages/
 ├── app_intents_annotations/  # Dart annotations for Intent/Entity definitions
 ├── app_intents/              # Flutter plugin (Platform Interface + Method Channel)
 └── app_intents_codegen/      # build_runner code generator
-ios-spm/
+packages/app_intents/ios/AppIntentsBridge/
 └── AppIntentsBridge/         # Swift Package for iOS native bridge
 app/                          # Example Flutter application
 docs/
@@ -39,12 +39,13 @@ docs/
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 | App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
 | WidgetConfigurationIntent | **Separate target + separate CLI** (`generate_widget_swift`); cache-only queries |
+| `AppIntentsBridge` distribution | **Ships inside the pub package** (`packages/app_intents/ios/AppIntentsBridge`) + standalone `app_intents_bridge.podspec`; root `Package.swift` mirrors it for `.package(url:)` |
 
 ## Implementation Status
 
 ### Completed
 - **App Extension entity access + WidgetConfigurationIntent codegen (#97 / #98)**
-  - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `ios-spm/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
+  - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `packages/app_intents/ios/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
   - Dart-side mirror `AppIntentsEntityCacheKey.forEntity(identifier)` so `setCachedValue` keys are not literals.
   - `@WidgetConfigurationSpec` / `@WidgetParameter` / `WidgetConfigurationSpecBase` + `WidgetConfigurationAnalyzer` + `WidgetSwiftGenerator` → `<Entity>WidgetEntity` (`AppEntity`), `<Entity>WidgetQuery` (`EnumerableEntityQuery`, cache-only), `<Config>` (`WidgetConfigurationIntent`).
   - CLI `dart run app_intents_codegen:generate_widget_swift` (`--app-group` / `--storage-identifier` required, baked into the output) + `make widget-gen`. Output goes to a **separate file for the Widget Extension target only**.
@@ -119,7 +120,7 @@ docs/
   - Three execution modes: URL scheme, cache (foreground), FlutterBridge (background)
   - `IntentFile` parameter support with file serialization code generation
   - `supportedModes` (iOS 26+) + `openAppWhenRun` dual generation for backward compatibility
-- `ios-spm/AppIntentsBridge`: Swift Package
+- `packages/app_intents/ios/AppIntentsBridge`: Swift Package
   - `FlutterBridge` actor for thread-safe communication
   - `AppIntentError`, `EntityImageSource` types
 - `app/` Example App: Task management demo
@@ -311,13 +312,38 @@ modules on purpose**:
 
 - `AppIntentsPlugin.cachePrefix` (`packages/app_intents/ios/...`) — writes it
 - `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)`
-  (`ios-spm/AppIntentsBridge`) — reads it, for App Extensions
+  (`packages/app_intents/ios/AppIntentsBridge`) — reads it, for App Extensions
 
 The plugin cannot depend on `AppIntentsBridge` (it `import Flutter`s; the bridge
 must stay linkable from extensions), so **changing the format means changing both**,
 and it is a breaking change for any extension. `EntityCacheTests` asserts the
 literal string on the bridge side; the plugin carries a cross-reference comment.
 The Dart mirror of the *inner* key is `AppIntentsEntityCacheKey.forEntity`.
+
+### AppIntentsBridge lives inside the pub package (#102)
+
+`AppIntentsBridge` is at **`packages/app_intents/ios/AppIntentsBridge/`**, not in
+a top-level `ios-spm/` directory. It has to ship inside the published pub
+package: the Swift emitted by `generate_widget_swift` opens with
+`import AppIntentsBridge`, and a Widget Extension target has no other way to get
+the module (it must not link Flutter, so it is outside
+`flutter_install_all_ios_pods`).
+
+Three manifests point at that **one** copy of the sources — changing the layout
+means changing all three:
+
+| File | Consumer |
+|------|----------|
+| `packages/app_intents/ios/AppIntentsBridge/Package.swift` | Local SPM (`ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge`) |
+| `packages/app_intents/ios/app_intents_bridge.podspec` | CocoaPods (`pod 'app_intents_bridge', :path => '.symlinks/plugins/app_intents/ios'`) |
+| `Package.swift` (repo root) | `.package(url:)` — SPM only reads the repository root |
+
+The root manifest is also what CI's `xcodebuild -scheme AppIntentsBridge` builds,
+so its `path:` arguments are load-bearing beyond documentation.
+
+`app_intents.podspec` deliberately does **not** include these sources
+(`source_files` stays scoped to `app_intents/Sources/app_intents`), so a target
+can take both pods without duplicate symbols.
 
 ### AppEntity requires an `id` property
 
@@ -478,9 +504,11 @@ Use conventional commit prefixes:
 5. `packages/app_intents/test/` - Add tests
 
 ### iOS Native (Swift Package)
-1. `ios-spm/AppIntentsBridge/Sources/AppIntentsBridge/` - Swift source files
-2. `ios-spm/AppIntentsBridge/Tests/AppIntentsBridgeTests/` - Swift tests
-3. `ios-spm/AppIntentsBridge/Package.swift` - Package manifest
+1. `packages/app_intents/ios/AppIntentsBridge/Sources/AppIntentsBridge/` - Swift source files
+2. `packages/app_intents/ios/AppIntentsBridge/Tests/AppIntentsBridgeTests/` - Swift tests
+3. `packages/app_intents/ios/AppIntentsBridge/Package.swift` - Package manifest (local, downstream-consumable)
+4. `packages/app_intents/ios/app_intents_bridge.podspec` - Standalone pod for the same sources
+5. `Package.swift` (repo root) - Mirror manifest so `.package(url:)` resolves
 
 ## Communication Flow
 
@@ -594,7 +622,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
 
 ### iOS App Integration Steps
-1. Add AppIntentsBridge: either via SPM (`File → Add Package Dependencies` → `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product) or copy Swift files to `ios/Runner/AppIntentsBridge/`
+1. Add AppIntentsBridge — three equivalent routes, see `docs/usage.md` → "Consuming AppIntentsBridge": local Swift package at `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` (recommended), the `app_intents_bridge` pod (`:path => '.symlinks/plugins/app_intents/ios'`), or the remote package `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product
 2. Run `dart run app_intents_codegen:generate_swift` to generate Swift code
 3. Add Swift files to Xcode project (update project.pbxproj)
 4. Enable App Groups in Xcode (required for cache mode):
@@ -726,7 +754,7 @@ dart test packages/app_intents_codegen
 dart test packages/app_intents_annotations
 cd packages/app_intents && flutter test
 cd app && flutter test
-cd ios-spm/AppIntentsBridge && swift test
+cd packages/app_intents/ios/AppIntentsBridge && swift test
 ```
 
 ## Running Analysis

@@ -51,9 +51,12 @@ target, you get a compile error instead of a silent runtime failure.
    `Runner.xcworkspace`. Set its minimum deployment to iOS 17.0.
 2. Add `GeneratedIntents/GeneratedWidgetIntents.swift` to that target —
    **and only that target**.
-3. Add the `AppIntentsBridge` Swift package to the Widget Extension target
-   (`File → Add Package Dependencies`, or the local `ios-spm/AppIntentsBridge`
-   package).
+3. Add the `AppIntentsBridge` Swift package to the Widget Extension target.
+   In this repository that is the local package at
+   `packages/app_intents/ios/AppIntentsBridge`; in a downstream app it is
+   `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` (or the
+   `app_intents_bridge` pod). See `docs/usage.md` →
+   "Consuming AppIntentsBridge".
 4. Give the extension the **App Groups** entitlement for
    `group.com.example.app` — the same group the app passes to
    `AppIntentsPlugin.configure(appGroupIdentifier:)`. Without it the cache is

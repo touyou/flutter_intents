@@ -20,6 +20,30 @@
 /// The Swift counterpart for App Extensions is
 /// `AppIntentsEntityCache.defaultCacheKey(forEntityIdentifier:)` in the
 /// `AppIntentsBridge` Swift package.
+///
+/// ## This is not a `UserDefaults` key
+/// The value returned here is the *cache key*. The plugin namespaces it with
+/// the storage identifier before writing, so the raw key in the App Group
+/// `UserDefaults` is:
+///
+/// ```text
+/// app_intents.<storageIdentifier>.cache.app_intents.entities.<identifier>
+/// ```
+///
+/// where `<storageIdentifier>` is what was passed to
+/// `AppIntentsPlugin.configure(storageIdentifier:)`, falling back to the **main
+/// app's** bundle identifier (then the App Group identifier, then
+/// `'app_intents'`). Note that an App Extension's own
+/// `Bundle.main.bundleIdentifier` is *not* the main app's, so it cannot be used
+/// to rebuild this key. Passing the cache key straight to
+/// `UserDefaults.string(forKey:)` does not raise — it silently returns `null`,
+/// which only shows up as an empty widget configuration picker.
+///
+/// From Swift, derive the raw key with
+/// `AppIntentsEntityCache.storageKey(forCacheKey:storageIdentifier:)` (or just
+/// read through `AppIntentsEntityCache.entities(forCacheKey:)`) rather than
+/// assembling it by hand. See `docs/usage.md` → "Consuming AppIntentsBridge"
+/// for how to add that package to an App Extension target.
 abstract final class AppIntentsEntityCacheKey {
   /// The prefix codegen uses for the default per-entity cache key.
   static const String prefix = 'app_intents.entities.';

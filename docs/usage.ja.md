@@ -89,13 +89,67 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 
-`AppIntentsBridge` Swiftパッケージは、FlutterアプリとiOS App Intentsのネイティブブリッジを提供します。Swift Package Manager (SPM) で追加できます:
+`AppIntentsBridge` Swiftパッケージは、FlutterアプリとiOS App Intentsのネイティブブリッジを提供します。
+**Flutter に依存していない**ため、App Extension からもリンクできます
+（Extension のケースは [AppIntentsBridge の導入](#appintentsbridge-の導入) を参照）。
 
-1. Xcodeプロジェクト（`ios/Runner.xcworkspace`）を開く
-2. **File → Add Package Dependencies** を選択
-3. リポジトリURL: `https://github.com/touyou/flutter_intents` を入力
-4. `AppIntentsBridge` パッケージプロダクトを選択
-5. `Runner` ターゲットに追加
+#### AppIntentsBridge の導入
+
+ソースは**公開されている `app_intents` pub パッケージの中**、`ios/AppIntentsBridge/` に
+同梱されています。プロジェクトに合う経路を選んでください。3 つとも同じファイルをビルドし、
+A と B は `pubspec.yaml` に書いた `app_intents` のバージョンに自動的に追従します。
+
+**A. ローカル Swift Package（推奨。CocoaPods 構成でも使えます）**
+
+1. `flutter pub get` の後、一度 `pod install`（または `flutter build ios`）を実行し、
+   `ios/.symlinks/plugins/` を生成する
+2. Xcode で **File → Add Package Dependencies… → Add Local…**
+3. `ios/.symlinks/plugins/app_intents/ios/AppIntentsBridge` を選ぶ
+4. `AppIntentsBridge` ライブラリを必要なターゲット（`Runner`、Widget Extension、
+   あるいは両方）に追加する
+
+**B. CocoaPods**
+
+Swift Package の隣に、独立した `app_intents_bridge` podspec を用意しています。
+Extension の依存も CocoaPods で管理したい場合はこちらを使ってください:
+
+```ruby
+target 'Runner' do
+  use_frameworks!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # ...
+end
+
+# Runner ターゲットブロックより **後** に書くこと。`.symlinks/plugins` は Podfile 評価中に
+# `flutter_install_all_ios_pods` が生成するため。
+target 'MyWidgetExtension' do
+  use_frameworks!
+  pod 'app_intents_bridge', :path => '.symlinks/plugins/app_intents/ios'
+end
+```
+
+`app_intents` 本体の pod にはこれらのソースは**含まれていない**ので、`Runner` ターゲットに
+この pod を追加してもシンボルは重複しません。ただし `Runner` は既にプラグインをリンクして
+いるため、通常は経路 A のほうが簡単です。
+
+**C. リモート Swift Package**
+
+Git でピン留めしたい場合は、リポジトリルートに同じ `AppIntentsBridge` プロダクトを持つ
+マニフェストがあります:
+
+1. **File → Add Package Dependencies**
+2. `https://github.com/touyou/flutter_intents` を入力
+3. `AppIntentsBridge` プロダクトを選択
+
+`app_intents` のバージョンに対応するタグ（`vX.Y.Z`）にピン留めしてください。A / B と違い、
+この依存は pub とは別管理になります。
+
+> **Widget Extension**: `generate_widget_swift` が生成する Swift は
+> `import AppIntentsBridge` から始まるため、Extension ターゲットにも上記いずれかの導入が
+> 必要です。A か B ならプラグイン本体とバージョンがずれません。
+> [WidgetKit の Widget Extension](#widgetkit-の-widget-extension) も参照。
+
+#### App Groups と AppDelegate の配線
 
 続いて、プロセス間ストレージのための App Groups を設定します（cache モードで必須）:
 
@@ -1097,9 +1151,14 @@ Widget Extension は **Flutter エンジンを起動できない**ため、ア�
    （`app_intents.entities.<identifier>`）と同じ文字列を返します。リテラル直書きより
    こちらを使ってください。
 
+4. **Extension** ターゲットに `AppIntentsBridge` を追加する
+   （[AppIntentsBridge の導入](#appintentsbridge-の導入)）。Extension はアプリ本体の
+   依存を引き継がず、生成される Widget Swift は `import AppIntentsBridge` で始まります
+
 ### 手書き Swift からキャッシュを読む (#97)
 
-Widget Extension ターゲットに `AppIntentsBridge` Swift Package を追加してから:
+Widget Extension ターゲットに `AppIntentsBridge` を追加したうえで
+（[導入方法](#appintentsbridge-の導入)）:
 
 ```swift
 import AppIntentsBridge
@@ -1132,6 +1191,21 @@ let teams = cache.entities(
 | `cache.storageKey(forEntityIdentifier:)` | このインスタンスの storage identifier を使った生キー |
 | `cache.entries(forCacheKey:)` | 生の `[[String: Any]]` ペイロード |
 | `cache.isAccessible` | App Group を開けなかった場合に `false` |
+
+> **キャッシュキーと `UserDefaults` キーは別物です。**
+> `defaultCacheKey(forEntityIdentifier:)`（および Dart 側の
+> `AppIntentsEntityCacheKey.forEntity`）が返すのは `setCachedValue` に渡すキーで、
+> プラグインは書き込み前にこれを名前空間化します。生キーは
+> `app_intents.<storageIdentifier>.cache.<cacheKey>`、つまり既定のエンティティキーなら:
+>
+> ```text
+> app_intents.com.example.app.cache.app_intents.entities.com.example.joinedTeam
+> ```
+>
+> 名前空間化していないキーで読んでもエラーにはならず、静かに nil が返るだけなので、
+> 「設定画面の候補が空」という形でしか気付けません。
+> `storageKey(forCacheKey:storageIdentifier:)` を使うか、
+> `entries(forCacheKey:)` / `entities(forCacheKey:)` 経由で読んでください。
 
 `isAccessible` が要るのは、空の結果だけでは区別がつかないためです。Extension に
 App Groups の entitlement が無いと `UserDefaults(suiteName:)` は nil を返し、

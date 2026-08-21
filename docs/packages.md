@@ -510,9 +510,18 @@ app_intents_codegen/
 
 ---
 
-## ios-spm (Swift Package)
+## AppIntentsBridge (Swift Package)
 
-Swift Package for iOS App Intents integration.
+Swift Package for iOS App Intents integration, at
+`packages/app_intents/ios/AppIntentsBridge/`.
+
+It lives inside the `app_intents` pub package on purpose: an App Extension that
+uses the generated `WidgetConfigurationIntent` code has to link this module, and
+shipping it with the plugin keeps the two versions from drifting. The repository
+root carries a second `Package.swift` with the same `AppIntentsBridge` product so
+that `.package(url:)` also resolves; both manifests point at these same sources.
+See `docs/usage.md` → "Consuming AppIntentsBridge" for the three consumption
+routes (local Swift package / `app_intents_bridge` pod / remote Swift package).
 
 ### Package.swift
 
@@ -573,23 +582,25 @@ public enum AppIntentError: LocalizedError {
 ### File Structure
 
 ```
-ios-spm/
+packages/app_intents/ios/
+├── app_intents.podspec             # Flutter plugin pod
+├── app_intents_bridge.podspec      # Standalone pod for the sources below
 └── AppIntentsBridge/
-    ├── Package.swift
-    └── Sources/
-        └── AppIntentsBridge/
-            ├── AppIntentsBridge.swift  # Module entry point
-            ├── FlutterBridge.swift     # Main communication bridge
-            ├── ErrorHandling.swift     # AppIntentError type
-            ├── EntityImage.swift       # EntityImageSource enum
-            └── EntityCache.swift       # AppIntentsEntityCache (App Extension read-only cache)
+    ├── Package.swift               # Local Swift package (downstream-consumable)
+    ├── Sources/
+    │   └── AppIntentsBridge/
+    │       ├── AppIntentsBridge.swift  # Module entry point
+    │       ├── FlutterBridge.swift     # Main communication bridge
+    │       ├── ErrorHandling.swift     # AppIntentError type
+    │       ├── EntityCache.swift       # AppIntentsEntityCache (App Extension read-only cache)
+    │       └── EntityImage.swift       # EntityImageSource enum
+    └── Tests/
 ```
 
 ### Integration Steps
 
-1. Add the package via Swift Package Manager: **File → Add Package Dependencies** in Xcode,
-   then select the `AppIntentsBridge` product (the example app uses a local package
-   reference to `ios-spm/AppIntentsBridge`). Do **not** copy the sources into
+1. Add the module to your target — see `docs/usage.md` →
+   "Consuming AppIntentsBridge". Do **not** copy the sources into
    `ios/Runner/` — a copy goes stale as the package gains files.
 2. `import AppIntentsBridge` where you need it
 3. Set executor in AppDelegate:
