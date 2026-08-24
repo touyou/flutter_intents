@@ -21,10 +21,10 @@ packages:
     dependency: "direct main"
     description:
       name: app_intents_annotations
-      sha256: "8e5e24c7e5d2d592d8ad4113456d907fb69d2a5bbe608d65e0247b2b09e006f4"
+      sha256: "954a84a8e0e20c50de6414e4166c11aa3e6d8ec362d8f35a0d1a31984d9d9c02"
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.0"
+    version: "0.15.0"
   args:
     dependency: "direct main"
     description:
@@ -53,10 +53,10 @@ packages:
     dependency: "direct main"
     description:
       name: build
-      sha256: "59f99162d27dff3620f1d21165ce802237eb4556fed563c0902403f8207a7c00"
+      sha256: b94f5da9ed3d081fd4ecc426c260998b5f4f4eb2f6d89b7e5472edef0b2b2a1b
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.8"
+    version: "4.0.10"
   build_config:
     dependency: transitive
     description:
