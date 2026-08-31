@@ -271,10 +271,10 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
 - Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
-- **`appfunctions-service` publishing lag (still unresolved as of 2026-08-21)**: the [release notes page](https://developer.android.com/jetpack/androidx/releases/appfunctions) lists `appfunctions-service:1.0.0-alpha10`, but Google Maven had not actually published that artifact yet (`maven-metadata.xml`/`group-index.xml` for `androidx.appfunctions` topped out at alpha09 for `appfunctions-service` while `appfunctions` and `appfunctions-compiler` alpha10 were live) — `:app:mergeDebugAssets` fails to resolve `androidx.appfunctions:appfunctions-service:1.0.0-alpha10`. **Fix**: pin `appfunctions-service` one version behind (`alpha09`) while bumping `appfunctions`/`appfunctions-compiler` to the new version; re-check Maven before un-pinning. **Re-checked 2026-08-21 (PR #83, closed)**: `appfunctions-service` alpha10 POM still returns HTTP 404 on both `google()` and `mavenCentral` (`maven-metadata.xml` tops out at alpha09), while `appfunctions`/`appfunctions-compiler` alpha10 return 200 — the pin must stay. Verified: `flutter build apk --debug` succeeds with this mixed-version pin and the *existing* `KotlinGenerator` output unchanged — no `@AppFunctionServiceEntryPoint`/service-wrapper migration was actually required for this project's plain `@AppFunction` usage.
+- **`appfunctions-service` status (pinned at alpha09, possibly deprecated)**: `appfunctions-service:1.0.0-alpha10` was never published to Google Maven (artifact 404 as of 2026-08-21, PR #83). More significantly, the **alpha11 release (2026-08-26) omits `appfunctions-service` entirely** from its artifact list — only `appfunctions`, `appfunctions-compiler`, and `appfunctions-testing` are released. This may signal the artifact is being deprecated or merged into another artifact. **Current fix**: pin `appfunctions-service` at `alpha09` while bumping the other two artifacts. If `appfunctions-service` is permanently dropped upstream, remove this dependency. Verified: `flutter build apk --debug` succeeds with the mixed-version pin and the *existing* `KotlinGenerator` output unchanged.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
-  `appfunctions:1.0.0-alpha10`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
+  `appfunctions:1.0.0-alpha11`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
   `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
   `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
   contains illegal characters: :` — the AppFunctions compiler emits a colon-bearing
@@ -291,7 +291,7 @@ Options:
 
   | Kotlin | KSP | appfunctions | Result |
   |---|---|---|---|
-  | 2.2.20 | 2.3.9 | alpha10 | ✅ baseline |
+  | 2.2.20 | 2.3.9 | alpha10 | ✅ baseline (at time of test) |
   | **2.4.10** | **2.3.11** | alpha10 | ❌ same `Can't escape identifier` failure |
   | 2.2.20 | **2.3.11** | alpha10 | ✅ |
 
