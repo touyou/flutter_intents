@@ -46,12 +46,13 @@ ksp {
 }
 
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
-    // appfunctions-service alpha10 has not actually been published to Google Maven yet
-    // (the release notes page lists it, but the artifact 404s) — keep this pinned to
-    // alpha09 until Google publishes it, or the build fails to resolve dependencies.
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha11")
+    // appfunctions-service was not included in the alpha10 or alpha11 artifact releases
+    // (it 404s on Google Maven for alpha10; alpha11 release notes omit it entirely).
+    // Keep pinned to alpha09. Re-check each release cycle; if appfunctions-service is
+    // permanently dropped, remove this dependency.
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha11")
 }
 
 flutter {
