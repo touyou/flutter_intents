@@ -49,6 +49,7 @@ opt-in ゲートの効き方が「データの向き」で割れます。各 ADR
 | [0006](0006-dual-text-result-dialog.md) | #59 punch list | 読み上げ/画面表示を分けた結果ダイアログ（`IntentDialog(full:supporting:)`） | 低（純 codegen・非 experimental） | — |
 | [0007](0007-declarative-snippet-view.md) | #56 | 宣言的スニペットビュー（`ShowsSnippetView`） | 中（codegen + ハンドラ戻り値の配線） | 0004 |
 | [0008](0008-app-intents-package.md) | #59 punch list | `AppIntentsPackage`（共有パッケージ構成の宣言生成） | 低（宣言のみ・構成は利用者側） | — |
+| [0009](0009-relevant-intents.md) | #55残 | `RelevantIntent` ドネーション（Smart Stack 提案） | 中（ブリッジ + codegen） | 0008 の区別整理 |
 
 関連: #58（ビジュアルインテリジェンス）は #51 の `Input` を `SemanticContentDescriptor`
 （ピクセルバッファ）に特殊化したケースで、ネイティブ完結が前提。0001 で線引きを示し、

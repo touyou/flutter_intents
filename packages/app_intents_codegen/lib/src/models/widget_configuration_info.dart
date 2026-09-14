@@ -24,6 +24,9 @@ class WidgetConfigurationInfo {
   /// Whether the generated entity queries implement `defaultResult()`.
   final bool generateDefaultResult;
 
+  /// Whether to emit the relevant-intent donator for this configuration (#55).
+  final bool relevantIntents;
+
   /// The configuration parameters.
   final List<WidgetParamInfo> parameters;
 
@@ -35,6 +38,7 @@ class WidgetConfigurationInfo {
     this.isDiscoverable = false,
     this.generateDefaultResult = false,
     required this.parameters,
+    this.relevantIntents = false,
   });
 
   /// The generated Swift struct name for the configuration intent.

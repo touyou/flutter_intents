@@ -202,6 +202,26 @@ class AppIntents {
     );
   }
 
+  /// Donates the app's relevant widget intents (#55).
+  ///
+  /// Tells the system which configured widget intents are worth surfacing in
+  /// the Smart Stack right now, and in what context. Every call **replaces the
+  /// app's entire set** — pass the full list each time, and an empty list to
+  /// clear it. That is the shape of the underlying
+  /// `RelevantIntentManager.updateRelevantIntents`, not a choice made here.
+  ///
+  /// Each donation's `configurationIdentifier` must match a
+  /// `@WidgetConfigurationSpec(relevantIntents: true)` declaration, and its
+  /// `widgetKind` the `kind` of the widget that uses that configuration.
+  ///
+  /// iOS-only; a no-op on other platforms. Requires the generated
+  /// `registerRelevantIntentDonator()` to have run and
+  /// `AppIntentsPlugin.relevantIntentDonationForwarder` to be wired — see
+  /// `docs/adr/0009-relevant-intents.md`.
+  Future<void> donateRelevantIntents(List<RelevantIntentDonation> donations) {
+    return AppIntentsPlatform.instance.donateRelevantIntents(donations);
+  }
+
   /// Donates an executed intent so Siri / Apple Intelligence learns that the
   /// user performed this action in your app (#55).
   ///

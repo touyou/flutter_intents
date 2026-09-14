@@ -182,6 +182,13 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     );
   }
 
+  /// Donates the app's complete set of relevant widget intents (#55).
+  Future<void> donateRelevantIntents(List<RelevantIntentDonation> donations) {
+    throw UnimplementedError(
+      'donateRelevantIntents() has not been implemented.',
+    );
+  }
+
   /// Donates an executed intent so Siri / Apple Intelligence can learn that the
   /// user performed this action in-app (#55).
   ///

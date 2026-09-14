@@ -52,6 +52,15 @@ void main(List<String> arguments) async {
           'passed to AppIntentsPlugin.configure). Required — an extension '
           'cannot derive it, because its own bundle identifier differs.',
     )
+    ..addFlag(
+      'public',
+      negatable: false,
+      help:
+          'Emit the generated declarations as public. Needed when the file '
+          'lives in a shared module another target imports; unnecessary (and '
+          'noisier) when it is compiled straight into the Widget Extension '
+          'target.',
+    )
     ..addOption(
       'app-intents-package',
       help:
@@ -131,6 +140,7 @@ void main(List<String> arguments) async {
     storageIdentifier: storageIdentifier!,
     appIntentsPackage: packageName,
     includedPackages: includedPackages,
+    publicAccess: results['public'] as bool,
   );
 }
 
@@ -165,6 +175,7 @@ Future<void> generateWidgetSwift({
   required String storageIdentifier,
   String? appIntentsPackage,
   List<String> includedPackages = const [],
+  bool publicAccess = false,
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
@@ -176,6 +187,7 @@ Future<void> generateWidgetSwift({
   final generator = WidgetSwiftGenerator(
     appGroupIdentifier: appGroupIdentifier,
     storageIdentifier: storageIdentifier,
+    publicAccess: publicAccess,
   );
   final swiftCode = generator.generateAll(
     configurations: analyzeResult.widgetConfigurations,

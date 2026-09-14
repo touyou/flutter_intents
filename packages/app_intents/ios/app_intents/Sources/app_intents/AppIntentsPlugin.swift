@@ -35,6 +35,15 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     public static var intentDonationForwarder:
         (@Sendable (String, [String: Any]) async throws -> Void)?
 
+    /// Forwards a Dart `donateRelevantIntents` call to the reverse executor (#55).
+    ///
+    /// AppDelegate wires this to `FlutterBridge.shared.donateRelevantIntents`.
+    /// The whole set is passed in one call because
+    /// `RelevantIntentManager.updateRelevantIntents` replaces the app's entire
+    /// set — sending them one at a time would leave only the last one.
+    public static var relevantIntentDonationForwarder:
+        (@Sendable ([[String: Any]]) async throws -> Void)?
+
     /// Applies the iOS 26+ `appEntityIdentifier` AppEntity association to an
     /// onscreen `NSUserActivity` (#56). Wired in AppDelegate, where the concrete
     /// entity type is known (the association needs
@@ -232,6 +241,35 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             Task {
                 do {
                     try await forwarder(entityIdentifier, entities, context)
+                    result(nil)
+                } catch {
+                    result(FlutterError(
+                        code: "DONATION_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
+            }
+        case "donateRelevantIntents":
+            // #55: same reverse-executor wiring as donateRelevantEntities, but
+            // the payload is the app's ENTIRE donation set — the underlying
+            // RelevantIntentManager call replaces everything, so an empty list
+            // is the documented way to clear previous donations.
+            guard let args = call.arguments as? [String: Any] else {
+                result(FlutterError(code: "INVALID_ARGS", message: "arguments are required", details: nil))
+                return
+            }
+            let donations = (args["donations"] as? [[String: Any]]) ?? []
+            guard let forwarder = Self.relevantIntentDonationForwarder else {
+                result(FlutterError(
+                    code: "DONATION_NOT_CONFIGURED",
+                    message: "RelevantIntent donation forwarder not wired. Set "
+                        + "AppIntentsPlugin.relevantIntentDonationForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    try await forwarder(donations)
                     result(nil)
                 } catch {
                     result(FlutterError(

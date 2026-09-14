@@ -58,6 +58,15 @@ class MockAppIntentsPlatform
     });
   }
 
+  final List<List<RelevantIntentDonation>> donatedRelevantIntents = [];
+
+  @override
+  Future<void> donateRelevantIntents(
+    List<RelevantIntentDonation> donations,
+  ) async {
+    donatedRelevantIntents.add(donations);
+  }
+
   final List<Map<String, dynamic>> donatedIntents = [];
 
   @override
@@ -199,6 +208,49 @@ void main() {
         fakePlatform.donatedRelevantEntities.first['context'],
         'audio.nowPlaying',
       );
+    });
+
+    test('donateRelevantIntents passes the whole set through', () async {
+      // The underlying RelevantIntentManager call replaces everything, so the
+      // API is deliberately all-or-nothing rather than incremental.
+      await appIntentsPlugin.donateRelevantIntents([
+        RelevantIntentDonation(
+          configurationIdentifier: 'com.example.selectTask',
+          widgetKind: 'TaskWidget',
+          parameters: const {'task': 'task-1'},
+          relevance: RelevantContextSpec.inferredLocation(
+            InferredLocation.home,
+          ),
+        ),
+      ]);
+
+      expect(fakePlatform.donatedRelevantIntents, hasLength(1));
+      final donation = fakePlatform.donatedRelevantIntents.single.single;
+      expect(donation.widgetKind, 'TaskWidget');
+      expect(donation.toMap()['relevance'], {
+        'kind': 'inferredLocation',
+        'value': 'home',
+      });
+    });
+
+    test('donateRelevantIntents encodes a DateTime parameter', () async {
+      // The standard method-channel codec has no DateTime, so it has to leave
+      // as a string or the call throws before reaching iOS.
+      final donation = RelevantIntentDonation(
+        configurationIdentifier: 'com.example.selectTask',
+        widgetKind: 'TaskWidget',
+        parameters: {'dueDate': DateTime.utc(2026, 9, 14, 5, 41, 42)},
+        relevance: RelevantContextSpec.headphonesConnected(),
+      );
+
+      final parameters = donation.toMap()['parameters']! as Map;
+      expect(parameters['dueDate'], isA<String>());
+      expect(parameters['dueDate'], startsWith('2026-09-14T05:41:42'));
+    });
+
+    test('donateRelevantIntents accepts an empty set to clear', () async {
+      await appIntentsPlugin.donateRelevantIntents([]);
+      expect(fakePlatform.donatedRelevantIntents.last, isEmpty);
     });
 
     test('donateIntent delegates to platform (#55)', () async {

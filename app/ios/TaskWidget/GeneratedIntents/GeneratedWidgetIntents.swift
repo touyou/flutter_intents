@@ -8,6 +8,7 @@
 
 import AppIntents
 import AppIntentsBridge
+import RelevanceKit
 
 /// App Group storage the generated widget queries read.
 ///
@@ -109,4 +110,119 @@ struct SelectTaskWidgetConfig: WidgetConfigurationIntent {
 
     @Parameter(title: "Show completed")
     var showCompleted: Bool
+}
+
+/// Parses an ISO-8601 timestamp sent from Dart.
+///
+/// Dart's `DateTime.toIso8601String()` always emits fractional
+/// seconds, which a default `ISO8601DateFormatter` rejects — and a
+/// rejected date silently drops the whole donation. A formatter
+/// configured for fractional seconds in turn rejects second-precision
+/// input, so both are tried.
+@available(iOS 17.0, *)
+func appIntentsParseISO8601(_ value: String) -> Date? {
+    let fractional = ISO8601DateFormatter()
+    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = fractional.date(from: value) { return date }
+    return ISO8601DateFormatter().date(from: value)
+}
+
+/// Decodes the relevance map sent from Dart.
+@available(iOS 17.0, *)
+func appIntentsRelevantContext(from map: [String: Any]) -> RelevantContext? {
+    switch map["kind"] as? String {
+    case "date":
+        guard let value = map["date"] as? String,
+              let date = appIntentsParseISO8601(value)
+        else { return nil }
+        if #available(iOS 26.0, *), let kind = map["dateKind"] as? String {
+            return .date(date, kind: appIntentsRelevantDateKind(kind))
+        }
+        return .date(date)
+    case "dateRange":
+        guard let startValue = map["start"] as? String,
+              let endValue = map["end"] as? String,
+              let start = appIntentsParseISO8601(startValue),
+              let end = appIntentsParseISO8601(endValue),
+              start <= end
+        else { return nil }
+        if #available(iOS 26.0, *) {
+            return .date(range: start...end, kind: appIntentsRelevantDateKind(map["dateKind"] as? String))
+        }
+        // The range form is iOS 26; below that the start is the
+        // closest thing the older API can express.
+        return .date(start)
+    case "inferredLocation":
+        switch map["value"] as? String {
+        case "home": return .location(inferred: .home)
+        case "work": return .location(inferred: .work)
+        case "school": return .location(inferred: .school)
+        case "commute": return .location(inferred: .commute)
+        default: return nil
+        }
+    case "sleep":
+        switch map["value"] as? String {
+        case "wakeup": return .sleep(.wakeup)
+        case "bedtime": return .sleep(.bedtime)
+        default: return nil
+        }
+    case "fitness":
+        switch map["value"] as? String {
+        case "workoutActive": return .fitness(.workoutActive)
+        case "activityRingsIncomplete": return .fitness(.activityRingsIncomplete)
+        default: return nil
+        }
+    case "headphones":
+        return .hardware(headphones: .connected)
+    default:
+        return nil
+    }
+}
+
+/// Maps the Dart `RelevantDateKind` name to its SDK case.
+///
+/// `standard` rather than `default`, because `default` is a
+/// reserved word in Dart.
+@available(iOS 26.0, *)
+func appIntentsRelevantDateKind(_ name: String?) -> RelevantContext.DateKind {
+    switch name {
+    case "informational": return .informational
+    case "scheduled": return .scheduled
+    default: return .default
+    }
+}
+
+/// Registers the relevant-intent donator with the bridge.
+///
+/// Call once at startup, from a target that can see the
+/// generated configuration intents.
+@available(iOS 17.0, *)
+func registerRelevantIntentDonator() {
+    Task {
+        await FlutterBridge.shared.setRelevantIntentDonator { donations in
+            var relevantIntents: [RelevantIntent] = []
+            for donation in donations {
+                guard let widgetKind = donation["widgetKind"] as? String,
+                      let relevanceMap = donation["relevance"] as? [String: Any],
+                      let relevance = appIntentsRelevantContext(from: relevanceMap)
+                else { continue }
+                let parameters = (donation["parameters"] as? [String: Any]) ?? [:]
+                switch donation["configurationIdentifier"] as? String {
+                case "com.example.taskapp.selectTask":
+                    let intent = SelectTaskWidgetConfig()
+                    if let id = parameters["task"] as? String {
+                        intent.task = try? await TaskEntitySpecWidgetQuery().entities(for: [id]).first
+                    }
+                    if let value = parameters["showCompleted"] as? Bool {
+                        intent.showCompleted = value
+                    }
+                    relevantIntents.append(RelevantIntent(
+                        intent, widgetKind: widgetKind, relevance: relevance))
+                default:
+                    continue
+                }
+            }
+            try await RelevantIntentManager.shared.updateRelevantIntents(relevantIntents)
+        }
+    }
 }

@@ -1255,6 +1255,69 @@ if #available(iOS 26.0, *) {
 
 ## WidgetKit の Widget Extension
 
+### ウィジェット Intent の関連性ドネーション (#55)
+
+設定済みのウィジェット Intent のうち、いま Smart Stack に出す価値があるものをシステムに
+伝えます。設定を opt-in してから Dart で donate します:
+
+```dart
+@WidgetConfigurationSpec(
+  identifier: 'com.example.app.selectTask',
+  title: 'Displayed task',
+  relevantIntents: true,
+)
+class SelectTaskWidgetConfig extends WidgetConfigurationSpecBase { /* ... */ }
+```
+
+```dart
+await AppIntents().donateRelevantIntents([
+  RelevantIntentDonation(
+    configurationIdentifier: 'com.example.app.selectTask',
+    widgetKind: 'TaskWidget',
+    parameters: {'task': 'task-123'},
+    relevance: RelevantContextSpec.inferredLocation(InferredLocation.home),
+  ),
+]);
+```
+
+呼び出しごとに**アプリ全体の集合が置き換わります**。毎回すべてを渡し、消すときは空リストを
+渡してください。これは下層の `RelevantIntentManager.updateRelevantIntents` の形であり、
+1件ずつ donate すると最後の1件しか残りません。
+
+使える文脈: `date` / `dateRange`（`kind` の指定は iOS 26 が必要）/ `inferredLocation`
+（home / work / school / commute）/ `sleep` / `fitness` / `headphonesConnected`。
+`RelevantContext.location(_ exact: CLRegion)` は意図的に提供していません。`CLRegion` は
+マップから復元できず、システムに黙って捨てられるドネーションになるためです。
+
+**生成される登録関数は設定 Intent を構築する**ので、それを呼ぶターゲットからその型が見えて
+いる必要があります。これは素の Swift のモジュール可視性の話で、App Intents のメタデータとは
+別問題です。生成ファイルを「アプリと Widget Extension の両方がリンクする1つのモジュール」に
+置いてください（それぞれにコンパイルすると `Metadata.appIntents` で Intent が重複します）。
+
+その共有コピーは `--public` で生成します。Swift の既定は `internal` なので、付けないと
+生成された宣言が import 側から一切見えません:
+
+```bash
+dart run app_intents_codegen:generate_widget_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --public
+```
+
+その上で配線します:
+
+```swift
+// AppDelegate
+if #available(iOS 17.0, *) {
+  registerRelevantIntentDonator()   // 生成される
+  AppIntentsPlugin.relevantIntentDonationForwarder = { donations in
+    try await FlutterBridge.shared.donateRelevantIntents(donations)
+  }
+}
+```
+
+
 Widget Extension は **Flutter エンジンを起動できない**ため、アプリ本体ターゲットの
 生成 Intent が使う `FlutterBridge` 往復は Extension からは使えません。Extension が必要とする
 データは、`app_intents` が cold-start fallback のために永続化している

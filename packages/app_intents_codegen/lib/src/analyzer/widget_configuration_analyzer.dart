@@ -65,6 +65,8 @@ class WidgetConfigurationAnalyzer {
           annotation.getField('isDiscoverable')?.toBoolValue() ?? false,
       generateDefaultResult:
           annotation.getField('generateDefaultResult')?.toBoolValue() ?? false,
+      relevantIntents:
+          annotation.getField('relevantIntents')?.toBoolValue() ?? false,
       parameters: _extractParameters(element),
     );
   }
