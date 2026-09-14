@@ -121,6 +121,95 @@ void main() {
       expect(result, contains('case "inferredLocation":'));
     });
 
+    test('parses fractional-second ISO-8601, which Dart always emits', () {
+      // DateTime.toIso8601String() always includes fractional seconds, which a
+      // default ISO8601DateFormatter rejects. A rejected date drops the whole
+      // donation, and because the API replaces the app's entire set, a batch of
+      // only date donations would clear everything instead.
+      final result = _generate(relevantIntents: true);
+      expect(result, contains('func appIntentsParseISO8601('));
+      expect(
+        result,
+        contains(
+          'fractional.formatOptions = '
+          '[.withInternetDateTime, .withFractionalSeconds]',
+        ),
+      );
+      // ...and still accepts second precision, which the fractional formatter
+      // on its own rejects.
+      expect(
+        result,
+        contains('return ISO8601DateFormatter().date(from: value)'),
+      );
+      expect(
+        result,
+        isNot(contains('ISO8601DateFormatter().date(from: start')),
+      );
+    });
+
+    test('a DateTime parameter crosses the channel as a string', () {
+      // Flutter's standard codec cannot encode a Dart DateTime.
+      final result = _generator.generateAll(
+        configurations: [
+          const WidgetConfigurationInfo(
+            className: 'SelectTaskWidgetConfig',
+            identifier: 'com.example.taskapp.selectTask',
+            title: 'Displayed task',
+            relevantIntents: true,
+            parameters: [
+              WidgetParamInfo(
+                name: 'dueDate',
+                dartType: 'DateTime?',
+                title: 'Due date',
+              ),
+            ],
+          ),
+        ],
+        entities: const [],
+      );
+
+      expect(result, contains('parameters["dueDate"] as? String,'));
+      expect(result, contains('let date = appIntentsParseISO8601(value) {'));
+      expect(result, contains('intent.dueDate = date'));
+      expect(result, isNot(contains('as? Date')));
+    });
+
+    test('default output keeps Swift internal access', () {
+      final result = _generate(relevantIntents: true);
+      expect(result, isNot(contains('public ')));
+    });
+
+    test('--public exposes what a consuming target touches', () {
+      // Only compiling the module and a separate importer proves this — see
+      // scripts/verify_widget_module_swift.sh. These assertions are the cheap
+      // half; each one corresponds to something that harness caught.
+      const generator = WidgetSwiftGenerator(
+        appGroupIdentifier: 'group.com.example.app',
+        storageIdentifier: 'com.example.app',
+        publicAccess: true,
+      );
+      final result = generator.generateAll(
+        configurations: [_config(relevantIntents: true)],
+        entities: const [_entity],
+        appIntentsPackage: 'SharedIntentsPackage',
+      );
+
+      expect(result, contains('public struct SelectTaskWidgetConfig:'));
+      expect(result, contains('public struct TaskEntitySpecWidgetEntity:'));
+      expect(result, contains('public struct TaskEntitySpecWidgetQuery:'));
+      expect(result, contains('public struct SharedIntentsPackage:'));
+      expect(result, contains('public func registerRelevantIntentDonator()'));
+      // Protocol requirements must be public on a public type.
+      expect(
+        result,
+        contains('public var displayRepresentation: DisplayRepresentation {'),
+      );
+      expect(result, contains('public init() {}'));
+      // ...and the parameters a widget's timeline provider reads.
+      expect(result, contains('public var task: TaskEntitySpecWidgetEntity?'));
+      expect(result, contains('public var id: String'));
+    });
+
     test('emits no leaked Dart interpolation', () {
       // String assertions cannot see a broken indent helper; this is the cheap
       // half of that guard, the Swift typecheck is the real one.

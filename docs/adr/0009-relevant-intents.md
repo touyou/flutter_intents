@@ -89,7 +89,33 @@ Dart API `donateRelevantIntents(List<...>)` が毎回**全集合**を要求す�
 スカラーパラメータは、ドネーションに値が無ければ**代入しない**。設定パラメータに意味のある
 ゼロ値は無く、勝手に既定値を入れるとユーザーが選んでいない設定を donate することになる。
 
-### 5. `RelevantDateKind.standard`
+### 5. 共有モジュールに置くなら `--public` が要る
+
+Swift の既定は `internal` なので、生成ファイルを共有モジュールに置いても、そのままでは
+アプリ／ウィジェットのどちらからも見えない。`generate_widget_swift --public` を追加した。
+public にするのは設定 Intent・そのパラメータ・エンティティ・クエリ・`AppIntentsPackage`
+宣言・登録関数で、public 型がプロトコル要件を満たすには `displayRepresentation` や
+`init()` も public である必要がある。
+
+**単一ファイルの `swiftc -typecheck` ではこれを検出できない。** `internal` のままでも
+そのファイル単体は完全にコンパイルが通り、別ターゲットが import した時に初めて隠れる。
+`scripts/verify_widget_module_swift.sh` を追加し、生成物をモジュールとしてビルドしてから
+**それを import する利用側ファイル**をコンパイルするようにした。このハーネスは追加した
+その場で、手作業の public 付け漏れを3件（`displayRepresentation` / クエリの `init()` /
+`@Parameter` プロパティ）検出している。
+
+### 6. 日付のワイヤ表現
+
+- Dart の `DateTime.toIso8601String()` は**必ず小数秒**を出すが、素の
+  `ISO8601DateFormatter` はそれを**パースできない**。一方 `.withFractionalSeconds` を
+  付けると秒精度をパースできなくなる。生成する `appIntentsParseISO8601` は両方を試す。
+  ここを間違えると date / dateRange のドネーションが黙って落ち、**全置換 API なので
+  「空で上書き」になる**（消えたことにすら気付けない）。
+- Flutter の標準コーデックは `DateTime` を運べない。`DateTime` はウィジェットパラメータの
+  対応型なので、`RelevantIntentDonation.toMap()` が ISO-8601 文字列へ符号化し、生成
+  Swift が復号する。
+
+### 7. `RelevantDateKind.standard`
 
 Swift の `.default` に対応する Dart の列挙子は `standard`。`default` が Dart の予約語のため。
 生成コードのマッピング関数にその旨をコメントしている。
@@ -97,6 +123,8 @@ Swift の `.default` に対応する Dart の列挙子は `standard`。`default`
 ## 検証
 
 - `swiftc -typecheck`（**デプロイメントターゲット iOS 17.0**、iOS 26.5 / 27.0 SDK 両方）。
+- `scripts/verify_widget_module_swift.sh` — `--public` 出力をモジュールとしてビルドし、
+  import する利用側をコンパイル（両 SDK）。
   `scripts/verify_experimental_swift.sh` に **Widget Extension 生成物の typecheck を追加**した
   — これまで生成された widget Swift をコンパイルする検証が1つも無く、Xcode ビルドが
   唯一の砦だった。

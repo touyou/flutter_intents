@@ -112,13 +112,28 @@ struct SelectTaskWidgetConfig: WidgetConfigurationIntent {
     var showCompleted: Bool
 }
 
+/// Parses an ISO-8601 timestamp sent from Dart.
+///
+/// Dart's `DateTime.toIso8601String()` always emits fractional
+/// seconds, which a default `ISO8601DateFormatter` rejects — and a
+/// rejected date silently drops the whole donation. A formatter
+/// configured for fractional seconds in turn rejects second-precision
+/// input, so both are tried.
+@available(iOS 17.0, *)
+func appIntentsParseISO8601(_ value: String) -> Date? {
+    let fractional = ISO8601DateFormatter()
+    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = fractional.date(from: value) { return date }
+    return ISO8601DateFormatter().date(from: value)
+}
+
 /// Decodes the relevance map sent from Dart.
 @available(iOS 17.0, *)
 func appIntentsRelevantContext(from map: [String: Any]) -> RelevantContext? {
     switch map["kind"] as? String {
     case "date":
         guard let value = map["date"] as? String,
-              let date = ISO8601DateFormatter().date(from: value)
+              let date = appIntentsParseISO8601(value)
         else { return nil }
         if #available(iOS 26.0, *), let kind = map["dateKind"] as? String {
             return .date(date, kind: appIntentsRelevantDateKind(kind))
@@ -127,8 +142,8 @@ func appIntentsRelevantContext(from map: [String: Any]) -> RelevantContext? {
     case "dateRange":
         guard let startValue = map["start"] as? String,
               let endValue = map["end"] as? String,
-              let start = ISO8601DateFormatter().date(from: startValue),
-              let end = ISO8601DateFormatter().date(from: endValue),
+              let start = appIntentsParseISO8601(startValue),
+              let end = appIntentsParseISO8601(endValue),
               start <= end
         else { return nil }
         if #available(iOS 26.0, *) {

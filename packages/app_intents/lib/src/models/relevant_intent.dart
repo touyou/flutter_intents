@@ -28,9 +28,20 @@ class RelevantIntentDonation {
   Map<String, Object?> toMap() => {
     'configurationIdentifier': configurationIdentifier,
     'widgetKind': widgetKind,
-    'parameters': parameters,
+    'parameters': {
+      for (final entry in parameters.entries)
+        entry.key: _encodeParameter(entry.value),
+    },
     'relevance': relevance.toMap(),
   };
+
+  /// Encodes one parameter value for the method channel.
+  ///
+  /// Flutter's standard codec has no `DateTime`, so a `DateTime` parameter —
+  /// which widget configurations do support — would throw on the way out. It
+  /// travels as an ISO-8601 string and the generated Swift parses it back.
+  static Object? _encodeParameter(Object? value) =>
+      value is DateTime ? value.toUtc().toIso8601String() : value;
 }
 
 /// A context in which a donated intent becomes relevant.

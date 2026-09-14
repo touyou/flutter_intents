@@ -34,6 +34,7 @@ class WidgetSwiftGenerator {
   const WidgetSwiftGenerator({
     required this.appGroupIdentifier,
     required this.storageIdentifier,
+    this.publicAccess = false,
   });
 
   /// The App Group identifier the generated queries read from.
@@ -41,6 +42,19 @@ class WidgetSwiftGenerator {
 
   /// The storage identifier used to namespace cache keys.
   final String storageIdentifier;
+
+  /// Whether the generated declarations are `public`.
+  ///
+  /// Off by default, which is right when the file is compiled straight into the
+  /// Widget Extension target. Turn it on when the file lives in a **shared
+  /// module** that another target imports — Swift's default `internal` would
+  /// otherwise hide the configuration intent, its entities and the donator
+  /// registration from that target. This is plain module visibility and has
+  /// nothing to do with App Intents metadata; see ADR 0008 for that.
+  final bool publicAccess;
+
+  /// `'public '` or `''`, to prefix a generated declaration.
+  String get _pub => publicAccess ? 'public ' : '';
 
   /// Indentation used for generated Swift code.
   static const _indent = '    ';
@@ -157,7 +171,7 @@ class WidgetSwiftGenerator {
     buffer.writeln('/// Call once at startup, from a target that can see the');
     buffer.writeln('/// generated configuration intents.');
     buffer.writeln(_availability);
-    buffer.writeln('func registerRelevantIntentDonator() {');
+    buffer.writeln('${_pub}func registerRelevantIntentDonator() {');
     buffer.writeln('${i1}Task {');
     buffer.writeln(
       '${i2}await FlutterBridge.shared.setRelevantIntentDonator '
@@ -219,6 +233,36 @@ class WidgetSwiftGenerator {
     final i2 = '$_indent$_indent';
     final i3 = '$_indent$_indent$_indent';
 
+    buffer.writeln('/// Parses an ISO-8601 timestamp sent from Dart.');
+    buffer.writeln('///');
+    buffer.writeln(
+      '/// Dart\'s `DateTime.toIso8601String()` always emits fractional',
+    );
+    buffer.writeln(
+      '/// seconds, which a default `ISO8601DateFormatter` rejects — and a',
+    );
+    buffer.writeln(
+      '/// rejected date silently drops the whole donation. A formatter',
+    );
+    buffer.writeln(
+      '/// configured for fractional seconds in turn rejects second-precision',
+    );
+    buffer.writeln('/// input, so both are tried.');
+    buffer.writeln(_availability);
+    buffer.writeln('func appIntentsParseISO8601(_ value: String) -> Date? {');
+    buffer.writeln('${_indent}let fractional = ISO8601DateFormatter()');
+    buffer.writeln(
+      '$_indent'
+      'fractional.formatOptions = '
+      '[.withInternetDateTime, .withFractionalSeconds]',
+    );
+    buffer.writeln(
+      '${_indent}if let date = fractional.date(from: value) { return date }',
+    );
+    buffer.writeln('${_indent}return ISO8601DateFormatter().date(from: value)');
+    buffer.writeln('}');
+    buffer.writeln();
+
     buffer.writeln('/// Decodes the relevance map sent from Dart.');
     buffer.writeln(_availability);
     buffer.writeln(
@@ -229,9 +273,7 @@ class WidgetSwiftGenerator {
 
     buffer.writeln('${i1}case "date":');
     buffer.writeln('${i2}guard let value = map["date"] as? String,');
-    buffer.writeln(
-      '$i2      let date = ISO8601DateFormatter().date(from: value)',
-    );
+    buffer.writeln('$i2      let date = appIntentsParseISO8601(value)');
     buffer.writeln('${i2}else { return nil }');
     buffer.writeln(
       '${i2}if #available(iOS 26.0, *), let kind = map["dateKind"] as? String {',
@@ -245,12 +287,8 @@ class WidgetSwiftGenerator {
     buffer.writeln('${i1}case "dateRange":');
     buffer.writeln('${i2}guard let startValue = map["start"] as? String,');
     buffer.writeln('$i2      let endValue = map["end"] as? String,');
-    buffer.writeln(
-      '$i2      let start = ISO8601DateFormatter().date(from: startValue),',
-    );
-    buffer.writeln(
-      '$i2      let end = ISO8601DateFormatter().date(from: endValue),',
-    );
+    buffer.writeln('$i2      let start = appIntentsParseISO8601(startValue),');
+    buffer.writeln('$i2      let end = appIntentsParseISO8601(endValue),');
     buffer.writeln('$i2      start <= end');
     buffer.writeln('${i2}else { return nil }');
     buffer.writeln('${i2}if #available(iOS 26.0, *) {');
@@ -357,6 +395,20 @@ class WidgetSwiftGenerator {
     // Absent or wrong-typed values are left alone rather than defaulted: a
     // configuration parameter has no meaningful "zero", and inventing one would
     // donate a configuration the user never chose.
+    if (swiftType == 'Date') {
+      // Flutter's standard method-channel codec cannot carry a Dart DateTime,
+      // so the Dart side sends an ISO-8601 string (see
+      // RelevantIntentDonation.toMap) and it is parsed back here.
+      buffer.writeln(
+        '${indent}if let value = parameters["${_swiftLiteral(param.name)}"] '
+        'as? String,',
+      );
+      buffer.writeln('$indent   let date = appIntentsParseISO8601(value) {');
+      buffer.writeln('$indent${_indent}intent.${param.name} = date');
+      buffer.writeln('$indent}');
+      return;
+    }
+
     buffer.writeln(
       '${indent}if let value = parameters["${_swiftLiteral(param.name)}"] '
       'as? $swiftType {',
@@ -381,12 +433,12 @@ class WidgetSwiftGenerator {
   ) {
     buffer.writeln('@available(iOS 17.0, *)');
     if (includedPackages.isEmpty) {
-      buffer.writeln('struct $name: AppIntentsPackage {}');
+      buffer.writeln('${_pub}struct $name: AppIntentsPackage {}');
       return;
     }
     final types = includedPackages.map(_packageTypeReference).join(', ');
-    buffer.writeln('struct $name: AppIntentsPackage {');
-    buffer.writeln('${_indent}static var includedPackages:');
+    buffer.writeln('${_pub}struct $name: AppIntentsPackage {');
+    buffer.writeln('$_indent${_pub}static var includedPackages:');
     buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
     buffer.writeln('$_indent$_indent$_indent[$types]');
     buffer.writeln('$_indent$_indent}');
@@ -503,9 +555,9 @@ class WidgetSwiftGenerator {
       '/// Backed by the App Group entity cache — see $cacheConfigName.',
     );
     buffer.writeln(_availability);
-    buffer.writeln('struct $entityName: AppEntity {');
+    buffer.writeln('${_pub}struct $entityName: AppEntity {');
     buffer.writeln(
-      '$_indent'
+      '$_indent$_pub'
       'static var typeDisplayRepresentation: TypeDisplayRepresentation =',
     );
     buffer.writeln(
@@ -514,14 +566,14 @@ class WidgetSwiftGenerator {
     );
     buffer.writeln();
     buffer.writeln(
-      '${_indent}static var defaultQuery = '
+      '$_indent${_pub}static var defaultQuery = '
       '${widgetQueryName(info.className)}()',
     );
     buffer.writeln();
 
     for (final entry in props.entries) {
       buffer.writeln(
-        '${_indent}var ${_swiftPropertyName(entry.key, entry.value)}: '
+        '$_indent${_pub}var ${_swiftPropertyName(entry.key, entry.value)}: '
         '${_swiftType(entry.value.dartType)}',
       );
     }
@@ -544,7 +596,13 @@ class WidgetSwiftGenerator {
     buffer.writeln('/// Reads `${info.className}` values from the App Group');
     buffer.writeln('/// cache the host app persists.');
     buffer.writeln(_availability);
-    buffer.writeln('struct $queryName: EnumerableEntityQuery {');
+    buffer.writeln('${_pub}struct $queryName: EnumerableEntityQuery {');
+    if (publicAccess) {
+      // `EntityQuery` requires `init()`, and a public type has to satisfy that
+      // with a public member — the implicit one is internal.
+      buffer.writeln('${_indent}public init() {}');
+      buffer.writeln();
+    }
     buffer.writeln(
       '$_indent/// App Group cache key written from Dart via setCachedValue.',
     );
@@ -554,14 +612,14 @@ class WidgetSwiftGenerator {
     buffer.writeln();
 
     buffer.writeln(
-      '${_indent}func allEntities() async throws -> [$entityName] {',
+      '$_indent${_pub}func allEntities() async throws -> [$entityName] {',
     );
     buffer.writeln('$_indent${_indent}Self.cachedEntities()');
     buffer.writeln('$_indent}');
     buffer.writeln();
 
     buffer.writeln(
-      '${_indent}func entities(for identifiers: [String]) async throws '
+      '$_indent${_pub}func entities(for identifiers: [String]) async throws '
       '-> [$entityName] {',
     );
     buffer.writeln('$_indent${_indent}let all = Self.cachedEntities()');
@@ -585,7 +643,9 @@ class WidgetSwiftGenerator {
       buffer.writeln(
         '$_indent/// cached entity, captured when the widget is added.',
       );
-      buffer.writeln('${_indent}func defaultResult() async -> $entityName? {');
+      buffer.writeln(
+        '$_indent${_pub}func defaultResult() async -> $entityName? {',
+      );
       buffer.writeln('$_indent${_indent}Self.cachedEntities().first');
       buffer.writeln('$_indent}');
     }
@@ -728,7 +788,7 @@ class WidgetSwiftGenerator {
     }
 
     buffer.writeln(
-      '${_indent}var displayRepresentation: DisplayRepresentation {',
+      '$_indent${_pub}var displayRepresentation: DisplayRepresentation {',
     );
 
     if (image != null && image.dartType.endsWith('?')) {
@@ -771,19 +831,28 @@ class WidgetSwiftGenerator {
     buffer.writeln('/// Widget configuration intent for the widget\'s');
     buffer.writeln('/// "long-press → Edit Widget" sheet.');
     buffer.writeln(_availability);
-    buffer.writeln('struct ${config.swiftName}: WidgetConfigurationIntent {');
     buffer.writeln(
-      '${_indent}static var title: LocalizedStringResource = '
+      '${_pub}struct ${config.swiftName}: WidgetConfigurationIntent {',
+    );
+    if (publicAccess) {
+      // The widget's own `AppIntentConfiguration(kind:intent:provider:)` builds
+      // one of these, so a consuming target needs a public initializer.
+      buffer.writeln('${_indent}public init() {}');
+      buffer.writeln();
+    }
+    buffer.writeln(
+      '$_indent${_pub}static var title: LocalizedStringResource = '
       '"${_swiftLiteral(config.title)}"',
     );
     if (config.description != null) {
       buffer.writeln(
-        '${_indent}static var description: IntentDescription = '
+        '$_indent${_pub}static var description: IntentDescription = '
         'IntentDescription("${_swiftLiteral(config.description!)}")',
       );
     }
     buffer.writeln(
-      '${_indent}static var isDiscoverable: Bool { ${config.isDiscoverable} }',
+      '$_indent${_pub}static var isDiscoverable: Bool '
+      '{ ${config.isDiscoverable} }',
     );
     buffer.writeln();
     buffer.writeln(
@@ -791,7 +860,7 @@ class WidgetSwiftGenerator {
     );
     buffer.writeln('$_indent/// widget configurations.');
     buffer.writeln(
-      '${_indent}static var persistentIdentifier: String '
+      '$_indent${_pub}static var persistentIdentifier: String '
       '{ "${_swiftLiteral(config.identifier)}" }',
     );
 
@@ -826,7 +895,7 @@ class WidgetSwiftGenerator {
             param.dartType,
             owner: '${config.className}.${param.name}',
           );
-    buffer.writeln('${_indent}var ${param.name}: $swiftType');
+    buffer.writeln('$_indent${_pub}var ${param.name}: $swiftType');
   }
 
   /// The Swift property name for a cache-backed entity field.

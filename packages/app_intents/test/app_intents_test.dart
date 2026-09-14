@@ -233,6 +233,21 @@ void main() {
       });
     });
 
+    test('donateRelevantIntents encodes a DateTime parameter', () async {
+      // The standard method-channel codec has no DateTime, so it has to leave
+      // as a string or the call throws before reaching iOS.
+      final donation = RelevantIntentDonation(
+        configurationIdentifier: 'com.example.selectTask',
+        widgetKind: 'TaskWidget',
+        parameters: {'dueDate': DateTime.utc(2026, 9, 14, 5, 41, 42)},
+        relevance: RelevantContextSpec.headphonesConnected(),
+      );
+
+      final parameters = donation.toMap()['parameters']! as Map;
+      expect(parameters['dueDate'], isA<String>());
+      expect(parameters['dueDate'], startsWith('2026-09-14T05:41:42'));
+    });
+
     test('donateRelevantIntents accepts an empty set to clear', () async {
       await appIntentsPlugin.donateRelevantIntents([]);
       expect(fakePlatform.donatedRelevantIntents.last, isEmpty);

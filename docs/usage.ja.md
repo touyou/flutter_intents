@@ -1293,6 +1293,18 @@ await AppIntents().donateRelevantIntents([
 いる必要があります。これは素の Swift のモジュール可視性の話で、App Intents のメタデータとは
 別問題です。生成ファイルを「アプリと Widget Extension の両方がリンクする1つのモジュール」に
 置いてください（それぞれにコンパイルすると `Metadata.appIntents` で Intent が重複します）。
+
+その共有コピーは `--public` で生成します。Swift の既定は `internal` なので、付けないと
+生成された宣言が import 側から一切見えません:
+
+```bash
+dart run app_intents_codegen:generate_widget_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --public
+```
+
 その上で配線します:
 
 ```swift

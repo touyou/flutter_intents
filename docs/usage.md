@@ -1342,7 +1342,20 @@ would produce donations the system silently drops.
 target that calls it has to see that type. That is plain Swift module
 visibility, unrelated to App Intents metadata: put the generated file in a
 module the app and the widget extension both link, rather than compiling it into
-each (which duplicates the intent in `Metadata.appIntents`). Then wire it up:
+each (which duplicates the intent in `Metadata.appIntents`).
+
+Generate that shared copy with `--public` — Swift's default `internal` would
+otherwise hide every generated declaration from the importing targets:
+
+```bash
+dart run app_intents_codegen:generate_widget_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --public
+```
+
+Then wire it up:
 
 ```swift
 // AppDelegate
