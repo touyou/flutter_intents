@@ -1291,10 +1291,14 @@ if #available(iOS 26.0, *) {
 #endif
 ```
 
-> Verifying generated Swift: run `scripts/verify_experimental_swift.sh` (needs a
-> beta Xcode with the iOS 27 SDK). It type-checks the generated output twice —
-> with and without `-D APP_INTENTS_WWDC26` — so both the WWDC26 and stable
-> fallback forms are guaranteed to compile.
+> Verifying generated Swift: run `scripts/verify_experimental_swift.sh`, and run
+> it against **both** Xcodes via `DEVELOPER_DIR`. With an Xcode 27 it type-checks
+> the output twice — with and without `-D APP_INTENTS_WWDC26` — so the WWDC26 and
+> stable fallback forms are both known to compile. With a stable Xcode it checks
+> only the non-`#if` branch (the WWDC26 branch names iOS 27 symbols that SDK does
+> not have), and that run is what proves an ungated feature compiles without the
+> iOS 27 SDK. It type-checks at deployment target iOS 17.0, not the SDK version,
+> so a missing `@available` guard fails here instead of in a real app.
 
 ## WidgetKit Widget Extensions
 

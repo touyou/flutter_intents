@@ -104,7 +104,16 @@ void main(List<String> arguments) async {
     exit(1);
   }
 
-  final packageName = results['app-intents-package'] as String?;
+  // `--app-intents-package=` parses as '' rather than null, and an empty type
+  // name would be emitted as `struct : AppIntentsPackage {}`.
+  final packageNameRaw = results['app-intents-package'] as String?;
+  final packageName = (packageNameRaw != null && packageNameRaw.trim().isEmpty)
+      ? null
+      : packageNameRaw;
+  if (packageNameRaw != null && packageName == null) {
+    stderr.writeln('Error: --app-intents-package needs a type name.');
+    exit(1);
+  }
   final includedPackages = results['include-package'] as List<String>;
   if (includedPackages.isNotEmpty && packageName == null) {
     stderr.writeln(

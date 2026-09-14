@@ -232,11 +232,16 @@ class XcstringsGenerator {
   /// Single placeholder: `{title}` → `%@`
   /// Multiple placeholders: `{title}` and `{description}` → `%1$@` and `%2$@`
   ///
+  /// Dotted names are matched too (`{result.openCount}`, which a dialog or
+  /// snippet template uses to read the Dart handler's result) — the generated
+  /// Swift interpolates those just like a parameter, so a value left holding
+  /// literal braces would be wrong in exactly the same way.
+  ///
   /// System variables like `${applicationName}` (prefixed with `$`) are preserved
   /// as-is since they are resolved by the system at runtime.
   String convertPlaceholders(String text) {
-    // Match {word} but NOT ${word} (system variables)
-    final pattern = RegExp(r'(?<!\$)\{(\w+)\}');
+    // Match {word} and {dotted.word} but NOT ${word} (system variables)
+    final pattern = RegExp(r'(?<!\$)\{\s*([\w.]+)\s*\}');
     final matches = pattern.allMatches(text).toList();
 
     if (matches.isEmpty) return text;

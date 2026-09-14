@@ -1,3 +1,4 @@
+import 'package:app_intents_codegen/src/experimental/experimental_features.dart';
 import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:app_intents_codegen/src/models/snippet_info.dart';
@@ -168,6 +169,73 @@ void main() {
       expect(result, isNot(contains('{result.openCount}')));
     });
 
+    test('binds the result outside an experimental wrapper closure', () {
+      // performBackgroundTask / withIntentCancellationHandler both return the
+      // closure's value. Binding inside the closure would leave the
+      // interpolation locals out of scope where the return statement uses them.
+      final gen = const SwiftGenerator(
+        experimental: ExperimentalFeatures(masterEnabled: true),
+      );
+      final result = gen.generateAll(
+        intents: [
+          IntentInfo(
+            className: 'BulkIntent',
+            identifier: 'com.example.bulk',
+            title: 'Bulk',
+            implementation: IntentImplementationType.dart,
+            longRunning: true,
+            cancellable: true,
+            parameters: const [],
+            snippet: const SnippetInfo(title: '{result.headline}'),
+          ),
+        ],
+      );
+
+      final bind = result.indexOf('let snippetResult = try await');
+      final locals = result.indexOf('let snippetValue_headline');
+      final closeBrace = result.indexOf('} onCancel:');
+      expect(bind, greaterThan(-1));
+      expect(closeBrace, greaterThan(bind));
+      // The locals come after the closure ends, not inside it.
+      expect(locals, greaterThan(closeBrace));
+      expect(result, contains('return try await FlutterBridge'));
+      expect(result, isNot(contains('return = ')));
+    });
+
+    test('a single-intent generateIntent emits a compilable snippet', () {
+      // generateIntent is public; emitting ShowsSnippetView without the view
+      // (or without importing SwiftUI) produces Swift that cannot compile.
+      final result = generator.generateIntent(
+        _intent(snippet: const SnippetInfo(title: '{title}')),
+      );
+      expect(result, contains('import SwiftUI'));
+      expect(result, contains('struct CreateTaskIntentSnippetView: View {'));
+      expect(
+        result.indexOf('struct CreateTaskIntentSnippetView'),
+        lessThan(result.indexOf('struct CreateTaskIntent: AppIntent')),
+      );
+    });
+
+    test('a dialog alone can drive the result binding', () {
+      final result = generator.generateAll(
+        intents: [_intent(dialog: 'You have {result.openCount} left')],
+      );
+      expect(result, contains('let snippetResult = try await'));
+      expect(result, contains('let snippetValue_openCount'));
+    });
+
+    test('tolerates padding inside a placeholder', () {
+      // The analyzer accepts `{ result.x }`; substitution must match it too, or
+      // the braces reach Siri verbatim.
+      final result = generator.generateAll(
+        intents: [
+          _intent(snippet: const SnippetInfo(title: '{ result.headline }')),
+        ],
+      );
+      expect(result, contains(r'snippetTitle: "\(snippetValue_headline)"'));
+      expect(result, isNot(contains('{ result.headline }')));
+    });
+
     test('escapes author text before embedding it in a Swift literal', () {
       final result = generator.generateAll(
         intents: [
@@ -182,6 +250,16 @@ void main() {
       );
       expect(result, contains(r'Image(systemName: "a\"b")'));
       expect(result, contains(r'LabeledContent("He said \"hi\"") {'));
+    });
+
+    test('escapes backslashes and newlines in a template', () {
+      // A bare `\(` in author text would otherwise be read as interpolation.
+      final result = generator.generateAll(
+        intents: [
+          _intent(snippet: const SnippetInfo(title: 'a\\b\nc {title}')),
+        ],
+      );
+      expect(result, contains(r'snippetTitle: "a\\b\nc \(title)"'));
     });
   });
 }

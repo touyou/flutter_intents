@@ -134,9 +134,7 @@ class WidgetSwiftGenerator {
       buffer.writeln('struct $name: AppIntentsPackage {}');
       return;
     }
-    final types = includedPackages
-        .map((qualified) => '${qualified.split('.').last}.self')
-        .join(', ');
+    final types = includedPackages.map(_packageTypeReference).join(', ');
     buffer.writeln('struct $name: AppIntentsPackage {');
     buffer.writeln('${_indent}static var includedPackages:');
     buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
@@ -150,6 +148,17 @@ class WidgetSwiftGenerator {
     for (final qualified in includedPackages)
       if (qualified.contains('.')) qualified.split('.').first,
   };
+
+  /// The Swift expression naming a package type from its qualified name.
+  ///
+  /// Only the **module** prefix is dropped: importing `SharedIntents` makes
+  /// `Groups.SharedPackage` reachable, not `SharedPackage`, so the rest of the
+  /// path has to survive.
+  String _packageTypeReference(String qualified) {
+    final segments = qualified.split('.');
+    final path = segments.length > 1 ? segments.skip(1).join('.') : qualified;
+    return '$path.self';
+  }
 
   /// The entities referenced by [configurations], in a stable order, validated
   /// against [entitiesByName].

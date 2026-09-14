@@ -208,7 +208,6 @@ docs/
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
 - **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
 - **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
-- **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
 - **Advanced `IntentMode` submodes**: `.foreground(.immediate)`, `.foreground(.deferred)`, `.foreground(.dynamic)`
 - **Multiple modes**: `[.background, .foreground]` with runtime mode determination
 

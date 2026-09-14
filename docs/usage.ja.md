@@ -1244,9 +1244,14 @@ if #available(iOS 26.0, *) {
 #endif
 ```
 
-> 生成 Swift の検証: `scripts/verify_experimental_swift.sh` を実行（iOS 27 SDK の beta
-> Xcode が必要）。生成出力を `-D APP_INTENTS_WWDC26` の有/無の両方で type-check するため、
-> WWDC26 形と安定フォールバック形の両方がコンパイル可能であることが保証されます。
+> 生成 Swift の検証: `scripts/verify_experimental_swift.sh` を `DEVELOPER_DIR` で
+> **両方の Xcode** に対して実行します。Xcode 27 では `-D APP_INTENTS_WWDC26` の有/無で
+> 2回 type-check するため、WWDC26 形と安定フォールバック形の両方がコンパイル可能である
+> ことが分かります。安定版 Xcode では `#if` の付かない分岐だけを検証します（WWDC26 側は
+> その SDK に無い iOS 27 シンボルを名指すため）。**ゲート無しの機能が iOS 27 SDK 無しで
+> コンパイルできることを証明するのはこちらの実行です。** 型チェックは SDK のバージョン
+> ではなく**デプロイメントターゲット iOS 17.0** で行うので、`@available` のガード漏れは
+> 実アプリではなくここで落ちます。
 
 ## WidgetKit の Widget Extension
 

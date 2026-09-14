@@ -686,6 +686,65 @@ void main() {
         );
       });
 
+      test('rejects a placeholder in a snippet row label', () async {
+        // Labels are emitted as literal LabeledContent keys, so Siri would
+        // show the braces rather than the value.
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badlabel',
+            title: 'Bad',
+            snippet: SnippetTemplate(
+              title: 'Done',
+              rows: [SnippetRow(label: '{title}', value: 'x')],
+            ),
+          )
+          class BadLabelIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            BadLabelIntent({required this.title});
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadLabelIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('row label is static text'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects {result.…} in a dialog on a URL scheme intent', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.baddialog',
+            title: 'Bad',
+            urlScheme: 'taskapp',
+            resultDialogTemplate: 'You have {result.openCount} left',
+          )
+          class BadDialogResultIntent extends IntentSpecBase {
+            BadDialogResultIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadDialogResultIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('runs through a URL scheme'),
+            ),
+          ),
+        );
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

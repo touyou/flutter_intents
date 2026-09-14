@@ -134,6 +134,23 @@ void main() {
         expect(result, contains('return intentResultPayload(result);'));
       });
 
+      test('a dialog-only {result.…} also keeps the handler payload', () {
+        // The Swift side reads the map either way; discarding it here would
+        // make the dialog render an empty value.
+        final result = generator.generate([
+          const IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            resultDialogTemplate: 'You have {result.openCount} left',
+          ),
+        ], []);
+
+        expect(result, contains('return intentResultPayload(result);'));
+      });
+
       test('a parameter-only snippet leaves the handler call alone', () {
         final result = generator.generate([
           const IntentInfo(

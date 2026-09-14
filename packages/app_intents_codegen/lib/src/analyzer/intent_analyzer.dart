@@ -5,6 +5,7 @@ import 'package:source_gen/source_gen.dart';
 
 import '../models/intent_info.dart';
 import '../models/snippet_info.dart';
+import '../generator/placeholders.dart';
 import '../models/union_info.dart';
 import 'union_analyzer.dart';
 
@@ -279,10 +280,7 @@ class IntentAnalyzer {
     required String? urlScheme,
     required IntentModeType? supportedModes,
   }) {
-    final usesResult = templates.any(
-      (t) => _snippetPlaceholders(t).any((p) => p.startsWith('result.')),
-    );
-    if (!usesResult) return;
+    if (!readsHandlerResult(templates)) return;
 
     if (urlScheme != null) {
       throw InvalidGenerationSourceError(
@@ -312,29 +310,36 @@ class IntentAnalyzer {
     required SnippetInfo snippet,
     required List<IntentParamInfo> parameters,
   }) {
+    // Row labels are emitted as literal `LabeledContent` keys, so a placeholder
+    // there is never substituted — Siri would show the braces.
+    for (final row in snippet.rows) {
+      final placeholder = placeholderNames(row.label).firstOrNull;
+      if (placeholder != null) {
+        throw InvalidGenerationSourceError(
+          'SnippetRow(label: "${row.label}") contains the placeholder '
+          '"{$placeholder}", but a row label is static text and is rendered '
+          'literally. Put the placeholder in the row\'s "value" instead.',
+          element: element,
+        );
+      }
+    }
+
     final names = parameters.map((p) => p.fieldName).toSet();
-    for (final template in [
-      ...snippet.templates,
-      for (final row in snippet.rows) row.label,
-    ]) {
-      for (final placeholder in _snippetPlaceholders(template)) {
-        if (placeholder.startsWith('result.')) continue;
+    for (final template in snippet.templates) {
+      for (final placeholder in placeholderNames(template)) {
+        if (placeholder.startsWith(resultPlaceholderPrefix)) continue;
         if (names.contains(placeholder)) continue;
         throw InvalidGenerationSourceError(
           'SnippetTemplate references "{$placeholder}", which is not a '
           'parameter of this intent. Known parameters: '
           '${names.isEmpty ? '(none)' : names.join(', ')}. '
-          'For handler output use "{result.$placeholder}".',
+          'For handler output use '
+          '"{$resultPlaceholderPrefix$placeholder}".',
           element: element,
         );
       }
     }
   }
-
-  /// The `{...}` placeholder names inside a snippet template.
-  Iterable<String> _snippetPlaceholders(String template) => RegExp(
-    r'\{([^}]+)\}',
-  ).allMatches(template).map((m) => m.group(1)!.trim());
 
   IntentModeType? _parseSupportedModes(DartObject? field) {
     if (field == null || field.isNull) {

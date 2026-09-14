@@ -286,3 +286,15 @@ bool _nullableListEquals<T>(List<T>? a, List<T>? b) {
   if (a == null || b == null) return a == b;
   return _listEquals(a, b);
 }
+
+/// Every template on [info] that may read the Dart handler's returned map:
+/// the snippet's texts plus both halves of the result dialog.
+///
+/// The analyzer, the Dart generator and the Swift generator must agree on this
+/// list — if one of them forgets the dialog, the handler's result is discarded
+/// on one side while the other still tries to read it.
+List<String> resultTemplatesOf(IntentInfo info) => <String>[
+  ...?info.snippet?.templates,
+  ?info.resultDialogTemplate,
+  ?info.resultDialogSupportingTemplate,
+];

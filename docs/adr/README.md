@@ -14,7 +14,7 @@
 
 > パスについて: 各 ADR は執筆時点の記録なので本文は書き換えていません。`AppIntentsBridge`
 > の Swift Package は issue #102 の対応で `ios-spm/AppIntentsBridge` から
-> **`packages/app_intents/ios/AppIntentsBridge`** へ移動しています（pub パッケージに同梱して
+> **`packages/app_intents/ios/app_intents/Sources/AppIntentsBridge`** へ移動しています（pub パッケージに同梱して
 > 下流アプリ・App Extension から参照できるようにするため）。ADR 本文中の `ios-spm/...` は
 > この新しいパスに読み替えてください。
 

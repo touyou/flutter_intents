@@ -5,6 +5,7 @@ import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
 import '../models/union_info.dart';
+import 'placeholders.dart';
 
 /// Information about an App Shortcut to generate.
 class AppShortcutInfo {
@@ -32,9 +33,6 @@ class AppShortcutInfo {
 ///
 /// This generator produces Swift code that can be used in iOS 17+ applications
 /// to integrate with the App Intents framework.
-/// Matches a `{placeholder}` in a dialog or snippet template.
-final RegExp _placeholderPattern = RegExp(r'\{([^}]+)\}');
-
 class SwiftGenerator {
   /// Creates a Swift generator.
   ///
@@ -98,8 +96,19 @@ class SwiftGenerator {
     if (_needsCacheImport(info)) {
       buffer.writeln('import app_intents');
     }
+    // `.result(view:)` comes from the _AppIntents_SwiftUI overlay, and the
+    // snippet view has to be emitted alongside the intent that constructs it —
+    // otherwise this single-intent output references an undefined type.
+    if (info.snippet != null) {
+      buffer.writeln('import SwiftUI');
+    }
     buffer.writeln();
 
+    if (info.snippet != null) {
+      _writeSnippetView(buffer, info);
+      buffer.writeln();
+      buffer.writeln();
+    }
     _generateIntentBody(buffer, info);
 
     return buffer.toString();
@@ -774,8 +783,10 @@ class SwiftGenerator {
   void _writeFlutterBridgeInvoke(
     StringBuffer buffer,
     IntentInfo info,
-    String baseIndent,
-  ) {
+    String baseIndent, {
+    String? invokePrefix,
+    bool writeResultLocals = true,
+  }) {
     final hasValueState = info.parameters.any((p) => p.useValueState);
     if (hasValueState) {
       // When any param opts into IntentParameter.ValueState (#52), build the
@@ -805,18 +816,22 @@ class SwiftGenerator {
         buffer.writeln('$baseIndent}');
       }
       buffer.writeln(
-        '$baseIndent${_invokeBinding(info)} = try await FlutterBridge.shared.invoke(',
+        '$baseIndent${invokePrefix ?? _invokeBinding(info)} '
+        'try await FlutterBridge.shared.invoke(',
       );
       buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
       buffer.writeln('$baseIndent${_indent}params: params');
       buffer.writeln('$baseIndent)');
-      _writeSnippetResultLocals(buffer, info, baseIndent);
+      if (writeResultLocals) {
+        _writeSnippetResultLocals(buffer, info, baseIndent);
+      }
       return;
     }
 
     // Fast path: no ValueState opt-in → emit the dict literal inline as before.
     buffer.writeln(
-      '$baseIndent${_invokeBinding(info)} = try await FlutterBridge.shared.invoke(',
+      '$baseIndent${invokePrefix ?? _invokeBinding(info)} '
+      'try await FlutterBridge.shared.invoke(',
     );
     buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
     if (info.parameters.isEmpty) {
@@ -834,16 +849,19 @@ class SwiftGenerator {
       buffer.writeln('$baseIndent$_indent]');
     }
     buffer.writeln('$baseIndent)');
-    _writeSnippetResultLocals(buffer, info, baseIndent);
+    if (writeResultLocals) {
+      _writeSnippetResultLocals(buffer, info, baseIndent);
+    }
   }
 
-  /// The binding for a `FlutterBridge.shared.invoke` call.
+  /// What precedes a `FlutterBridge.shared.invoke` call — a binding, or
+  /// `return` when the call is the value of a wrapper closure.
   ///
   /// The result is discarded unless a snippet template reads `{result.…}` from
   /// it — binding it unconditionally would produce an unused-variable warning
   /// in every generated intent.
   String _invokeBinding(IntentInfo info) =>
-      _snippetResultKeys(info).isEmpty ? 'let _' : 'let snippetResult';
+      _snippetResultKeys(info).isEmpty ? 'let _ =' : 'let snippetResult =';
 
   /// Writes one `let` per `{result.key}` a snippet reads, so the template can
   /// interpolate a plain `String` instead of an `Any?` subscript.
@@ -870,24 +888,8 @@ class SwiftGenerator {
   /// Covers the snippet templates *and* the dialog templates — the dialog and
   /// the card describe the same result, so it would be strange for one to be
   /// able to name a handler value and the other not.
-  List<String> _snippetResultKeys(IntentInfo info) {
-    final templates = <String>[
-      ...?info.snippet?.templates,
-      ?info.resultDialogTemplate,
-      ?info.resultDialogSupportingTemplate,
-    ];
-    if (templates.isEmpty) return const [];
-    final keys = <String>[];
-    for (final template in templates) {
-      for (final match in _placeholderPattern.allMatches(template)) {
-        final name = match.group(1)!.trim();
-        if (!name.startsWith('result.')) continue;
-        final key = name.substring('result.'.length);
-        if (key.isNotEmpty && !keys.contains(key)) keys.add(key);
-      }
-    }
-    return keys;
-  }
+  List<String> _snippetResultKeys(IntentInfo info) =>
+      handlerResultKeys(resultTemplatesOf(info));
 
   /// Escapes a string for embedding in a Swift string literal.
   ///
@@ -924,16 +926,21 @@ class SwiftGenerator {
   /// `{paramName}` becomes `\(paramName)` like a dialog template;
   /// `{result.key}` becomes the local written by [_writeSnippetResultLocals].
   String _interpolateSnippetTemplate(String template, IntentInfo info) {
-    var result = template.replaceAll('"', '\\"');
+    // Escape the author's text FIRST, then insert interpolations — running it
+    // the other way round would escape the backslash of the `\(` we just
+    // added and emit it as literal text.
+    var result = _swiftLiteral(template);
     for (final key in _snippetResultKeys(info)) {
-      result = result.replaceAll(
-        '{result.$key}',
+      result = substitutePlaceholder(
+        result,
+        '$resultPlaceholderPrefix$key',
         '\\(${_snippetResultLocal(key)})',
       );
     }
     for (final param in info.parameters) {
-      result = result.replaceAll(
-        '{${param.fieldName}}',
+      result = substitutePlaceholder(
+        result,
+        param.fieldName,
         '\\(${param.fieldName})',
       );
     }
@@ -1039,8 +1046,24 @@ class SwiftGenerator {
     final wrapper = info.longRunning
         ? 'performBackgroundTask'
         : 'withIntentCancellationHandler';
-    buffer.writeln('${indent2}try await $wrapper {');
-    _writeFlutterBridgeInvoke(buffer, info, indent3);
+
+    // Both wrappers return the closure's value, so when a dialog or snippet
+    // reads `{result.…}` the payload is bound OUTSIDE the closure. Binding it
+    // inside would put the interpolation locals out of scope by the time the
+    // return statement (emitted after the closure) references them.
+    final needsResult = _snippetResultKeys(info).isNotEmpty;
+    buffer.writeln(
+      needsResult
+          ? '${indent2}let snippetResult = try await $wrapper {'
+          : '${indent2}try await $wrapper {',
+    );
+    _writeFlutterBridgeInvoke(
+      buffer,
+      info,
+      indent3,
+      invokePrefix: needsResult ? 'return' : null,
+      writeResultLocals: false,
+    );
     if (info.cancellable) {
       buffer.writeln('$indent2} onCancel: { reason in');
       buffer.writeln(
@@ -1051,6 +1074,8 @@ class SwiftGenerator {
     } else {
       buffer.writeln('$indent2}');
     }
+
+    _writeSnippetResultLocals(buffer, info, indent2);
 
     // Clean up temp files after the background work completes.
     _writeFileParamCleanup(buffer, info, indent2);
@@ -2450,9 +2475,7 @@ class SwiftGenerator {
       buffer.writeln('struct $name: AppIntentsPackage {}');
       return;
     }
-    final types = includedPackages
-        .map((qualified) => '${qualified.split('.').last}.self')
-        .join(', ');
+    final types = includedPackages.map(_packageTypeReference).join(', ');
     buffer.writeln('struct $name: AppIntentsPackage {');
     buffer.writeln('${_indent}static var includedPackages:');
     buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
@@ -2467,6 +2490,17 @@ class SwiftGenerator {
     for (final qualified in includedPackages)
       if (qualified.contains('.')) qualified.split('.').first,
   };
+
+  /// The Swift expression naming a package type from its qualified name.
+  ///
+  /// Only the **module** prefix is dropped: importing `SharedIntents` makes
+  /// `Groups.SharedPackage` reachable, not `SharedPackage`, so the rest of the
+  /// path has to survive.
+  String _packageTypeReference(String qualified) {
+    final segments = qualified.split('.');
+    final path = segments.length > 1 ? segments.skip(1).join('.') : qualified;
+    return '$path.self';
+  }
 
   /// Generates intent body without import statement.
   ///
@@ -2840,15 +2874,17 @@ class SwiftGenerator {
     // snippet uses. Without this the placeholder would reach Siri verbatim.
     if (info != null) {
       for (final key in _snippetResultKeys(info)) {
-        result = result.replaceAll(
-          '{result.$key}',
+        result = substitutePlaceholder(
+          result,
+          '$resultPlaceholderPrefix$key',
           '\\(${_snippetResultLocal(key)})',
         );
       }
     }
     for (final param in params) {
-      result = result.replaceAll(
-        '{${param.fieldName}}',
+      result = substitutePlaceholder(
+        result,
+        param.fieldName,
         '\\(${param.fieldName})',
       );
     }

@@ -98,6 +98,14 @@ void main(List<String> args) {
     schema: 'messages.sendMessage', // #49
     longRunning: true, // #52
     cancellable: true, // #52
+    // A `{result.…}` template on a long-running intent: the invoke runs inside
+    // the wrapper closure, so the payload must be bound outside it or the
+    // interpolation locals are out of scope at the return statement.
+    resultDialogTemplate: 'Sent to {result.recipient}',
+    snippet: SnippetInfo(
+      title: '{result.recipient}',
+      rows: [SnippetRowInfo(label: 'Status', value: '{result.status}')],
+    ),
     parameters: [
       IntentParamInfo(
         fieldName: 'text',

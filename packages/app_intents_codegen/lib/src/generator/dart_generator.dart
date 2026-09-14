@@ -4,6 +4,7 @@ import 'package:dart_style/dart_style.dart';
 import '../models/entity_info.dart';
 import '../models/intent_info.dart';
 import '../models/union_info.dart';
+import 'placeholders.dart';
 
 /// Generator for Dart code that registers intent and entity handlers.
 ///
@@ -436,7 +437,7 @@ $fromMapParams    );
   Code _buildIntentHandlerRegistration(IntentInfo intent) {
     final cleanName = _cleanClassName(intent.className);
     final handlerName = '${_toCamelCase(cleanName)}Handler';
-    final returnsPayload = _snippetReadsResult(intent);
+    final returnsPayload = _intentReadsHandlerResult(intent);
 
     final call = StringBuffer();
     if (intent.parameters.isEmpty) {
@@ -473,14 +474,14 @@ ${call.toString()}
 ''');
   }
 
-  /// Whether [intent]'s snippet template reads the handler's return value.
-  bool _snippetReadsResult(IntentInfo intent) {
-    final snippet = intent.snippet;
-    if (snippet == null) return false;
-    return snippet.templates.any(
-      (template) => RegExp(r'\{result\.[^}]+\}').hasMatch(template),
-    );
-  }
+  /// Whether [intent] reads the handler's return value anywhere.
+  ///
+  /// Must cover the dialog templates as well as the snippet's, and must use the
+  /// same placeholder parsing as the analyzer and the Swift generator. A dialog
+  /// reading `{result.…}` while this returned false would leave the Swift side
+  /// reading keys out of a map the Dart side had already thrown away.
+  bool _intentReadsHandlerResult(IntentInfo intent) =>
+      readsHandlerResult(resultTemplatesOf(intent));
 
   /// Builds the _registerEntityHandlers() function.
   Method _buildRegisterEntityHandlersFunction(

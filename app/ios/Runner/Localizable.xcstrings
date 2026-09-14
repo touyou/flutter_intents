@@ -517,13 +517,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You have {result.openCount} tasks left"
+            "value": "You have %@ tasks left"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "残りのタスクは{result.openCount}件です"
+            "value": "残りのタスクは%@件です"
           }
         }
       }
@@ -534,13 +534,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "{result.openCount} left"
+            "value": "%@ left"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "残り{result.openCount}件"
+            "value": "残り%@件"
           }
         }
       }

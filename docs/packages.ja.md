@@ -228,6 +228,17 @@ app_intents_annotations/
     └── app_intents_annotations_test.dart
 ```
 
+### 新しい OS 機能向けアノテーション（opt-in 不要）
+
+以下は既定で生成され、素の `@available` でガードされます。出力するシンボルが
+リリース済み SDK に存在するためです:
+
+- `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51, iOS 26.0)。
+- `@IntentSpec(snippet:)` — 宣言的な Siri スニペットカード生成 (iOS 16)。
+- `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` —
+  `IntentDialog(full:supporting:)` (iOS 16。シンボル付き形のみ iOS 17.2 なので
+  availability チェック内で出力)。
+
 ### WWDC26 実験的アノテーション
 
 `@EntitySpec` / `@IntentSpec` は opt-in の WWDC26 フィールドを持ちます（対応する
@@ -238,7 +249,6 @@ app_intents_annotations/
   推奨: `AppSchemaDomain`（iOS 27 既知ドメイン）と `AppSchemas`（検証済み識別子。例:
   `AppSchemas.messages.message`、未収録は `AppSchemas.of(domain, name)`）。
   `src/schema/app_schema.dart` 参照。
-- `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51)。
 - `@EntitySpec(exportAs:)` — `ValueRepresentation` によるアプリ間 export
   (`EntityExportType.person`) (#54)。
 - `@EntitySpec(syncable:)` — `SyncableEntity` 準拠（安定 id ケース）(#55)。
