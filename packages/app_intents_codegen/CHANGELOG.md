@@ -1,3 +1,9 @@
+## Unreleased
+
+- **`IntentValueQuery` (#51) graduated out of the experimental opt-in.** The protocol is declared at iOS 26.0 and ships in the released iOS 26.5 SDK (Xcode 26.6), so `#if APP_INTENTS_WWDC26` was never the right guard — the `<Entity>ValueQuery` struct is now emitted whenever `@EntitySpec(valueQuery: true)` is set, under `@available(iOS 26.0, *)`. **Action required: none** if you already passed `--experimental=value-query` (the flag is still accepted and now reported as a no-op); if you set `valueQuery: true` *without* the flag, the query now appears in your generated Swift for the first time. An entity that also opts into App Schema (#49) keeps the `#if`/`#else` pair, because the entity type itself is iOS 27 only in that branch.
+- CLI: an unrecognized `--experimental=<flag>` token is no longer silently dropped — it prints a warning listing the known flags. Graduated tokens print why they are now a no-op.
+- `scripts/verify_experimental_swift.sh`: fixed a stale `AppIntentsBridge` source path that had been broken since the module moved into the plugin's Swift package (#102), and taught it to run against a stable Xcode (it then checks only the non-`#if` branch, which is what proves an ungated feature compiles without the iOS 27 SDK).
+
 ## 0.15.0
 
 - No codegen changes. The `import AppIntentsBridge` line that `generate_widget_swift` emits now resolves on the CocoaPods route too (#105), and the module ships as a product of the plugin's Swift package (#102 follow-up) — see the `app_intents` changelog and `docs/usage.md` → "Consuming AppIntentsBridge".

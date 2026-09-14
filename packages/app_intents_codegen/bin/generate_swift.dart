@@ -124,7 +124,20 @@ ExperimentalFeatures _resolveExperimental(ArgResults results) {
   final enabled = <ExperimentalFeature>{};
   for (final flag in flags) {
     final feature = ExperimentalFeature.fromFlag(flag);
-    if (feature != null) enabled.add(feature);
+    if (feature != null) {
+      enabled.add(feature);
+      continue;
+    }
+    final graduated = graduatedExperimentalFlags[flag];
+    if (graduated != null) {
+      stderr.writeln('Note: --experimental=$flag has graduated. $graduated');
+      continue;
+    }
+    // Silently dropping an unknown flag looks like the feature was emitted.
+    stderr.writeln(
+      'Warning: unknown --experimental flag "$flag" (known flags: '
+      '${ExperimentalFeature.allFlags.join(', ')}).',
+    );
   }
 
   return ExperimentalFeatures(masterEnabled: masterEnabled, enabled: enabled);

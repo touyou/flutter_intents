@@ -83,7 +83,7 @@ void main() {
       final gen = const SwiftGenerator(
         experimental: ExperimentalFeatures(
           masterEnabled: true,
-          enabled: {ExperimentalFeature.valueQuery},
+          enabled: {ExperimentalFeature.ownership},
         ),
       );
       final result = gen.generateAll(

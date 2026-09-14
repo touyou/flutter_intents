@@ -434,13 +434,16 @@ Dartアノテーションからコードを生成するツール。
 
 6. **WWDC26 実験的生成（opt-in・デフォルト OFF）** ✅
    - マスタースイッチ `--experimental-wwdc26` + 機能別 `--experimental=<flag>`
-     (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`,
+     (`app-schema`, `ownership`, `long-running`, `rich-types`,
      `value-representation`, `donation`)。出力は `#if APP_INTENTS_WWDC26` で囲む。
    - App Schema (#49)、実行制御 (#52)、リッチなパラメータ型 (#53)、
-     `IntentValueQuery` (#51)、アプリ間 export (#54)、`SyncableEntity` /
-     `RelevantEntities` ドネーション (#55)。`docs/usage.ja.md` と `docs/adr/` を参照。
+     アプリ間 export (#54)、`SyncableEntity` / `RelevantEntities` ドネーション
+     (#55)。`docs/usage.ja.md` と `docs/adr/` を参照。
+   - `IntentValueQuery` (#51) は opt-in から**卒業**した。シンボルがリリース済み
+     SDK に iOS 26.0 で存在するため、素の `@available` で既定生成する。
    - 検証: `scripts/verify_experimental_swift.sh` で dual-branch
-     `swiftc -typecheck`（beta iOS 27 SDK）。
+     `swiftc -typecheck`。Xcode 27 では両分岐、安定 Xcode では安定分岐のみを検証する
+     （`DEVELOPER_DIR` で切り替える）。
 
 ### 使用方法
 

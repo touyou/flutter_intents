@@ -1141,11 +1141,10 @@ class SwiftGenerator {
       _writeOwnershipExtension(buffer, info);
     }
 
-    // #51 IntentValueQuery: an additive iOS 27 query type, in its own #if block
-    // (no #else needed — without the flag the entity simply has no value query;
-    // its normal EntityQuery is unaffected). See ADR 0001.
-    if (experimental.isEnabled(ExperimentalFeature.valueQuery) &&
-        info.valueQuery) {
+    // #51 IntentValueQuery: an additive query type. `IntentValueQuery` exists
+    // in the stable SDK at iOS 26.0, so this is NOT experimental — it is emitted
+    // whenever the entity opts in, guarded by plain `@available`. See ADR 0001.
+    if (info.valueQuery) {
       buffer.writeln();
       buffer.writeln();
       _writeValueQueryStruct(buffer, info);
@@ -1402,13 +1401,38 @@ class SwiftGenerator {
     buffer.write('#endif');
   }
 
-  /// Writes the experimental `IntentValueQuery` conforming struct (#51).
+  /// Writes the `IntentValueQuery` conforming struct (#51).
   ///
   /// Receives a serializable text search input from the system and delegates to
-  /// a Dart handler via `FlutterBridge.shared.queryValues`. Gated by
-  /// `#if APP_INTENTS_WWDC26` with no `#else`: the value query is purely
-  /// additive, so released-SDK builds without the flag just omit it.
+  /// a Dart handler via `FlutterBridge.shared.queryValues`.
+  ///
+  /// This is **not** experimental: `IntentValueQuery` is declared at iOS 26.0 in
+  /// the released SDK (verified against the iOS 26.5 and iOS 27.0 SDKs), so a
+  /// plain `@available` is a sufficient guard and no `#if` is needed. The one
+  /// exception is an entity that opts into App Schema (#49): there the entity
+  /// type itself only exists at iOS 27 inside the `#if` branch, so the query has
+  /// to follow it into both branches or it would reference a type newer than
+  /// itself.
   void _writeValueQueryStruct(StringBuffer buffer, EntityInfo info) {
+    if (_usesExperimentalEntitySchema(info)) {
+      buffer.writeln('#if APP_INTENTS_WWDC26');
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 27.0');
+      buffer.writeln();
+      buffer.writeln('#else');
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 26.0');
+      buffer.writeln();
+      buffer.write('#endif');
+    } else {
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 26.0');
+    }
+  }
+
+  /// Writes the `IntentValueQuery` struct at a single availability.
+  void _writeValueQueryStructBody(
+    StringBuffer buffer,
+    EntityInfo info, {
+    required String availability,
+  }) {
     final idProp = info.properties
         .where((p) => p.role == EntityPropertyRole.id)
         .firstOrNull;
@@ -1422,8 +1446,7 @@ class SwiftGenerator {
         .where((p) => p.role == EntityPropertyRole.image)
         .firstOrNull;
 
-    buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available($availability, *)');
     buffer.writeln('struct ${info.className}ValueQuery: IntentValueQuery {');
     buffer.writeln(
       '${_indent}func values(for input: String) async throws -> [${info.className}] {',
@@ -1447,8 +1470,7 @@ class SwiftGenerator {
     );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
-    buffer.writeln('}');
-    buffer.write('#endif');
+    buffer.write('}');
   }
 
   /// Writes the experimental `OwnershipProvidingEntity` conformance extension.

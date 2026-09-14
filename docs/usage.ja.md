@@ -943,6 +943,36 @@ if #available(iOS 17.0, *) {
 
 これはコードジェネレータでは自動生成されません — エンティティデータが変更される場所でSwiftコードに手動で追加してください。
 
+## IntentValueQuery (#51) — 構造化検索
+
+> **実験的機能ではありません。** `IntentValueQuery` はリリース済み SDK に iOS 26.0 で
+> 宣言されているため、クエリ型は既定で生成されます（`@available(iOS 26.0, *)` で
+> ガード、`#if` も `--experimental` フラグも不要）。
+> `--experimental=value-query` は互換のため受け付けますが no-op として通知します。
+
+事前インデックスが難しいコンテンツ（大規模・サーバーサイド・高頻度更新）向けに、
+`IntentValueQuery` は検索入力を受け取り一致エンティティを返します。エンティティ単位で
+`valueQuery: true` を指定し、`<entity>ValueQuery` という名前のハンドラを定義します:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ProductEntity',
+  title: 'Product',
+  pluralTitle: 'Products',
+  valueQuery: true,
+)
+class ProductEntitySpec extends EntitySpecBase<Product> { /* ... */ }
+
+// 同じ spec ファイル内のハンドラ（システムのテキストクエリを受け取る）:
+Future<List<Product>> productEntityValueQuery(String input) async {
+  return ProductRepository.instance.search(input);
+}
+```
+
+生成 Dart がハンドラを自動登録します。ネイティブ側では value-query executor を配線します
+（[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
+ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
+
 ## WWDC26 実験的機能（opt-in）
 
 codegen は WWDC26 の App Intents API（iOS 26.4 / iOS 27+）を出力できます。これらの
@@ -956,7 +986,7 @@ Swift は `#if APP_INTENTS_WWDC26` で囲まれビルド設定からも切り替
 # マスタースイッチ + 機能選択（カンマ区切り）。マスター OFF なら一切出力しない。
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-query,value-representation,donation,long-running,app-schema,ownership,rich-types
+  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types
 ```
 
 出力された WWDC26 形をコンパイルするには、Xcode のターゲットの **Active Compilation
@@ -970,7 +1000,6 @@ Conditions**（Swift フラグ）に `APP_INTENTS_WWDC26` を追加します。�
 | `ownership` | `@EntitySpec(ownership:)` による `OwnershipProvidingEntity` 準拠 (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / 実行ターゲット (#52) |
 | `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53) |
-| `value-query` | `IntentValueQuery` 構造化検索 (#51) |
 | `value-representation` | `ValueRepresentation` によるアプリ間エンティティ export (#54) |
 | `donation` | `SyncableEntity` + `RelevantEntities` ドネーション (#55) |
 
@@ -1005,31 +1034,6 @@ class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
 - カタログは**非網羅**です — システムは生文字列で照合するため、任意の `'domain.schema'`
   が使えます。未収録のスキーマは
   `schema: AppSchemas.of(AppSchemaDomain.calendar, 'event')` → `'calendar.event'`。
-
-### IntentValueQuery (#51) — 構造化検索
-
-事前インデックスが難しいコンテンツ（大規模・サーバーサイド・高頻度更新）向けに、
-`IntentValueQuery` は検索入力を受け取り一致エンティティを返します。エンティティ単位で
-`valueQuery: true` を指定し、`<entity>ValueQuery` という名前のハンドラを定義します:
-
-```dart
-@EntitySpec(
-  identifier: 'com.example.app.ProductEntity',
-  title: 'Product',
-  pluralTitle: 'Products',
-  valueQuery: true,
-)
-class ProductEntitySpec extends EntitySpecBase<Product> { /* ... */ }
-
-// 同じ spec ファイル内のハンドラ（システムのテキストクエリを受け取る）:
-Future<List<Product>> productEntityValueQuery(String input) async {
-  return ProductRepository.instance.search(input);
-}
-```
-
-生成 Dart がハンドラを自動登録します。ネイティブ側では value-query executor を配線します
-（[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
-ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
 
 ### アプリ間エンティティ export (#54)
 

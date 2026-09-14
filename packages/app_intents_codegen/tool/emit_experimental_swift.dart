@@ -61,6 +61,10 @@ void main(List<String> args) {
     pluralTitle: 'Messages',
     schema: 'messages.message', // #49
     ownership: EntityOwnershipType.shared, // #55 ownership
+    // #51 on a schema entity: the query must follow the entity into BOTH
+    // branches (iOS 27 in the #if, iOS 26 in the #else) or it would reference
+    // a type newer than itself.
+    valueQuery: true,
     properties: [
       EntityPropertyInfo(
         fieldName: 'id',

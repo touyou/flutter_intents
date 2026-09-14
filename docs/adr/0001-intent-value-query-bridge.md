@@ -1,8 +1,33 @@
 # ADR 0001: IntentValueQuery ブリッジ設計 (#51)
 
-- **ステータス**: Accepted — 実装済み（構造化/テキスト `Input`、`--experimental=value-query`）。ビジュアル `Input` は #58
+- **ステータス**: Accepted — 実装済み（構造化/テキスト `Input`）。**2026-09-14 に experimental から卒業**（下記「卒業」節）。ビジュアル `Input` は #58
 - **関連 issue**: #51（基盤）、#54 import 経路 / #58 ビジュアルが依存
-- **対象フラグ（案）**: `--experimental=value-query`
+- **対象フラグ**: なし（旧 `--experimental=value-query`。互換のため受理し no-op として通知する）
+
+## 卒業: `#if` から `@available` へ (2026-09-14)
+
+当初は「WWDC26 の新 API＝安定 SDK にシンボルが無い」という前提で
+`--experimental=value-query` + `#if APP_INTENTS_WWDC26` に載せていたが、
+**前提が誤っていた**。Xcode 27 RC (27A266a) と安定版 Xcode 26.6 の
+`AppIntents.swiftinterface` を突き合わせたところ:
+
+```
+@available(macOS 26.0, iOS 26.0, watchOS 26.0, tvOS 26.0, visionOS 26.0, *)
+public protocol IntentValueQuery : PersistentlyIdentifiable, _SupportsAppDependencies, Sendable
+```
+
+が **iOS 26.5 SDK（Xcode 26.6 同梱）にも存在する**。つまりシンボル不在ではなく
+単なるランタイムバージョン差であり、`@available` で正しくガードできる。
+`#if` を外して `@available(iOS 26.0, *)` の通常機能に変更した。
+
+- 例外: エンティティが App Schema (#49) に opt-in している場合のみ、エンティティ型
+  自体が `#if` 分岐内で iOS 27 になる。クエリがそれを返す以上、**クエリもエンティティ
+  と同じ 2 分岐に付いていく**必要がある（`#if` 側 iOS 27 / `#else` 側 iOS 26）。
+- 検証: `scripts/verify_experimental_swift.sh` を **iOS 26.5 SDK** に対して実行し、
+  `#if` を立てない状態で `swiftc -typecheck` が通ることを確認した（卒業の根拠）。
+  Xcode 27 RC では従来どおり両分岐が緑。
+- なお `IntentValueQuery` の `allowedExecutionTargets` のみ iOS 27 なので、将来
+  実行ターゲットを指定する場合はその行だけゲートが要る。
 
 ## コンテキスト
 
