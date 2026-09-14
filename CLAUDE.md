@@ -44,6 +44,11 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **Dual-text result dialogs (`IntentDialog(full:supporting:)`, ADR 0006)**
+  - `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` as sibling fields of `resultDialogTemplate` (not a deprecation). Template alone → unchanged `.init("…")`; + supporting → `IntentDialog(full:supporting:)`; + symbol → built behind `if #available(iOS 17.2, *)` with the symbol-less dialog as fallback, so the intent stays at iOS 17.0.
+  - **Not experimental**: `full:supporting:` is iOS 16 in the released SDK. Only the `systemImageName` initializers are 17.2.
+  - Either field without `resultDialogTemplate` is an `InvalidGenerationSourceError` — silently dropping it reads as "Siri chose not to show the supporting text". The supporting template is collected into the String Catalog alongside the main one.
+  - Verified by `swiftc -typecheck` at **deployment target iOS 17.0** (not the SDK version — see below) against both the 26.5 and 27.0 SDKs, plus a `flutter build ios` of the example app.
 - **App Extension entity access + WidgetConfigurationIntent codegen (#97 / #98)**
   - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `packages/app_intents/ios/app_intents/Sources/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
   - Dart-side mirror `AppIntentsEntityCacheKey.forEntity(identifier)` so `setCachedValue` keys are not literals.
@@ -199,7 +204,6 @@ docs/
 
 Items surveyed against the matsudate WWDC 2026 review #4 ("新しい Siri と App Intents", 2026-06-18). Each row is a thing the article describes that this plugin does **not** ship yet. ADR numbers in brackets are pre-reserved.
 
-- **`@IntentSpec(resultDialog: IntentDialog(full:supporting:))`** — dual-text dialogs (voice-only `full` vs on-screen `supporting`). Current annotation only takes a single `resultDialogTemplate`. Needs SDK spike against Xcode 27 beta for the exact `IntentDialog` shape + backward-compat decision (deprecate vs add sibling fields). [ADR-0005]
 - **`ShowsSnippetView`** — SwiftUI snippet card in Siri results. Flutter doesn't render SwiftUI, so the only viable path is a **declarative template** (title/subtitle/image/key-value) that codegen turns into a fixed `@ViewBuilder`. ADR 0004 already flagged this as a separate-issue spike. Needs a template DSL design before any code. [ADR-0006]
 - **`$param.requestValue`** — mid-`perform()` value request. Requires a 2-way suspending RPC: Swift `perform()` suspends → plugin asks Dart for a missing value → Dart returns → `perform()` resumes. Large-scope bridge change; pick Dart-visible vs hidden-inside-generated-Swift first. [ADR-0007]
 - **`PlaceDescriptor` export** — `EntityExportKind.placeDescriptor` case for #54 `ValueRepresentation(exporting:)`. ADR 0002 (line 3) explicitly defers this with `IntentPerson` only. Needs `@EntityProperty(role: 'latitude'/'longitude')` (or auto-detect-by-name) + Xcode 27 beta typecheck confirming the `PlaceDescriptor` constructor signature/availability. [extends ADR-0002]

@@ -107,8 +107,30 @@ void main(List<String> args) {
     ],
   );
 
+  // Intent exercising the dual-text + symbol result dialog (ADR 0005). Not
+  // experimental — `IntentDialog(full:supporting:)` is iOS 16 and the symbol
+  // form is iOS 17.2, reached through an `if #available` — but it still has to
+  // compile, and only a typecheck proves the availability dance is right.
+  const dialogIntent = IntentInfo(
+    className: 'AnnounceTaskIntent',
+    identifier: 'com.example.app.announceTask',
+    title: 'Announce Task',
+    implementation: IntentImplementationType.dart,
+    resultDialogTemplate: 'I created the task {title}',
+    resultDialogSupportingTemplate: 'Task created',
+    resultDialogSystemImageName: 'checkmark.circle',
+    parameters: [
+      IntentParamInfo(
+        fieldName: 'title',
+        dartType: 'String',
+        title: 'Title',
+        isOptional: false,
+      ),
+    ],
+  );
+
   final swift = gen.generateAll(
-    intents: [sendIntent],
+    intents: [sendIntent, dialogIntent],
     entities: [productEntity, messageEntity],
   );
 

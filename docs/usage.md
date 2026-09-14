@@ -606,6 +606,32 @@ Show feedback to users in Siri/Shortcuts after intent execution:
 
 The `{paramName}` placeholders are replaced with actual parameter values in the generated Swift code. This generates `some IntentResult & ProvidesDialog` as the return type.
 
+##### Spoken vs. on-screen text
+
+Siri sometimes only speaks the result and sometimes also shows it. Add
+`resultDialogSupportingTemplate` to give those two cases different text — the
+spoken line can carry context a reader already gets from the screen:
+
+```dart
+@IntentSpec(
+  identifier: 'CompleteTaskIntent',
+  title: 'Complete Task',
+  resultDialogTemplate: 'I marked that task as completed',  // spoken
+  resultDialogSupportingTemplate: 'Completed',              // shown on screen
+  resultDialogSystemImageName: 'checkmark.circle',          // optional SF Symbol
+)
+```
+
+This generates `IntentDialog(full:supporting:)`. Both templates support
+`{paramName}` interpolation and both land in the String Catalog.
+
+`resultDialogSystemImageName` uses an initializer that is iOS 17.2+, so the
+generated Swift builds it behind `if #available(iOS 17.2, *)` and falls back to
+the symbol-less dialog — the intent's deployment target stays at iOS 17.0.
+
+Both fields require `resultDialogTemplate`; setting either alone is a code
+generation error rather than a silently ignored field.
+
 #### Parameter Summary
 
 Control how the intent appears in the Shortcuts editor:

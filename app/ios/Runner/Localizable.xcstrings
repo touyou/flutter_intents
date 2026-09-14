@@ -86,19 +86,19 @@
         }
       }
     },
-    "Completed task": {
+    "Completed": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Completed task"
+            "value": "Completed"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "タスクを完了しました"
+            "value": "完了"
           }
         }
       }
@@ -269,6 +269,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "期限"
+          }
+        }
+      }
+    },
+    "I marked that task as completed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I marked that task as completed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのタスクを完了にしました"
           }
         }
       }

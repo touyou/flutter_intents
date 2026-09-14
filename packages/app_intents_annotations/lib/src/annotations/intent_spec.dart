@@ -34,7 +34,28 @@ class IntentSpec {
   /// Supports `{paramName}` interpolation for parameter values.
   /// When set, `perform()` returns `some IntentResult & ProvidesDialog`.
   /// Example: `'Created task "{title}"'`
+  ///
+  /// When [resultDialogSupportingTemplate] is also set, this becomes the
+  /// *spoken* half of an `IntentDialog(full:supporting:)`.
   final String? resultDialogTemplate;
+
+  /// The on-screen half of the result dialog.
+  ///
+  /// Siri speaks [resultDialogTemplate] and, when it also shows the result,
+  /// displays this shorter text next to it — so the spoken line can carry the
+  /// context a reader already gets from the screen. Requires
+  /// [resultDialogTemplate]; supports the same `{paramName}` interpolation.
+  ///
+  /// Example: `resultDialogTemplate: 'I created the task {title}'` +
+  /// `resultDialogSupportingTemplate: 'Task created'`.
+  final String? resultDialogSupportingTemplate;
+
+  /// SF Symbol shown alongside the result dialog (e.g. `'checkmark.circle'`).
+  ///
+  /// Requires [resultDialogTemplate]. The symbol form of `IntentDialog` is
+  /// iOS 17.2+, so the generated code falls back to the plain dialog below
+  /// that version rather than raising the intent's deployment target.
+  final String? resultDialogSystemImageName;
 
   /// Template for the parameter summary shown in Shortcuts UI.
   ///
@@ -119,6 +140,8 @@ class IntentSpec {
     this.urlScheme,
     this.urlAction,
     this.resultDialogTemplate,
+    this.resultDialogSupportingTemplate,
+    this.resultDialogSystemImageName,
     this.parameterSummary,
     this.supportedModes,
     this.longRunning = false,

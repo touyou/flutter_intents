@@ -46,6 +46,30 @@ class IntentAnalyzer {
     final resultDialogTemplate = annotation
         .getField('resultDialogTemplate')
         ?.toStringValue();
+    final resultDialogSupportingTemplate = annotation
+        .getField('resultDialogSupportingTemplate')
+        ?.toStringValue();
+    final resultDialogSystemImageName = annotation
+        .getField('resultDialogSystemImageName')
+        ?.toStringValue();
+    if (resultDialogTemplate == null) {
+      // Both refine a dialog that wouldn't exist; silently dropping them would
+      // look like Siri simply chose not to show the supporting text.
+      if (resultDialogSupportingTemplate != null) {
+        throw InvalidGenerationSourceError(
+          '@IntentSpec(resultDialogSupportingTemplate:) requires '
+          '"resultDialogTemplate" — it is the on-screen half of that dialog.',
+          element: element,
+        );
+      }
+      if (resultDialogSystemImageName != null) {
+        throw InvalidGenerationSourceError(
+          '@IntentSpec(resultDialogSystemImageName:) requires '
+          '"resultDialogTemplate" — the symbol is shown with that dialog.',
+          element: element,
+        );
+      }
+    }
     final parameterSummary = annotation
         .getField('parameterSummary')
         ?.toStringValue();
@@ -103,6 +127,8 @@ class IntentAnalyzer {
       urlScheme: urlScheme,
       urlAction: urlAction,
       resultDialogTemplate: resultDialogTemplate,
+      resultDialogSupportingTemplate: resultDialogSupportingTemplate,
+      resultDialogSystemImageName: resultDialogSystemImageName,
       parameterSummary: parameterSummary,
       supportedModes: supportedModes,
       longRunning: longRunning,

@@ -46,6 +46,8 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? urlScheme;
           final String? urlAction;
           final String? resultDialogTemplate;
+          final String? resultDialogSupportingTemplate;
+          final String? resultDialogSystemImageName;
           final String? parameterSummary;
           final IntentMode? supportedModes;
           final bool longRunning;
@@ -62,6 +64,8 @@ Future<LibraryElement> resolveSource(String source) async {
             this.urlScheme,
             this.urlAction,
             this.resultDialogTemplate,
+            this.resultDialogSupportingTemplate,
+            this.resultDialogSystemImageName,
             this.parameterSummary,
             this.supportedModes,
             this.longRunning = false,

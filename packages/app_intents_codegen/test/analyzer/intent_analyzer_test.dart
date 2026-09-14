@@ -494,6 +494,84 @@ void main() {
         },
       );
 
+      test('extracts the dual-text dialog fields (ADR 0005)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.announce',
+            title: 'Announce',
+            resultDialogTemplate: 'I created the task {title}',
+            resultDialogSupportingTemplate: 'Task created',
+            resultDialogSystemImageName: 'checkmark.circle',
+          )
+          class AnnounceIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            AnnounceIntent({required this.title});
+          }
+        ''');
+        final info = analyzer.analyze(findClass(library, 'AnnounceIntent'))!;
+        expect(info.resultDialogTemplate, 'I created the task {title}');
+        expect(info.resultDialogSupportingTemplate, 'Task created');
+        expect(info.resultDialogSystemImageName, 'checkmark.circle');
+      });
+
+      test(
+        'a supporting template without a dialog is a generation error',
+        () async {
+          // Dropping it silently would look like Siri chose not to show it.
+          final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              resultDialogSupportingTemplate: 'Task created',
+            )
+            class BadDialogIntent extends IntentSpecBase {
+              BadDialogIntent();
+            }
+          ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'BadDialogIntent')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains('requires "resultDialogTemplate"'),
+              ),
+            ),
+          );
+        },
+      );
+
+      test('a dialog symbol without a dialog is a generation error', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad2',
+              title: 'Bad',
+              resultDialogSystemImageName: 'star',
+            )
+            class BadSymbolIntent extends IntentSpecBase {
+              BadSymbolIntent();
+            }
+          ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadSymbolIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('requires "resultDialogTemplate"'),
+            ),
+          ),
+        );
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

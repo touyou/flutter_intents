@@ -28,12 +28,17 @@ GEN="$WORK/GeneratedExperimental.swift"
 MOD="$WORK/mod"
 mkdir -p "$MOD"
 
-# Pick an iOS Simulator SDK + matching target (no codesigning needed).
+# Pick an iOS Simulator SDK (no codesigning needed) but compile at the PLUGIN'S
+# MINIMUM deployment target, not the SDK's own version. Compiling at the SDK
+# version silently satisfies every `@available` in the generated code, so a
+# newer-than-declared API used without a guard type-checks fine there and only
+# fails in a real app. At iOS 17.0 it fails here, which is the point.
 SDK="$(xcodebuild -showsdks 2>/dev/null | sed -n 's/.*-sdk \(iphonesimulator[0-9.]*\).*/\1/p' | tail -1)"
 SDK_VER="${SDK#iphonesimulator}"
-TARGET="arm64-apple-ios${SDK_VER}-simulator"
+DEPLOYMENT_TARGET="17.0"
+TARGET="arm64-apple-ios${DEPLOYMENT_TARGET}-simulator"
 
-echo "==> Xcode: $(xcodebuild -version | head -1) (SDK: $SDK, target: $TARGET)"
+echo "==> Xcode: $(xcodebuild -version | head -1) (SDK: $SDK, deployment target: iOS $DEPLOYMENT_TARGET)"
 
 echo "==> Emitting experimental Swift"
 ( cd "$CODEGEN" && dart run tool/emit_experimental_swift.dart "$GEN" >/dev/null )

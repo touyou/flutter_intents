@@ -669,16 +669,55 @@ class SwiftGenerator {
   }
 
   /// Writes the return statement (with optional dialog).
+  ///
+  /// A plain `resultDialogTemplate` becomes `.init("…")`. Adding
+  /// `resultDialogSupportingTemplate` switches to `IntentDialog(full:supporting:)`
+  /// — the spoken line and the on-screen line, so a voice-only answer can carry
+  /// context a reader already has on screen. `resultDialogSystemImageName` adds
+  /// the symbol, but those initializers are iOS 17.2+ while generated intents
+  /// target iOS 17.0, so the symbol form is built behind `if #available` with
+  /// the symbol-less dialog as the fallback.
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
-    if (info.resultDialogTemplate != null) {
-      final dialogStr = _interpolateDialogTemplate(
-        info.resultDialogTemplate!,
-        info.parameters,
-      );
-      buffer.writeln('${indent}return .result(dialog: .init("$dialogStr"))');
-    } else {
+    if (info.resultDialogTemplate == null) {
       buffer.writeln('${indent}return .result()');
+      return;
     }
+
+    final full = _interpolateDialogTemplate(
+      info.resultDialogTemplate!,
+      info.parameters,
+    );
+    final supporting = info.resultDialogSupportingTemplate == null
+        ? null
+        : _interpolateDialogTemplate(
+            info.resultDialogSupportingTemplate!,
+            info.parameters,
+          );
+    final symbol = info.resultDialogSystemImageName;
+
+    if (symbol == null) {
+      final expression = supporting == null
+          ? '.init("$full")'
+          : 'IntentDialog(full: "$full", supporting: "$supporting")';
+      buffer.writeln('${indent}return .result(dialog: $expression)');
+      return;
+    }
+
+    final withSymbol = supporting == null
+        ? 'IntentDialog(full: "$full", systemImageName: "$symbol")'
+        : 'IntentDialog(full: "$full", supporting: "$supporting", '
+              'systemImageName: "$symbol")';
+    final withoutSymbol = supporting == null
+        ? 'IntentDialog("$full")'
+        : 'IntentDialog(full: "$full", supporting: "$supporting")';
+
+    buffer.writeln('${indent}let dialog: IntentDialog');
+    buffer.writeln('${indent}if #available(iOS 17.2, *) {');
+    buffer.writeln('$indent${_indent}dialog = $withSymbol');
+    buffer.writeln('$indent} else {');
+    buffer.writeln('$indent${_indent}dialog = $withoutSymbol');
+    buffer.writeln('$indent}');
+    buffer.writeln('${indent}return .result(dialog: dialog)');
   }
 
   /// Writes the perform method using FlutterBridge (MethodChannel).

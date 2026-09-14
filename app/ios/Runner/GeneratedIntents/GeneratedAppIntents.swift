@@ -44,7 +44,13 @@ struct CompleteTaskIntentSpec: AppIntent {
         }
 
         await UIApplication.shared.open(url)
-        return .result(dialog: .init("Completed task"))
+        let dialog: IntentDialog
+        if #available(iOS 17.2, *) {
+            dialog = IntentDialog(full: "I marked that task as completed", supporting: "Completed", systemImageName: "checkmark.circle")
+        } else {
+            dialog = IntentDialog(full: "I marked that task as completed", supporting: "Completed")
+        }
+        return .result(dialog: dialog)
     }
 }
 

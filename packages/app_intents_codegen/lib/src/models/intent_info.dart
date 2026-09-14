@@ -28,8 +28,18 @@ class IntentInfo {
   final String? urlAction;
 
   /// Template for the dialog shown after intent execution.
-  /// Supports {paramName} interpolation.
+  /// Supports {paramName} interpolation. Becomes the spoken (`full`) half when
+  /// [resultDialogSupportingTemplate] is also set.
   final String? resultDialogTemplate;
+
+  /// The on-screen (`supporting`) half of the result dialog, for
+  /// `IntentDialog(full:supporting:)`. Requires [resultDialogTemplate].
+  final String? resultDialogSupportingTemplate;
+
+  /// SF Symbol name shown alongside the result dialog. Requires
+  /// [resultDialogTemplate]. The symbol initializers are iOS 17.2+, so the
+  /// generated code falls back to the symbol-less dialog below that version.
+  final String? resultDialogSystemImageName;
 
   /// Template for the parameter summary shown in Shortcuts UI.
   /// Supports {paramName} references.
@@ -71,6 +81,8 @@ class IntentInfo {
     this.urlScheme,
     this.urlAction,
     this.resultDialogTemplate,
+    this.resultDialogSupportingTemplate,
+    this.resultDialogSystemImageName,
     this.parameterSummary,
     this.supportedModes,
     this.longRunning = false,
@@ -93,6 +105,9 @@ class IntentInfo {
         urlScheme == other.urlScheme &&
         urlAction == other.urlAction &&
         resultDialogTemplate == other.resultDialogTemplate &&
+        resultDialogSupportingTemplate ==
+            other.resultDialogSupportingTemplate &&
+        resultDialogSystemImageName == other.resultDialogSystemImageName &&
         parameterSummary == other.parameterSummary &&
         supportedModes == other.supportedModes &&
         longRunning == other.longRunning &&
@@ -113,6 +128,8 @@ class IntentInfo {
     urlScheme,
     urlAction,
     resultDialogTemplate,
+    resultDialogSupportingTemplate,
+    resultDialogSystemImageName,
     parameterSummary,
     supportedModes,
     longRunning,
@@ -128,7 +145,10 @@ class IntentInfo {
       'description: $description, implementation: $implementation, '
       'parameters: $parameters, '
       'urlScheme: $urlScheme, urlAction: $urlAction, '
-      'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
+      'resultDialogTemplate: $resultDialogTemplate, '
+      'resultDialogSupportingTemplate: $resultDialogSupportingTemplate, '
+      'resultDialogSystemImageName: $resultDialogSystemImageName, '
+      'parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '
       'schema: $schema, donatable: $donatable)';

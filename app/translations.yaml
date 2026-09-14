@@ -18,7 +18,8 @@ ja:
   # CompleteTaskIntentSpec
   "Complete Task": "タスクを完了"
   "Mark a task as completed": "タスクを完了にします"
-  "Completed task": "タスクを完了しました"
+  "I marked that task as completed": "そのタスクを完了にしました"
+  "Completed": "完了"
   "Complete {task}": "完了 {task}"
   "Task": "タスク"
   "The task to complete": "完了するタスク"

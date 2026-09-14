@@ -600,6 +600,32 @@ Intent実行後にSiri/Shortcutsでユーザーにフィードバックを表示
 
 `{paramName}` プレースホルダーは生成されたSwiftコードで実際のパラメータ値に置換されます。戻り値の型に `ProvidesDialog` が追加されます。
 
+##### 読み上げ用と画面表示用を分ける
+
+Siri は結果を読み上げるだけのこともあれば、画面にも出すこともあります。
+`resultDialogSupportingTemplate` を足すとその2つに別の文言を与えられます。読み上げ側は、
+画面を見れば分かる文脈まで含めて喋らせられます:
+
+```dart
+@IntentSpec(
+  identifier: 'CompleteTaskIntent',
+  title: 'Complete Task',
+  resultDialogTemplate: 'I marked that task as completed',  // 読み上げ
+  resultDialogSupportingTemplate: 'Completed',              // 画面表示
+  resultDialogSystemImageName: 'checkmark.circle',          // 任意の SF Symbol
+)
+```
+
+`IntentDialog(full:supporting:)` が生成されます。どちらのテンプレートも
+`{paramName}` 補間に対応し、String Catalog にも載ります。
+
+`resultDialogSystemImageName` が使うイニシャライザは iOS 17.2+ のため、生成コードは
+`if #available(iOS 17.2, *)` で囲み、それ未満ではシンボル無しのダイアログに落とします
+（Intent のデプロイメントターゲットは iOS 17.0 のままです）。
+
+どちらのフィールドも `resultDialogTemplate` が前提です。片方だけを指定した場合は
+黙って無視せず、コード生成エラーになります。
+
 #### Parameter Summary
 
 Shortcutsエディタでの表示を制御：

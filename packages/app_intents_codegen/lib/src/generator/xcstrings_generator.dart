@@ -30,6 +30,9 @@ class XcstringsGenerator {
       if (intent.resultDialogTemplate != null) {
         strings.add(intent.resultDialogTemplate!);
       }
+      if (intent.resultDialogSupportingTemplate != null) {
+        strings.add(intent.resultDialogSupportingTemplate!);
+      }
       if (intent.parameterSummary != null) {
         strings.add(_toSwiftKeyPathPlaceholders(intent.parameterSummary!));
       }
