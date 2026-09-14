@@ -223,16 +223,32 @@ docs/
 - **Advanced `IntentMode` submodes**: `.foreground(.immediate)`, `.foreground(.deferred)`, `.foreground(.dynamic)`
 - **Multiple modes**: `[.background, .foreground]` with runtime mode determination
 
-### Deferred WWDC26 punch list (matsudate review #4 反映後)
+### Remaining work (tracked as issues, 2026-09-14)
 
-Items surveyed against the matsudate WWDC 2026 review #4 ("新しい Siri と App Intents", 2026-06-18). Each row is a thing the article describes that this plugin does **not** ship yet. ADR numbers in brackets are pre-reserved.
+The WWDC26 tracking issue (#59) and its sub-issues are closed. What is left lives
+in focused issues, split by whether this repo can verify it:
 
-- **`$param.requestValue`** — mid-`perform()` value request. Requires a 2-way suspending RPC: Swift `perform()` suspends → plugin asks Dart for a missing value → Dart returns → `perform()` resumes. Large-scope bridge change; pick Dart-visible vs hidden-inside-generated-Swift first. [ADR-0007]
-- **`PlaceDescriptor` export** — `EntityExportKind.placeDescriptor` case for #54 `ValueRepresentation(exporting:)`. ADR 0002 (line 3) explicitly defers this with `IntentPerson` only. Needs `@EntityProperty(role: 'latitude'/'longitude')` (or auto-detect-by-name) + Xcode 27 beta typecheck confirming the `PlaceDescriptor` constructor signature/availability. [extends ADR-0002]
-- **`LongRunningIntent` progress + cancellation forwarding to Dart** — the current `performBackgroundTask(...) onCancel: { reason in /* … */ }` is a stub; nothing reaches the Dart handler. Needs (1) progress callback channel Dart→Swift to drive `ProgressReportingIntent.progress`, (2) reverse forwarding of `IntentCancellationReason` Swift→Dart, (3) handler signature change in generated Dart. [ADR-0008]
-- **`SyncableEntityIdentifier<Local, Stable>`** (dual-id case) — `SyncableEntity` with stable-id-only is implemented; dual-id is explicitly deferred in ADR 0003 line 159. Changing entity `id` from a scalar to `SyncableEntityIdentifier<Local, Stable>` ripples through entity struct, `EntityQuery.entities(for:)` signature, cache projection, and Dart deserialization. [extends ADR-0003]
-- **`UNNotificationContent.appEntityIdentifier` / AlarmKit entity tagging** — stable iOS 26+ API (`EntityIdentifier?` on `UNNotificationContent`), so no `#if` gating for the symbol itself, but the bridge wall is identical to #55/#56 (concrete entity type required → reverse-executor pattern reusing a shared `entityIdentifierBinder` forwarder). Document-only for now; would graduate to an ADR alongside #56's on-device PoC. [ADR-0010, blocked on #56]
-- **SwiftUI `.appEntityIdentifier(forSelectionType:)` list annotation** — **NO-GO**, locked in ADR 0004. Flutter renders to a single `FlutterView` canvas; per-row PlatformView embedding is architecturally infeasible. Screen-level association via `setOnscreenEntity`/`clearOnscreenEntity` is the supported substitute.
+**Verifiable here** (Simulator `swiftc -typecheck` + tests):
+
+| Issue | Item |
+|---|---|
+| #128 | Entity export catalog: `PlaceDescriptor` (needs a lat/lon property role) and `IntentCurrencyAmount` |
+| #129 | Cross-app entity **import** (`IntentValueRepresentation(importing:)`) — unblocked now that #51's value-query bridge landed |
+| #130 | `LongRunningIntent` progress + cancellation forwarding to Dart. The generated `onCancel:` is still a comment-only stub |
+| #131 | `$param.requestValue` — needs a 2-way *suspending* RPC (Swift `perform()` suspends → asks Dart → resumes), which the current one-way bridge has no shape for. Decide Dart-visible vs hidden-in-generated-Swift first; a sibling project concluded the API has no use case once the system auto-prompts |
+| #132 | dual-id `SyncableEntityIdentifier<Local, Stable>` — changing entity `id` from a scalar ripples through the query signature, cache projection and Dart ID management |
+| #133 | Small Xcode 27 gaps: `RelevantEntities.remove*`, `IndexedEntityQuery` re-indexing, `@UnionValue` returns from `IntentValueQuery` |
+
+**Needs a real device or a macOS destination** (`blocked: needs-device`):
+
+| Issue | Why the Simulator can't settle it |
+|---|---|
+| #56 | ADR 0004 gates the `NSUserActivity.appEntityIdentifier` auto-wiring on an on-device PoC of Siri's "this" resolution |
+| #58 | `VisualIntelligence.framework` is in the **device** SDK only, so `#if canImport(VisualIntelligence)` is false in every Simulator build and the visual query never enters the binary |
+
+**Locked NO-GO**: SwiftUI `.appEntityIdentifier(forSelectionType:)` per-row list annotation (ADR 0004). Flutter renders to a single `FlutterView` canvas; per-row PlatformView embedding is architecturally infeasible. Screen-level association via `setOnscreenEntity` / `clearOnscreenEntity` is the substitute.
+
+**Documented, not scheduled**: `UNNotificationContent.appEntityIdentifier` / AlarmKit entity tagging. Stable iOS 26+, but it hits the same wall as #55/#56 (a concrete entity type is required → reverse-executor pattern), so it would graduate alongside #56's PoC.
 
 ### Pending
 - macOS platform support (future)
@@ -272,6 +288,29 @@ Options:
 - `--xcstrings`: Output path for .xcstrings String Catalog (optional)
 - `-t, --translations`: Path to translations YAML file (optional)
 - `--source-language`: Source language code (default: `en`)
+- `--experimental-wwdc26` / `--experimental=<flag>`: opt-in WWDC26 generation (default OFF)
+- `--app-intents-package <Name>` / `--include-package <Module.Type>`: emit an
+  `AppIntentsPackage` declaration (ADR 0008). Only needed across a **dynamic**
+  link boundary — static linking merges the metadata without it
+
+### CLI Widget Generator
+Generate Swift for a WidgetKit extension from `@WidgetConfigurationSpec`:
+```bash
+cd app
+dart run app_intents_codegen:generate_widget_swift \
+  -o ios/TaskWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app
+```
+Options:
+- `-o, --output`: Output directory (required)
+- `--app-group`: App Group identifier, baked into the output (required)
+- `--storage-identifier`: the **host app's** bundle identifier (required — an
+  extension cannot derive it, its own bundle identifier differs)
+- `--public`: emit the declarations as `public`. Needed when the file lives in a
+  **shared module** another target imports (ADR 0009); unnecessary when it is
+  compiled straight into the extension target
+- `--app-intents-package` / `--include-package`: as above
 
 ### CLI Kotlin Generator
 Generate Kotlin code for Android AppFunctions:

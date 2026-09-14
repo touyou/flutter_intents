@@ -1,7 +1,7 @@
 # Flutter Intents - Development Commands
 # Usage: make <target>
 
-.PHONY: help ios ios-build android android-build codegen swift-gen widget-gen kotlin-gen test clean
+.PHONY: help ios ios-build android android-build codegen swift-gen widget-gen kotlin-gen test verify-swift clean
 
 # Default target
 help:
@@ -16,6 +16,7 @@ help:
 	@echo "  make widget-gen     Generate Widget Extension Swift code (WidgetConfigurationIntent)"
 	@echo "  make kotlin-gen     Generate Kotlin code for Android AppFunctions"
 	@echo "  make test           Run all Dart / Flutter tests (Swift package test omitted; see RELEASING.md)"
+	@echo "  make verify-swift   Type-check the generated Swift against both Xcodes"
 	@echo "  make clean          Clean build artifacts"
 	@echo ""
 
@@ -75,6 +76,23 @@ test:
 	@echo ""
 	@echo "Running app tests..."
 	@cd app && flutter test
+
+# Type-check the generated Swift. Unit tests only assert the strings we emitted;
+# they stay green while emitting Swift that will not compile, so this is the
+# load-bearing check. Runs against both Xcodes, and at the plugin's MINIMUM
+# deployment target rather than the SDK's own version — compiling at the SDK
+# version satisfies every `@available` and hides missing guards.
+verify-swift:
+	@echo "==> Stable Xcode (non-#if branch + widget output)"
+	@DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+	  ./scripts/verify_experimental_swift.sh
+	@echo ""
+	@echo "==> Xcode 27 (both branches)"
+	@DEVELOPER_DIR=/Applications/Xcode-27.0.0-release.candidate.app/Contents/Developer \
+	  ./scripts/verify_experimental_swift.sh
+	@echo ""
+	@echo "==> Shared-module output (generate_widget_swift --public)"
+	@./scripts/verify_widget_module_swift.sh
 
 # Clean build artifacts
 clean:
