@@ -79,12 +79,28 @@ class WidgetConfigurationSpec {
   /// configuration silently inherit the other's behavior.
   final bool generateDefaultResult;
 
+  /// Whether this configuration can be donated as a *relevant intent* (#55).
+  ///
+  /// When true, codegen emits a `registerRelevantIntentDonator()` that can turn
+  /// `AppIntents.donateRelevantIntents` calls into `RelevantIntent` values for
+  /// this configuration, so the system may surface the configured widget in the
+  /// Smart Stack.
+  ///
+  /// The generated registration constructs this configuration intent, so **the
+  /// target that calls it has to be able to see the type**. That is a plain
+  /// Swift module-visibility requirement, unrelated to App Intents metadata:
+  /// put the generated file in a module both the app and the widget extension
+  /// link, rather than compiling it into each. See
+  /// `docs/adr/0009-relevant-intents.md`.
+  final bool relevantIntents;
+
   const WidgetConfigurationSpec({
     required this.identifier,
     required this.title,
     this.description,
     this.isDiscoverable = false,
     this.generateDefaultResult = false,
+    this.relevantIntents = false,
   });
 }
 

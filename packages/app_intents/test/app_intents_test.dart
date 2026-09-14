@@ -58,6 +58,15 @@ class MockAppIntentsPlatform
     });
   }
 
+  final List<List<RelevantIntentDonation>> donatedRelevantIntents = [];
+
+  @override
+  Future<void> donateRelevantIntents(
+    List<RelevantIntentDonation> donations,
+  ) async {
+    donatedRelevantIntents.add(donations);
+  }
+
   final List<Map<String, dynamic>> donatedIntents = [];
 
   @override
@@ -199,6 +208,34 @@ void main() {
         fakePlatform.donatedRelevantEntities.first['context'],
         'audio.nowPlaying',
       );
+    });
+
+    test('donateRelevantIntents passes the whole set through', () async {
+      // The underlying RelevantIntentManager call replaces everything, so the
+      // API is deliberately all-or-nothing rather than incremental.
+      await appIntentsPlugin.donateRelevantIntents([
+        RelevantIntentDonation(
+          configurationIdentifier: 'com.example.selectTask',
+          widgetKind: 'TaskWidget',
+          parameters: const {'task': 'task-1'},
+          relevance: RelevantContextSpec.inferredLocation(
+            InferredLocation.home,
+          ),
+        ),
+      ]);
+
+      expect(fakePlatform.donatedRelevantIntents, hasLength(1));
+      final donation = fakePlatform.donatedRelevantIntents.single.single;
+      expect(donation.widgetKind, 'TaskWidget');
+      expect(donation.toMap()['relevance'], {
+        'kind': 'inferredLocation',
+        'value': 'home',
+      });
+    });
+
+    test('donateRelevantIntents accepts an empty set to clear', () async {
+      await appIntentsPlugin.donateRelevantIntents([]);
+      expect(fakePlatform.donatedRelevantIntents.last, isEmpty);
     });
 
     test('donateIntent delegates to platform (#55)', () async {

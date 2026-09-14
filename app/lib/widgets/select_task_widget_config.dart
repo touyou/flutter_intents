@@ -24,6 +24,9 @@ import '../entities/task_entity.dart';
   identifier: 'com.example.taskapp.selectTask',
   title: 'Displayed task',
   description: 'Choose which task this widget shows.',
+  // #55: lets the app donate this configuration as a relevant intent, so the
+  // system may surface the configured widget in the Smart Stack.
+  relevantIntents: true,
 )
 class SelectTaskWidgetConfig extends WidgetConfigurationSpecBase {
   /// The task the widget displays.

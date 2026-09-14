@@ -53,6 +53,16 @@ public actor FlutterBridge {
     /// generic (dicts only) so this plugin names no iOS-27 symbol. See ADR 0003.
     private var relevantEntitiesDonators: [String: @Sendable (sending [[String: Any]], sending String?) async throws -> Void] = [:]
 
+    /// Applies a whole set of relevant-intent donations (#55).
+    ///
+    /// One slot, not one per widget configuration, because
+    /// `RelevantIntentManager.updateRelevantIntents` replaces the app's entire
+    /// set in a single call — per-configuration appliers would each wipe out
+    /// the others. The generated closure knows every configuration in the
+    /// project, builds the concrete intents for all of them, and performs that
+    /// one update.
+    private var relevantIntentDonator: (@Sendable (sending [[String: Any]]) async throws -> Void)?
+
     /// Reverse executors for intent donation (#55), keyed by intent identifier.
     ///
     /// Same shape as `relevantEntitiesDonators` but per-intent. The closure
@@ -75,6 +85,7 @@ public actor FlutterBridge {
         suggestedEntitiesExecutor = nil
         valueQueryExecutor = nil
         relevantEntitiesDonators.removeAll()
+        relevantIntentDonator = nil
         intentDonators.removeAll()
     }
 
@@ -386,5 +397,47 @@ public actor FlutterBridge {
     /// Whether a donator is registered for the given intent identifier.
     public func hasIntentDonator(for intentIdentifier: String) -> Bool {
         return intentDonators[intentIdentifier] != nil
+    }
+
+    // MARK: - Relevant Intents (#55)
+
+    /// Registers the closure that turns donation dictionaries into
+    /// `RelevantIntent` values and pushes them to `RelevantIntentManager`.
+    ///
+    /// Called once at startup from generated Swift. This module deliberately
+    /// imports only Foundation — so an App Extension can link it without
+    /// pulling anything else in — which is why the closure, not this actor,
+    /// names `RelevantIntent` and `RelevantContext`.
+    public func setRelevantIntentDonator(
+        _ donator: @escaping @Sendable (sending [[String: Any]]) async throws -> Void
+    ) {
+        relevantIntentDonator = donator
+    }
+
+    /// Donates the given relevant intents, replacing the app's previous set.
+    ///
+    /// Invoked by the plugin when Dart calls `donateRelevantIntents`. An empty
+    /// list clears every previously donated intent.
+    ///
+    /// - Parameter donations: One dictionary per donation, each carrying
+    ///   `configurationIdentifier`, `widgetKind`, `parameters` and `relevance`.
+    /// - Throws: `AppIntentError.custom("DONATOR_NOT_REGISTERED", ...)` when the
+    ///           generated registration has not run.
+    public func donateRelevantIntents(
+        _ donations: sending [[String: Any]]
+    ) async throws {
+        guard let donator = relevantIntentDonator else {
+            throw AppIntentError.custom(
+                code: "DONATOR_NOT_REGISTERED",
+                message: "No relevant-intent donator registered. Call the generated "
+                    + "registerRelevantIntentDonator() at startup."
+            )
+        }
+        try await donator(donations)
+    }
+
+    /// Whether the generated relevant-intent donator has been registered.
+    public func hasRelevantIntentDonator() -> Bool {
+        return relevantIntentDonator != nil
     }
 }

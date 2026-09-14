@@ -1302,6 +1302,59 @@ if #available(iOS 26.0, *) {
 
 ## WidgetKit Widget Extensions
 
+### Relevant widget intents (#55)
+
+Tell the system which configured widget intents are worth surfacing in the
+Smart Stack right now. Opt the configuration in, then donate from Dart:
+
+```dart
+@WidgetConfigurationSpec(
+  identifier: 'com.example.app.selectTask',
+  title: 'Displayed task',
+  relevantIntents: true,
+)
+class SelectTaskWidgetConfig extends WidgetConfigurationSpecBase { /* ... */ }
+```
+
+```dart
+await AppIntents().donateRelevantIntents([
+  RelevantIntentDonation(
+    configurationIdentifier: 'com.example.app.selectTask',
+    widgetKind: 'TaskWidget',
+    parameters: {'task': 'task-123'},
+    relevance: RelevantContextSpec.inferredLocation(InferredLocation.home),
+  ),
+]);
+```
+
+Every call **replaces the app's entire set** — pass the full list each time, and
+an empty list to clear it. That is the shape of the underlying
+`RelevantIntentManager.updateRelevantIntents`, so donating one at a time would
+leave only the last one.
+
+Available contexts: `date`, `dateRange` (the `kind` refinement needs iOS 26),
+`inferredLocation` (home / work / school / commute), `sleep`, `fitness` and
+`headphonesConnected`. `RelevantContext.location(_ exact: CLRegion)` is
+deliberately not offered — a `CLRegion` cannot be rebuilt from a map, so it
+would produce donations the system silently drops.
+
+**The generated registration constructs your configuration intent**, so the
+target that calls it has to see that type. That is plain Swift module
+visibility, unrelated to App Intents metadata: put the generated file in a
+module the app and the widget extension both link, rather than compiling it into
+each (which duplicates the intent in `Metadata.appIntents`). Then wire it up:
+
+```swift
+// AppDelegate
+if #available(iOS 17.0, *) {
+  registerRelevantIntentDonator()   // generated
+  AppIntentsPlugin.relevantIntentDonationForwarder = { donations in
+    try await FlutterBridge.shared.donateRelevantIntents(donations)
+  }
+}
+```
+
+
 A Widget Extension **cannot start a Flutter engine**, so the `FlutterBridge`
 round-trip that the app target's generated intents use is unavailable there.
 Everything an extension needs must come from the **App Group entity cache**

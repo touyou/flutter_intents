@@ -251,6 +251,80 @@ struct FlutterBridgeTests {
             Issue.record("Expected AppIntentError, got: \(error)")
         }
     }
+
+    @Test("Relevant-intent donator receives the whole donation set (#55)")
+    func relevantIntentDonatorReceivesAllDonations() async throws {
+        // The underlying RelevantIntentManager call replaces everything, so the
+        // bridge deliberately hands over all donations in one go rather than
+        // one registration per widget configuration.
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        let box = RelevantIntentDonationBox()
+
+        await bridge.setRelevantIntentDonator { donations in
+            await box.record(donations)
+        }
+
+        try await bridge.donateRelevantIntents([
+            ["configurationIdentifier": "a", "widgetKind": "W1"],
+            ["configurationIdentifier": "b", "widgetKind": "W2"],
+        ])
+
+        let received = await box.lastIdentifiers
+        #expect(received == ["a", "b"])
+    }
+
+    @Test("Donating an empty set still reaches the donator (#55)")
+    func relevantIntentEmptyDonationReachesDonator() async throws {
+        // An empty list is the documented way to clear previous donations, so
+        // it must not be short-circuited as "nothing to do".
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        let box = RelevantIntentDonationBox()
+
+        await bridge.setRelevantIntentDonator { donations in
+            await box.record(donations)
+        }
+
+        try await bridge.donateRelevantIntents([])
+
+        let called = await box.callCount
+        let received = await box.lastIdentifiers
+        #expect(called == 1)
+        #expect(received == [])
+    }
+
+    @Test("donateRelevantIntents throws when no donator registered (#55)")
+    func donateRelevantIntentsWithoutDonatorThrows() async {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        do {
+            try await bridge.donateRelevantIntents([])
+            Issue.record("Expected DONATOR_NOT_REGISTERED error")
+        } catch let error as AppIntentError {
+            if case .custom(let code, _) = error {
+                #expect(code == "DONATOR_NOT_REGISTERED")
+            } else {
+                Issue.record("Expected custom(DONATOR_NOT_REGISTERED), got: \(error)")
+            }
+        } catch {
+            Issue.record("Expected AppIntentError, got: \(error)")
+        }
+    }
+}
+
+/// Actor box for relevant-intent donation tests.
+private actor RelevantIntentDonationBox {
+    var lastIdentifiers: [String] = []
+    var callCount = 0
+
+    func record(_ donations: [[String: Any]]) {
+        callCount += 1
+        lastIdentifiers = donations.compactMap {
+            $0["configurationIdentifier"] as? String
+        }
+    }
 }
 
 /// Actor box for intent donation tests.

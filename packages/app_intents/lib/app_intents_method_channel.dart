@@ -234,6 +234,20 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   }
 
   @override
+  Future<void> donateRelevantIntents(
+    List<RelevantIntentDonation> donations,
+  ) async {
+    try {
+      await methodChannel.invokeMethod('donateRelevantIntents', {
+        'donations': [for (final d in donations) d.toMap()],
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // RelevantIntent donation is iOS-specific.
+    }
+  }
+
+  @override
   Future<void> donateIntent(
     String identifier,
     Map<String, dynamic> params,
