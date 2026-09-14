@@ -14,7 +14,7 @@ part 'complete_task_intent.intent.dart';
   urlScheme: 'taskapp',
   urlAction: 'complete',
   // Siri speaks the full line; when it also shows the result it puts the
-  // shorter supporting line next to it (ADR 0005).
+  // shorter supporting line next to it (ADR 0006).
   resultDialogTemplate: 'I marked that task as completed',
   resultDialogSupportingTemplate: 'Completed',
   resultDialogSystemImageName: 'checkmark.circle',

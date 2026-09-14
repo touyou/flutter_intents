@@ -90,12 +90,39 @@ cd packages/app_intents && flutter pub publish --force
 cd packages/app_intents_codegen && dart pub publish --force
 ```
 
-### 8. Report
+### 8. Create the GitHub Release
+
+`RELEASING.md` requires this — it is **not** optional, and it is the step most
+easily forgotten because pub.dev already looks done at this point. The v0.13.0
+release was missed this way.
+
+Write the notes by combining the new `## $ARGUMENTS` sections from all three
+CHANGELOGs into one document organised by theme (not by package), matching the
+prose style of the previous releases — read `gh release view <previous tag>`
+first. Lead with anything that requires action from existing users.
+
+```bash
+gh release create v$ARGUMENTS --verify-tag \
+  --title "v$ARGUMENTS" \
+  --notes-file <path to the drafted notes>
+```
+
+End the notes with a compare link:
+`**Full Changelog**: https://github.com/touyou/flutter_intents/compare/v<PREVIOUS>...v$ARGUMENTS`
+
+Before creating, verify every link resolves — `ls docs/adr/` rather than
+guessing ADR filenames, which do not match their titles.
+
+If you are backfilling an **older** release, pass `--latest=false`, or GitHub
+moves the "Latest" badge off the current version.
+
+### 9. Report
 
 Print a summary:
 - Version released
 - Packages published (with pub.dev URLs)
 - Git tag created
+- GitHub Release URL
 
 ## Publish Order (dependency chain)
 
