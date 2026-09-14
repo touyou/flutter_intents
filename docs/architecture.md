@@ -1,7 +1,8 @@
 # Architecture
 
-> Design decisions for the remaining WWDC26 bridge/runtime work (issues #51 / #54 / #55 / #56)
-> are recorded as ADRs under [`docs/adr/`](adr/README.md).
+> Design decisions that needed a bridge or runtime judgement — rather than pure
+> code generation — are recorded as ADRs under [`docs/adr/`](adr/README.md).
+> Start there for *why* something is shaped the way it is.
 
 ## Design Philosophy
 

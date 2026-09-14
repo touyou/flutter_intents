@@ -1,5 +1,9 @@
 # アーキテクチャ
 
+> 純粋なコード生成では閉じず、ブリッジ/ランタイムの判断が要った設計は
+> [`docs/adr/`](adr/README.md) に ADR として記録しています。「なぜこの形なのか」は
+> まずそちらを参照してください。
+
 ## 設計思想
 
 Flutter IntentsはiOS App IntentsおよびAndroid AppFunctionsフレームワークへのブリッジを提供し、FlutterアプリがSiri、Shortcuts、Spotlight、AIエージェント（Gemini等）と連携できるようにします。

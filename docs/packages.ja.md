@@ -235,6 +235,8 @@ app_intents_annotations/
 
 - `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51, iOS 26.0)。
 - `@IntentSpec(snippet:)` — 宣言的な Siri スニペットカード生成 (iOS 16)。
+- `@WidgetConfigurationSpec(relevantIntents:)` — 設定を Smart Stack 向けの
+  relevant intent としてドネーション (#55, iOS 17)。
 - `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` —
   `IntentDialog(full:supporting:)` (iOS 16。シンボル付き形のみ iOS 17.2 なので
   availability チェック内で出力)。

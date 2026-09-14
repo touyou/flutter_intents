@@ -235,6 +235,8 @@ the symbols they emit exist in the released SDK:
 
 - `@EntitySpec(valueQuery:)` — generate an `IntentValueQuery` (#51, iOS 26.0).
 - `@IntentSpec(snippet:)` — generate a declarative Siri snippet card (iOS 16).
+- `@WidgetConfigurationSpec(relevantIntents:)` — donate the configuration as a
+  relevant intent for the Smart Stack (#55, iOS 17).
 - `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` —
   `IntentDialog(full:supporting:)` (iOS 16; the symbol form is iOS 17.2 and is
   emitted behind an availability check).
