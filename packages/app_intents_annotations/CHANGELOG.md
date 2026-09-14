@@ -1,4 +1,4 @@
-## Unreleased
+## 0.16.0
 
 - `@WidgetConfigurationSpec(relevantIntents:)` — opt a widget configuration into `RelevantIntent` donation (#55, ADR 0009).
 - `SnippetTemplate` / `SnippetRow` and `@IntentSpec(snippet:)`, describing the card Siri shows next to a result (ADR 0007).

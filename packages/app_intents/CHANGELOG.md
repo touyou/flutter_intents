@@ -1,4 +1,4 @@
-## Unreleased
+## 0.16.0
 
 - `RelevantIntentDonation.toMap()` encodes `DateTime` parameter values as ISO-8601 strings; Flutter's standard method-channel codec cannot carry a `DateTime`, so a donation with one would have thrown before reaching iOS.
 - `AppIntents().donateRelevantIntents(...)` with `RelevantIntentDonation` / `RelevantContextSpec` (#55, ADR 0009). Each call replaces the app's entire set of relevant widget intents; an empty list clears it. iOS-only. `RelevantContext.location(_ exact: CLRegion)` is deliberately not exposed — a `CLRegion` cannot be rebuilt from a map.
