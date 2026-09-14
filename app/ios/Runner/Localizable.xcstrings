@@ -35,6 +35,23 @@
         }
       }
     },
+    "Complete ${task}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete ${task}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了 %@"
+          }
+        }
+      }
+    },
     "Complete Task": {
       "extractionState": "manual",
       "localizations": {
@@ -65,23 +82,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "${applicationName}でタスクを完了"
-          }
-        }
-      }
-    },
-    "Complete {task}": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Complete %@"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完了 %@"
           }
         }
       }
@@ -188,13 +188,13 @@
         }
       }
     },
-    "Create task {title}": {
+    "Create task ${title}": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Create task %@"
+            "value": "Create task ${title}"
           }
         },
         "ja": {
@@ -205,13 +205,13 @@
         }
       }
     },
-    "Create task {title} {image}": {
+    "Create task ${title} ${image}": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Create task %1$@ %2$@"
+            "value": "Create task ${title} ${image}"
           }
         },
         "ja": {
