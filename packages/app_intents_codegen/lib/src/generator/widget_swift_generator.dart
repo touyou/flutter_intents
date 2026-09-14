@@ -79,6 +79,8 @@ class WidgetSwiftGenerator {
   String generateAll({
     required List<WidgetConfigurationInfo> configurations,
     required List<EntityInfo> entities,
+    String? appIntentsPackage,
+    List<String> includedPackages = const [],
   }) {
     final entitiesByName = {for (final e in entities) e.className: e};
     final referenced = _referencedEntities(configurations, entitiesByName);
@@ -86,6 +88,9 @@ class WidgetSwiftGenerator {
     final buffer = StringBuffer();
     buffer.writeln('import AppIntents');
     buffer.writeln('import AppIntentsBridge');
+    for (final module in _includedPackageModules(includedPackages)) {
+      buffer.writeln('import $module');
+    }
     buffer.writeln();
 
     _writeCacheConfiguration(buffer);
@@ -102,8 +107,49 @@ class WidgetSwiftGenerator {
       _writeConfigurationIntent(buffer, config);
     }
 
+    if (appIntentsPackage != null) {
+      buffer.writeln();
+      _writeAppIntentsPackage(buffer, appIntentsPackage, includedPackages);
+    }
+
     return buffer.toString();
   }
+
+  /// Writes this extension target's `AppIntentsPackage` conformance.
+  ///
+  /// Apple's guidance is to register each consuming target as an App Intents
+  /// Package, but note what it does and does not do: metadata from a
+  /// **statically** linked module already merges without any declaration
+  /// (Xcode SPM links statically by default). The declaration produces the
+  /// `extract.packagedata` `includes` entry that matters across a **dynamic**
+  /// link boundary. It is not a remedy for a type missing from the metadata —
+  /// look at target membership and link form for that.
+  void _writeAppIntentsPackage(
+    StringBuffer buffer,
+    String name,
+    List<String> includedPackages,
+  ) {
+    buffer.writeln('@available(iOS 17.0, *)');
+    if (includedPackages.isEmpty) {
+      buffer.writeln('struct $name: AppIntentsPackage {}');
+      return;
+    }
+    final types = includedPackages
+        .map((qualified) => '${qualified.split('.').last}.self')
+        .join(', ');
+    buffer.writeln('struct $name: AppIntentsPackage {');
+    buffer.writeln('${_indent}static var includedPackages:');
+    buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
+    buffer.writeln('$_indent$_indent$_indent[$types]');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('}');
+  }
+
+  /// The modules an `includedPackages` list needs imported.
+  Set<String> _includedPackageModules(List<String> includedPackages) => {
+    for (final qualified in includedPackages)
+      if (qualified.contains('.')) qualified.split('.').first,
+  };
 
   /// The entities referenced by [configurations], in a stable order, validated
   /// against [entitiesByName].

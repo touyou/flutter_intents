@@ -52,6 +52,19 @@ void main(List<String> arguments) async {
           'passed to AppIntentsPlugin.configure). Required — an extension '
           'cannot derive it, because its own bundle identifier differs.',
     )
+    ..addOption(
+      'app-intents-package',
+      help:
+          'Emit an AppIntentsPackage conformance for this extension target '
+          'with the given type name.',
+    )
+    ..addMultiOption(
+      'include-package',
+      help:
+          'Fully qualified AppIntentsPackage type to list in includedPackages '
+          '(e.g. MyIntents.MyIntentsPackage). The module prefix becomes an '
+          'import. Requires --app-intents-package.',
+    )
     ..addFlag(
       'help',
       abbr: 'h',
@@ -91,12 +104,24 @@ void main(List<String> arguments) async {
     exit(1);
   }
 
+  final packageName = results['app-intents-package'] as String?;
+  final includedPackages = results['include-package'] as List<String>;
+  if (includedPackages.isNotEmpty && packageName == null) {
+    stderr.writeln(
+      'Error: --include-package requires --app-intents-package (the '
+      'includedPackages list belongs to a package declaration).',
+    );
+    exit(1);
+  }
+
   await generateWidgetSwift(
     inputDir: results['input'] as String,
     outputDir: outputDir!,
     outputFile: results['file'] as String,
     appGroupIdentifier: appGroup!,
     storageIdentifier: storageIdentifier!,
+    appIntentsPackage: packageName,
+    includedPackages: includedPackages,
   );
 }
 
@@ -129,6 +154,8 @@ Future<void> generateWidgetSwift({
   required String outputFile,
   required String appGroupIdentifier,
   required String storageIdentifier,
+  String? appIntentsPackage,
+  List<String> includedPackages = const [],
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
@@ -144,6 +171,8 @@ Future<void> generateWidgetSwift({
   final swiftCode = generator.generateAll(
     configurations: analyzeResult.widgetConfigurations,
     entities: analyzeResult.entities,
+    appIntentsPackage: appIntentsPackage,
+    includedPackages: includedPackages,
   );
 
   final currentDir = Directory.current.path;

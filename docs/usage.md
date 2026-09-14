@@ -1052,6 +1052,49 @@ wire the value-query executor (see [Native wiring](#native-wiring-for-experiment
 The visual (camera/screenshot, `SemanticContentDescriptor`) variant is **not**
 covered here — it is native-only (tracked separately).
 
+## Sharing intents across targets (`AppIntentsPackage`)
+
+To use one set of generated intents from both your app target and an extension
+(a widget, for example), put the generated Swift in a **shared Swift package**
+that both targets link, rather than compiling the same file into both — two
+copies of one intent type duplicate it in `Metadata.appIntents` and iOS then
+fails to resolve the intent.
+
+```bash
+# the shared package
+dart run app_intents_codegen:generate_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-intents-package SharedIntentsPackage
+
+# a consuming target
+dart run app_intents_codegen:generate_widget_swift \
+  -o ios/TaskWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --app-intents-package TaskWidgetAppIntentsPackage \
+  --include-package SharedIntents.SharedIntentsPackage
+```
+
+`--include-package` takes a module-qualified type name; the module prefix
+becomes an `import`.
+
+**What the declaration does and does not do.** Whether a target sees another
+module's intents depends on **how it links**, not on this declaration. Xcode's
+SPM links statically by default, and a statically linked dependency's extracted
+metadata merges into the consumer with no declaration at all. The declaration
+produces the `extract.packagedata` entry that matters across a **dynamic** link
+boundary — Apple's guidance is to use an App Intents Package "when referencing
+code not compiled into a static library". So if a type is missing from the
+metadata, look at target membership and link form; adding or removing
+`includedPackages` will not change it.
+
+Two things to keep in mind:
+
+- One `AppIntentsPackage` declaration per target. A duplicate declaration in the
+  main target has been observed to break Shortcuts intent routing.
+- Keep `@AppShortcutsProvider` in the **app target**, not the shared package —
+  moving it into a package yields zero auto shortcuts.
+
 ## WWDC26 Experimental Features (opt-in)
 
 The codegen can emit WWDC26 App Intents APIs (iOS 26.4 / iOS 27+). Because those

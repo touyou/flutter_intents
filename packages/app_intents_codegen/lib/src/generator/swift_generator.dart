@@ -2328,6 +2328,8 @@ class SwiftGenerator {
     List<EntityInfo> entities = const [],
     List<AppShortcutInfo> shortcuts = const [],
     List<EnumInfo> enums = const [],
+    String? appIntentsPackage,
+    List<String> includedPackages = const [],
   }) {
     final buffer = StringBuffer();
 
@@ -2350,6 +2352,9 @@ class SwiftGenerator {
     // pulled in by importing SwiftUI alongside AppIntents.
     if (intents.any((i) => i.snippet != null)) {
       buffer.writeln('import SwiftUI');
+    }
+    for (final module in _includedPackageModules(includedPackages)) {
+      buffer.writeln('import $module');
     }
     if (intents.any((i) => _hasFileParams(i))) {
       buffer.writeln('import UniformTypeIdentifiers');
@@ -2415,8 +2420,53 @@ class SwiftGenerator {
       buffer.writeln(_generateShortcutsProviderBody(shortcuts));
     }
 
+    if (appIntentsPackage != null) {
+      buffer.writeln();
+      _writeAppIntentsPackage(buffer, appIntentsPackage, includedPackages);
+      buffer.writeln();
+    }
+
     return buffer.toString();
   }
+
+  /// Writes an `AppIntentsPackage` conformance.
+  ///
+  /// Worth knowing before reaching for this: whether a target sees another
+  /// module's intents is decided by **how it links**, not by this declaration.
+  /// Xcode's SPM links statically by default, and a statically linked
+  /// dependency's extracted metadata is merged into the consumer with no
+  /// declaration at all. Apple's own guidance is conditional — use an App
+  /// Intents Package "when referencing code not compiled into a static
+  /// library". So this exists for the dynamic-linking case (and as the
+  /// documented belt-and-braces form); it is not a fix for "my intent does not
+  /// show up", which is a target-membership or link-form problem.
+  void _writeAppIntentsPackage(
+    StringBuffer buffer,
+    String name,
+    List<String> includedPackages,
+  ) {
+    buffer.writeln('@available(iOS 17.0, *)');
+    if (includedPackages.isEmpty) {
+      buffer.writeln('struct $name: AppIntentsPackage {}');
+      return;
+    }
+    final types = includedPackages
+        .map((qualified) => '${qualified.split('.').last}.self')
+        .join(', ');
+    buffer.writeln('struct $name: AppIntentsPackage {');
+    buffer.writeln('${_indent}static var includedPackages:');
+    buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
+    buffer.writeln('$_indent$_indent$_indent[$types]');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('}');
+  }
+
+  /// The modules an `includedPackages` list needs imported, from the module
+  /// prefix of each fully qualified type name.
+  Set<String> _includedPackageModules(List<String> includedPackages) => {
+    for (final qualified in includedPackages)
+      if (qualified.contains('.')) qualified.split('.').first,
+  };
 
   /// Generates intent body without import statement.
   ///

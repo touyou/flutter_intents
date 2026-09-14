@@ -66,7 +66,29 @@ void main(List<String> arguments) async {
           'Narrow experimental generation to specific features '
           '(comma-separated). Requires --experimental-wwdc26. '
           'When omitted (with the master switch on), all features are emitted.',
-      allowed: ExperimentalFeature.allFlags,
+      // Graduated tokens stay allowed so an existing build script keeps
+      // working; _resolveExperimental reports them as no-ops. Without this the
+      // arg parser rejects them before that message can be printed.
+      allowed: [
+        ...ExperimentalFeature.allFlags,
+        ...graduatedExperimentalFlags.keys,
+      ],
+    )
+    ..addOption(
+      'app-intents-package',
+      help:
+          'Emit an AppIntentsPackage conformance with this type name, so a '
+          'target linking this code can declare it. Only needed when the '
+          'generated intents live in a module reached through DYNAMIC linking '
+          '- with Xcode SPM\'s default static linking the metadata already '
+          'merges without any declaration.',
+    )
+    ..addMultiOption(
+      'include-package',
+      help:
+          'Fully qualified AppIntentsPackage type to list in includedPackages '
+          '(e.g. MyIntents.MyIntentsPackage). The module prefix becomes an '
+          'import. Requires --app-intents-package.',
     )
     ..addFlag(
       'help',
@@ -97,6 +119,15 @@ void main(List<String> arguments) async {
   final translationsPath = results['translations'] as String?;
   final sourceLanguage = results['source-language'] as String;
   final experimental = _resolveExperimental(results);
+  final packageName = results['app-intents-package'] as String?;
+  final includedPackages = results['include-package'] as List<String>;
+  if (includedPackages.isNotEmpty && packageName == null) {
+    stderr.writeln(
+      'Error: --include-package requires --app-intents-package (the '
+      'includedPackages list belongs to a package declaration).',
+    );
+    exit(1);
+  }
 
   await generateSwift(
     inputDir: inputDir,
@@ -106,6 +137,8 @@ void main(List<String> arguments) async {
     translationsPath: translationsPath,
     sourceLanguage: sourceLanguage,
     experimental: experimental,
+    appIntentsPackage: packageName,
+    includedPackages: includedPackages,
   );
 }
 
@@ -128,16 +161,12 @@ ExperimentalFeatures _resolveExperimental(ArgResults results) {
       enabled.add(feature);
       continue;
     }
+    // Anything left is a graduated token — the parser's `allowed:` list has
+    // already rejected names that are neither.
     final graduated = graduatedExperimentalFlags[flag];
     if (graduated != null) {
       stderr.writeln('Note: --experimental=$flag has graduated. $graduated');
-      continue;
     }
-    // Silently dropping an unknown flag looks like the feature was emitted.
-    stderr.writeln(
-      'Warning: unknown --experimental flag "$flag" (known flags: '
-      '${ExperimentalFeature.allFlags.join(', ')}).',
-    );
   }
 
   return ExperimentalFeatures(masterEnabled: masterEnabled, enabled: enabled);
@@ -165,6 +194,8 @@ Future<void> generateSwift({
   String? translationsPath,
   String sourceLanguage = 'en',
   ExperimentalFeatures experimental = ExperimentalFeatures.none,
+  String? appIntentsPackage,
+  List<String> includedPackages = const [],
 }) async {
   final analyzeResult = await analyzeSourceFiles(inputDir);
 
@@ -192,6 +223,8 @@ Future<void> generateSwift({
     entities: analyzeResult.entities,
     shortcuts: analyzeResult.shortcuts,
     enums: analyzeResult.enums,
+    appIntentsPackage: appIntentsPackage,
+    includedPackages: includedPackages,
   );
 
   // Write output

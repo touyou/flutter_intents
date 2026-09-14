@@ -1042,6 +1042,45 @@ Future<List<Product>> productEntityValueQuery(String input) async {
 （[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
 ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
 
+## ターゲット間で Intent を共有する（`AppIntentsPackage`）
+
+生成した Intent をアプリターゲットと Extension（Widget 等）の両方から使いたい場合は、
+同じファイルを両ターゲットにコンパイルするのではなく、**共有 Swift パッケージ**に置いて
+両方がリンクします。同じ Intent 型が2つあると `Metadata.appIntents` に重複し、iOS が
+intent を解決できなくなります。
+
+```bash
+# 共有パッケージ側
+dart run app_intents_codegen:generate_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-intents-package SharedIntentsPackage
+
+# 利用側ターゲット
+dart run app_intents_codegen:generate_widget_swift \
+  -o ios/TaskWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --app-intents-package TaskWidgetAppIntentsPackage \
+  --include-package SharedIntents.SharedIntentsPackage
+```
+
+`--include-package` はモジュール修飾名を取り、接頭辞が `import` になります。
+
+**この宣言が何をして何をしないか。** あるターゲットが別モジュールの Intent を見えるか
+どうかは**リンクの形**で決まり、この宣言では決まりません。Xcode の SPM は既定で静的
+リンクで、静的リンクした依存先の抽出済みメタデータは宣言ゼロで利用側にマージされます。
+宣言が生むのは**動的**リンク境界で必要になる `extract.packagedata` のエントリだけです
+（Apple の案内も「静的ライブラリにコンパイルされていないコードを参照するとき」という
+条件付き）。メタデータに型が出てこない場合に見るべきはターゲットメンバシップとリンク
+形態であって、`includedPackages` の足し引きでは変わりません。
+
+2点だけ注意:
+
+- 宣言は**1ターゲットにつき1つ**。メインターゲットでの重複宣言が Shortcuts の intent
+  ルーティングを壊した事例があります。
+- `@AppShortcutsProvider` は**アプリターゲット直下**に置いてください。パッケージ内に移すと
+  自動ショートカットが 0 件になります。
+
 ## WWDC26 実験的機能（opt-in）
 
 codegen は WWDC26 の App Intents API（iOS 26.4 / iOS 27+）を出力できます。これらの
