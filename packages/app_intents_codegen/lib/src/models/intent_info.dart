@@ -1,4 +1,5 @@
 import 'union_info.dart';
+import 'snippet_info.dart';
 
 /// Represents analyzed information about an intent specification.
 class IntentInfo {
@@ -28,8 +29,21 @@ class IntentInfo {
   final String? urlAction;
 
   /// Template for the dialog shown after intent execution.
-  /// Supports {paramName} interpolation.
+  /// Supports {paramName} interpolation. Becomes the spoken (`full`) half when
+  /// [resultDialogSupportingTemplate] is also set.
   final String? resultDialogTemplate;
+
+  /// The on-screen (`supporting`) half of the result dialog, for
+  /// `IntentDialog(full:supporting:)`. Requires [resultDialogTemplate].
+  final String? resultDialogSupportingTemplate;
+
+  /// SF Symbol name shown alongside the result dialog. Requires
+  /// [resultDialogTemplate]. The symbol initializers are iOS 17.2+, so the
+  /// generated code falls back to the symbol-less dialog below that version.
+  final String? resultDialogSystemImageName;
+
+  /// The declarative snippet card shown with the result, if any.
+  final SnippetInfo? snippet;
 
   /// Template for the parameter summary shown in Shortcuts UI.
   /// Supports {paramName} references.
@@ -71,6 +85,9 @@ class IntentInfo {
     this.urlScheme,
     this.urlAction,
     this.resultDialogTemplate,
+    this.resultDialogSupportingTemplate,
+    this.resultDialogSystemImageName,
+    this.snippet,
     this.parameterSummary,
     this.supportedModes,
     this.longRunning = false,
@@ -93,6 +110,10 @@ class IntentInfo {
         urlScheme == other.urlScheme &&
         urlAction == other.urlAction &&
         resultDialogTemplate == other.resultDialogTemplate &&
+        resultDialogSupportingTemplate ==
+            other.resultDialogSupportingTemplate &&
+        resultDialogSystemImageName == other.resultDialogSystemImageName &&
+        snippet == other.snippet &&
         parameterSummary == other.parameterSummary &&
         supportedModes == other.supportedModes &&
         longRunning == other.longRunning &&
@@ -113,6 +134,9 @@ class IntentInfo {
     urlScheme,
     urlAction,
     resultDialogTemplate,
+    resultDialogSupportingTemplate,
+    resultDialogSystemImageName,
+    snippet,
     parameterSummary,
     supportedModes,
     longRunning,
@@ -128,7 +152,11 @@ class IntentInfo {
       'description: $description, implementation: $implementation, '
       'parameters: $parameters, '
       'urlScheme: $urlScheme, urlAction: $urlAction, '
-      'resultDialogTemplate: $resultDialogTemplate, parameterSummary: $parameterSummary, '
+      'resultDialogTemplate: $resultDialogTemplate, '
+      'resultDialogSupportingTemplate: $resultDialogSupportingTemplate, '
+      'resultDialogSystemImageName: $resultDialogSystemImageName, '
+      'snippet: $snippet, '
+      'parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '
       'schema: $schema, donatable: $donatable)';
@@ -258,3 +286,15 @@ bool _nullableListEquals<T>(List<T>? a, List<T>? b) {
   if (a == null || b == null) return a == b;
   return _listEquals(a, b);
 }
+
+/// Every template on [info] that may read the Dart handler's returned map:
+/// the snippet's texts plus both halves of the result dialog.
+///
+/// The analyzer, the Dart generator and the Swift generator must agree on this
+/// list — if one of them forgets the dialog, the handler's result is discarded
+/// on one side while the other still tries to read it.
+List<String> resultTemplatesOf(IntentInfo info) => <String>[
+  ...?info.snippet?.templates,
+  ?info.resultDialogTemplate,
+  ?info.resultDialogSupportingTemplate,
+];

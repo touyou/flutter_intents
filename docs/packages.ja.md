@@ -228,6 +228,17 @@ app_intents_annotations/
     └── app_intents_annotations_test.dart
 ```
 
+### 新しい OS 機能向けアノテーション（opt-in 不要）
+
+以下は既定で生成され、素の `@available` でガードされます。出力するシンボルが
+リリース済み SDK に存在するためです:
+
+- `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51, iOS 26.0)。
+- `@IntentSpec(snippet:)` — 宣言的な Siri スニペットカード生成 (iOS 16)。
+- `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` —
+  `IntentDialog(full:supporting:)` (iOS 16。シンボル付き形のみ iOS 17.2 なので
+  availability チェック内で出力)。
+
 ### WWDC26 実験的アノテーション
 
 `@EntitySpec` / `@IntentSpec` は opt-in の WWDC26 フィールドを持ちます（対応する
@@ -238,7 +249,6 @@ app_intents_annotations/
   推奨: `AppSchemaDomain`（iOS 27 既知ドメイン）と `AppSchemas`（検証済み識別子。例:
   `AppSchemas.messages.message`、未収録は `AppSchemas.of(domain, name)`）。
   `src/schema/app_schema.dart` 参照。
-- `@EntitySpec(valueQuery:)` — `IntentValueQuery` 生成 (#51)。
 - `@EntitySpec(exportAs:)` — `ValueRepresentation` によるアプリ間 export
   (`EntityExportType.person`) (#54)。
 - `@EntitySpec(syncable:)` — `SyncableEntity` 準拠（安定 id ケース）(#55)。
@@ -434,13 +444,16 @@ Dartアノテーションからコードを生成するツール。
 
 6. **WWDC26 実験的生成（opt-in・デフォルト OFF）** ✅
    - マスタースイッチ `--experimental-wwdc26` + 機能別 `--experimental=<flag>`
-     (`app-schema`, `ownership`, `long-running`, `rich-types`, `value-query`,
+     (`app-schema`, `ownership`, `long-running`, `rich-types`,
      `value-representation`, `donation`)。出力は `#if APP_INTENTS_WWDC26` で囲む。
    - App Schema (#49)、実行制御 (#52)、リッチなパラメータ型 (#53)、
-     `IntentValueQuery` (#51)、アプリ間 export (#54)、`SyncableEntity` /
-     `RelevantEntities` ドネーション (#55)。`docs/usage.ja.md` と `docs/adr/` を参照。
+     アプリ間 export (#54)、`SyncableEntity` / `RelevantEntities` ドネーション
+     (#55)。`docs/usage.ja.md` と `docs/adr/` を参照。
+   - `IntentValueQuery` (#51) は opt-in から**卒業**した。シンボルがリリース済み
+     SDK に iOS 26.0 で存在するため、素の `@available` で既定生成する。
    - 検証: `scripts/verify_experimental_swift.sh` で dual-branch
-     `swiftc -typecheck`（beta iOS 27 SDK）。
+     `swiftc -typecheck`。Xcode 27 では両分岐、安定 Xcode では安定分岐のみを検証する
+     （`DEVELOPER_DIR` で切り替える）。
 
 ### 使用方法
 

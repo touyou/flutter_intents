@@ -494,6 +494,257 @@ void main() {
         },
       );
 
+      test('extracts the dual-text dialog fields (ADR 0005)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.announce',
+            title: 'Announce',
+            resultDialogTemplate: 'I created the task {title}',
+            resultDialogSupportingTemplate: 'Task created',
+            resultDialogSystemImageName: 'checkmark.circle',
+          )
+          class AnnounceIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            AnnounceIntent({required this.title});
+          }
+        ''');
+        final info = analyzer.analyze(findClass(library, 'AnnounceIntent'))!;
+        expect(info.resultDialogTemplate, 'I created the task {title}');
+        expect(info.resultDialogSupportingTemplate, 'Task created');
+        expect(info.resultDialogSystemImageName, 'checkmark.circle');
+      });
+
+      test(
+        'a supporting template without a dialog is a generation error',
+        () async {
+          // Dropping it silently would look like Siri chose not to show it.
+          final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad',
+              title: 'Bad',
+              resultDialogSupportingTemplate: 'Task created',
+            )
+            class BadDialogIntent extends IntentSpecBase {
+              BadDialogIntent();
+            }
+          ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'BadDialogIntent')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains('requires "resultDialogTemplate"'),
+              ),
+            ),
+          );
+        },
+      );
+
+      test('a dialog symbol without a dialog is a generation error', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(
+              identifier: 'com.example.bad2',
+              title: 'Bad',
+              resultDialogSystemImageName: 'star',
+            )
+            class BadSymbolIntent extends IntentSpecBase {
+              BadSymbolIntent();
+            }
+          ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadSymbolIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('requires "resultDialogTemplate"'),
+            ),
+          ),
+        );
+      });
+
+      test('extracts a snippet template (ADR 0007)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.snippet',
+            title: 'Snippet',
+            snippet: SnippetTemplate(
+              title: '{title}',
+              subtitle: 'Saved to {result.listName}',
+              systemImageName: 'checkmark.circle.fill',
+              rows: [SnippetRow(label: 'Due', value: '{result.dueDate}')],
+            ),
+          )
+          class SnippetIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            SnippetIntent({required this.title});
+          }
+        ''');
+        final info = analyzer.analyze(findClass(library, 'SnippetIntent'))!;
+        expect(info.snippet, isNotNull);
+        expect(info.snippet!.title, '{title}');
+        expect(info.snippet!.subtitle, 'Saved to {result.listName}');
+        expect(info.snippet!.systemImageName, 'checkmark.circle.fill');
+        expect(info.snippet!.rows.single.label, 'Due');
+        expect(info.snippet!.rows.single.value, '{result.dueDate}');
+      });
+
+      test('rejects {result.…} on a URL scheme intent', () async {
+        // perform() opens the app and returns before the handler runs, so the
+        // placeholder would render empty on a surface nobody can debug.
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet',
+            title: 'Bad',
+            urlScheme: 'taskapp',
+            snippet: SnippetTemplate(title: '{result.name}'),
+          )
+          class BadUrlSnippetIntent extends IntentSpecBase {
+            BadUrlSnippetIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadUrlSnippetIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('runs through a URL scheme'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects {result.…} on a foreground intent', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet2',
+            title: 'Bad',
+            supportedModes: IntentMode.foreground,
+            snippet: SnippetTemplate(title: '{result.name}'),
+          )
+          class BadForegroundSnippetIntent extends IntentSpecBase {
+            BadForegroundSnippetIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(
+            findClass(library, 'BadForegroundSnippetIntent'),
+          ),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('IntentMode.foreground'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a placeholder that names no parameter', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet3',
+            title: 'Bad',
+            snippet: SnippetTemplate(title: '{nope}'),
+          )
+          class BadPlaceholderIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            BadPlaceholderIntent({required this.title});
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadPlaceholderIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('is not a parameter of this intent'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a placeholder in a snippet row label', () async {
+        // Labels are emitted as literal LabeledContent keys, so Siri would
+        // show the braces rather than the value.
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badlabel',
+            title: 'Bad',
+            snippet: SnippetTemplate(
+              title: 'Done',
+              rows: [SnippetRow(label: '{title}', value: 'x')],
+            ),
+          )
+          class BadLabelIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            BadLabelIntent({required this.title});
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadLabelIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('row label is static text'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects {result.…} in a dialog on a URL scheme intent', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.baddialog',
+            title: 'Bad',
+            urlScheme: 'taskapp',
+            resultDialogTemplate: 'You have {result.openCount} left',
+          )
+          class BadDialogResultIntent extends IntentSpecBase {
+            BadDialogResultIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadDialogResultIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('runs through a URL scheme'),
+            ),
+          ),
+        );
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

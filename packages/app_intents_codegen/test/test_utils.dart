@@ -25,6 +25,7 @@ Future<LibraryElement> resolveSource(String source) async {
     {
       'app_intents_annotations|lib/app_intents_annotations.dart': '''
         export 'src/annotations/intent_spec.dart';
+        export 'src/annotations/snippet_template.dart';
         export 'src/annotations/intent_param.dart';
         export 'src/annotations/entity_spec.dart';
         export 'src/annotations/entity_params.dart';
@@ -37,7 +38,31 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/annotations/widget_configuration_spec.dart';
         export 'src/bases/widget_configuration_spec_base.dart';
       ''',
+      'app_intents_annotations|lib/src/annotations/snippet_template.dart': '''
+        class SnippetTemplate {
+          final String title;
+          final String? subtitle;
+          final String? systemImageName;
+          final List<SnippetRow> rows;
+
+          const SnippetTemplate({
+            required this.title,
+            this.subtitle,
+            this.systemImageName,
+            this.rows = const [],
+          });
+        }
+
+        class SnippetRow {
+          final String label;
+          final String value;
+
+          const SnippetRow({required this.label, required this.value});
+        }
+      ''',
       'app_intents_annotations|lib/src/annotations/intent_spec.dart': '''
+        import 'snippet_template.dart';
+
         class IntentSpec {
           final String identifier;
           final String title;
@@ -46,6 +71,9 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? urlScheme;
           final String? urlAction;
           final String? resultDialogTemplate;
+          final String? resultDialogSupportingTemplate;
+          final String? resultDialogSystemImageName;
+          final SnippetTemplate? snippet;
           final String? parameterSummary;
           final IntentMode? supportedModes;
           final bool longRunning;
@@ -62,6 +90,9 @@ Future<LibraryElement> resolveSource(String source) async {
             this.urlScheme,
             this.urlAction,
             this.resultDialogTemplate,
+            this.resultDialogSupportingTemplate,
+            this.resultDialogSystemImageName,
+            this.snippet,
             this.parameterSummary,
             this.supportedModes,
             this.longRunning = false,

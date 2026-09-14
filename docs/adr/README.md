@@ -14,7 +14,7 @@
 
 > パスについて: 各 ADR は執筆時点の記録なので本文は書き換えていません。`AppIntentsBridge`
 > の Swift Package は issue #102 の対応で `ios-spm/AppIntentsBridge` から
-> **`packages/app_intents/ios/AppIntentsBridge`** へ移動しています（pub パッケージに同梱して
+> **`packages/app_intents/ios/app_intents/Sources/AppIntentsBridge`** へ移動しています（pub パッケージに同梱して
 > 下流アプリ・App Extension から参照できるようにするため）。ADR 本文中の `ios-spm/...` は
 > この新しいパスに読み替えてください。
 
@@ -46,6 +46,9 @@ opt-in ゲートの効き方が「データの向き」で割れます。各 ADR
 | [0003](0003-donations-and-discovery.md) | #55残 | ドネーションと発見性（RelevantEntities / IntentDonationManager / SyncableEntity） | 高（本体侵入） | — |
 | [0004](0004-onscreen-awareness-feasibility.md) | #56 | オンスクリーン認識・スニペットビューの実現可能性 | 調査（GO/NO-GO） | — |
 | [0005](0005-widget-extension-entity-access.md) | #97 / #98 | App Extension からのエンティティ参照と WidgetConfigurationIntent codegen | 中 | #26 |
+| [0006](0006-dual-text-result-dialog.md) | #59 punch list | 読み上げ/画面表示を分けた結果ダイアログ（`IntentDialog(full:supporting:)`） | 低（純 codegen・非 experimental） | — |
+| [0007](0007-declarative-snippet-view.md) | #56 | 宣言的スニペットビュー（`ShowsSnippetView`） | 中（codegen + ハンドラ戻り値の配線） | 0004 |
+| [0008](0008-app-intents-package.md) | #59 punch list | `AppIntentsPackage`（共有パッケージ構成の宣言生成） | 低（宣言のみ・構成は利用者側） | — |
 
 関連: #58（ビジュアルインテリジェンス）は #51 の `Input` を `SemanticContentDescriptor`
 （ピクセルバッファ）に特殊化したケースで、ネイティブ完結が前提。0001 で線引きを示し、

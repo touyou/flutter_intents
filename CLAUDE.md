@@ -44,6 +44,23 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **`AppIntentsPackage` support (ADR 0008)**
+  - `generate_swift` / `generate_widget_swift` gain `--app-intents-package <Name>` and repeatable `--include-package <Module.Type>` (the module prefix becomes an `import`). Emits `struct <Name>: AppIntentsPackage { static var includedPackages: … }`. `AppIntentsPackage` is **iOS 17** — no gating.
+  - **Read this before using it to debug missing metadata.** Whether a target sees another module's intents is decided by **link form, not this declaration**. Measured on SDK 27 / tools `27A266a`: a statically linked dependency's `extract.actionsdata` merges into the consumer with **zero** declarations (a bundle declaring no package still carried all 24 actions). The declaration only produces `extract.packagedata`'s `includes` (the mangled names of `includedPackages`), which is what a **dynamic** link boundary needs. Apple's own wording is conditional: use it "when referencing code not compiled into a static library" (wwdc2025-244 24:00). Xcode SPM links statically by default.
+  - Consequence for this repo: the "same intent type in two targets duplicates `Metadata.appIntents`" hazard (see `app/ios/TaskWidget/README.md`) is about **compiling one source file into two targets**. Putting the type in one shared package that both targets link is the supported way to share it, and does not duplicate.
+  - Known hazard from a sibling project: a duplicate `AppIntentsPackage` declaration in the main target once broke Shortcuts intent routing, and an `AppShortcutsProvider` moved into the package yields `autoShortcuts: 0` — keep the provider in the app target.
+- **Declarative snippet cards (`ShowsSnippetView`, ADR 0007)**
+  - `@IntentSpec(snippet: SnippetTemplate(title:, subtitle:, systemImageName:, rows:))` → a self-contained `struct <Intent>SnippetView: View` plus `.result(view:)`. Dynamic parts are stored `String` properties, so no shared runtime type is needed; row labels stay literal so `LabeledContent` localizes them through the String Catalog.
+  - **Not experimental**: `ShowsSnippetView` is iOS 16. But `.result(view:)` lives in the **`_AppIntents_SwiftUI` overlay**, so the generated file must `import SwiftUI` — without it the overload simply doesn't exist.
+  - Two placeholder kinds: `{paramName}` (any mode) and `{result.key}` (the Dart handler's returned map). `{result.key}` is **FlutterBridge-only** — URL scheme and foreground modes return before the handler runs — and is a generation error elsewhere rather than an empty card. It works in `resultDialogTemplate` too.
+  - Dart side: for those intents only, the generated registration returns `intentResultPayload(result)` instead of `<String, dynamic>{}`. `intentResultPayload` accepts a `Map`, a value with `toJson()`, or `null`, and throws on anything else.
+  - The example app gained `TaskSummaryIntentSpec` — the first **FlutterBridge-mode** intent in it; the other three are all URL scheme or foreground, so that path had no example coverage.
+  - **Golden tests stayed green while the emitted view body contained a literal `$i5$_indent`.** String assertions cannot see a broken indent helper. Only `swiftc -typecheck` caught it.
+- **Dual-text result dialogs (`IntentDialog(full:supporting:)`, ADR 0006)**
+  - `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` as sibling fields of `resultDialogTemplate` (not a deprecation). Template alone → unchanged `.init("…")`; + supporting → `IntentDialog(full:supporting:)`; + symbol → built behind `if #available(iOS 17.2, *)` with the symbol-less dialog as fallback, so the intent stays at iOS 17.0.
+  - **Not experimental**: `full:supporting:` is iOS 16 in the released SDK. Only the `systemImageName` initializers are 17.2.
+  - Either field without `resultDialogTemplate` is an `InvalidGenerationSourceError` — silently dropping it reads as "Siri chose not to show the supporting text". The supporting template is collected into the String Catalog alongside the main one.
+  - Verified by `swiftc -typecheck` at **deployment target iOS 17.0** (not the SDK version — see below) against both the 26.5 and 27.0 SDKs, plus a `flutter build ios` of the example app.
 - **App Extension entity access + WidgetConfigurationIntent codegen (#97 / #98)**
   - `AppIntentsEntityCache` / `AppIntentsCachedEntity` in `packages/app_intents/ios/app_intents/Sources/AppIntentsBridge` — read-only public API over the App Group entity cache, importable from a Widget Extension (the package is Flutter-free). `storageIdentifier` is a **required** init argument: an extension's `Bundle.main.bundleIdentifier` is not the host app's, and guessing would silently read the wrong key.
   - Dart-side mirror `AppIntentsEntityCacheKey.forEntity(identifier)` so `setCachedValue` keys are not literals.
@@ -191,7 +208,6 @@ docs/
 - **`@Property` wrapper**: Expose entity properties to system (Spotlight, etc.)
 - **`@ComputedProperty`** (iOS 26+): Reference underlying data model instead of copying values
 - **`TargetContentProvidingIntent`** (iOS 26+): Navigation intents without `perform()` method
-- **`AppIntentsPackage`** (iOS 26+): Sharing types across targets (app, extensions, packages)
 - **Advanced `IntentMode` submodes**: `.foreground(.immediate)`, `.foreground(.deferred)`, `.foreground(.dynamic)`
 - **Multiple modes**: `[.background, .foreground]` with runtime mode determination
 
@@ -199,13 +215,10 @@ docs/
 
 Items surveyed against the matsudate WWDC 2026 review #4 ("新しい Siri と App Intents", 2026-06-18). Each row is a thing the article describes that this plugin does **not** ship yet. ADR numbers in brackets are pre-reserved.
 
-- **`@IntentSpec(resultDialog: IntentDialog(full:supporting:))`** — dual-text dialogs (voice-only `full` vs on-screen `supporting`). Current annotation only takes a single `resultDialogTemplate`. Needs SDK spike against Xcode 27 beta for the exact `IntentDialog` shape + backward-compat decision (deprecate vs add sibling fields). [ADR-0005]
-- **`ShowsSnippetView`** — SwiftUI snippet card in Siri results. Flutter doesn't render SwiftUI, so the only viable path is a **declarative template** (title/subtitle/image/key-value) that codegen turns into a fixed `@ViewBuilder`. ADR 0004 already flagged this as a separate-issue spike. Needs a template DSL design before any code. [ADR-0006]
 - **`$param.requestValue`** — mid-`perform()` value request. Requires a 2-way suspending RPC: Swift `perform()` suspends → plugin asks Dart for a missing value → Dart returns → `perform()` resumes. Large-scope bridge change; pick Dart-visible vs hidden-inside-generated-Swift first. [ADR-0007]
 - **`PlaceDescriptor` export** — `EntityExportKind.placeDescriptor` case for #54 `ValueRepresentation(exporting:)`. ADR 0002 (line 3) explicitly defers this with `IntentPerson` only. Needs `@EntityProperty(role: 'latitude'/'longitude')` (or auto-detect-by-name) + Xcode 27 beta typecheck confirming the `PlaceDescriptor` constructor signature/availability. [extends ADR-0002]
 - **`LongRunningIntent` progress + cancellation forwarding to Dart** — the current `performBackgroundTask(...) onCancel: { reason in /* … */ }` is a stub; nothing reaches the Dart handler. Needs (1) progress callback channel Dart→Swift to drive `ProgressReportingIntent.progress`, (2) reverse forwarding of `IntentCancellationReason` Swift→Dart, (3) handler signature change in generated Dart. [ADR-0008]
 - **`SyncableEntityIdentifier<Local, Stable>`** (dual-id case) — `SyncableEntity` with stable-id-only is implemented; dual-id is explicitly deferred in ADR 0003 line 159. Changing entity `id` from a scalar to `SyncableEntityIdentifier<Local, Stable>` ripples through entity struct, `EntityQuery.entities(for:)` signature, cache projection, and Dart deserialization. [extends ADR-0003]
-- **`@AppIntentsPackage` macro (iOS 26+)** — distinct from already-shipped `allowedExecutionTargets`. Needs SDK spike (signature absent from current verified-facts table) + ADR on scope (per-intent decorator vs package-level marker) + multi-target bundle linking strategy. [ADR-0009]
 - **`UNNotificationContent.appEntityIdentifier` / AlarmKit entity tagging** — stable iOS 26+ API (`EntityIdentifier?` on `UNNotificationContent`), so no `#if` gating for the symbol itself, but the bridge wall is identical to #55/#56 (concrete entity type required → reverse-executor pattern reusing a shared `entityIdentifierBinder` forwarder). Document-only for now; would graduate to an ADR alongside #56's on-device PoC. [ADR-0010, blocked on #56]
 - **SwiftUI `.appEntityIdentifier(forSelectionType:)` list annotation** — **NO-GO**, locked in ADR 0004. Flutter renders to a single `FlutterView` canvas; per-row PlatformView embedding is architecturally infeasible. Screen-level association via `setOnscreenEntity`/`clearOnscreenEntity` is the supported substitute.
 
@@ -442,8 +455,14 @@ not emit those lines" is mandatory.
 **Flag mechanism** (`ExperimentalFeatures`):
 - `--experimental-wwdc26` master switch (OFF → nothing experimental is emitted).
 - `--experimental=<flag>` per-feature (`long-running`, `app-schema`, `ownership`,
-  `rich-types`, `value-query`, `value-representation`, `donation`). Master ON with no per-feature flag = all features; with flags = only
+  `rich-types`, `value-representation`, `donation`). Master ON with no per-feature flag = all features; with flags = only
   those.
+- **Before adding a feature to this enum, check whether the symbol is actually
+  absent from the released SDK.** `#if` is only justified when it is. A flag that
+  turns out to guard a symbol the stable SDK already has must graduate — add its
+  token to `graduatedExperimentalFlags` (the CLI then reports it as a no-op
+  instead of silently ignoring it) and emit under plain `@available`. #51 was
+  wrongly gated this way for three months.
 - Thread the flag through the **CLI + SwiftGenerator only** until a feature changes
   Dart output (then also wire `build.yaml`/`builder.dart`). #52 is Swift-only.
 
@@ -475,7 +494,7 @@ the `APP_INTENTS_WWDC26` build flag must still get compiling (stable) Swift.
 - `IndexedEntityQuery` (re-indexing: `reindexEntities`/`reindexAllEntities`) is iOS 27 (deferred). `@ComputedProperty`/`@DeferredProperty` are iOS 26 macros (deferred).
 - **Richer parameter types (#53)**: `Swift.Duration` and `Foundation.PersonNameComponents` gain their `AppIntents._IntentValue` conformance (`extension … : @retroactive …, AppIntents._IntentValue`) **only in the iOS 27 SDK** — absent from the stable SDK (verified by diffing the Xcode 27 beta vs Xcode 26 `.swiftinterface`). So native `Duration`/`PersonNameComponents` params **must** be `#if`-gated (no `@available` — the conformance symbol doesn't exist on stable). `Duration`'s compile-everywhere fallback is `Measurement<UnitDuration>` (has an `IntentParameter` init on both SDKs); `PersonNameComponents` has **no** stable param analog, so its fallback is a plain `String`. `Duration.components` is `(seconds: Int64, attoseconds: Int64)`; 1 µs == 1e12 attoseconds. `@Parameter(title:)` alone is valid for `Duration`, `Measurement<UnitDuration>`, and `PersonNameComponents` (the last rides the generic `_IntentValue` init — there is no PNC-specific initializer). `EntityCollection<Entity>` is **iOS 27**, conforms to `Collection` (`Element == Entity.ID`) and exposes `var identifiers: [Entity.ID]` + `resolvedEntities()`; the stable fallback is a plain `[Entity]` array (`.map { $0.id }`) — done. `@UnionValue`/`AppUnionValue` are **iOS 27** (`AppUnionValue` is `@available(iOS 27)`; the `@UnionValue` macro itself is iOS 18 but attaches the iOS-27 protocol) — a `@UnionValue enum { case x(XEntity) }` switches like a normal enum at the call site (spike-confirmed); done, with a **lossy `#else`** (param degrades to the first case's entity type — no stable union-parameter representation). `AppIntentsTesting.framework` ships in Xcode 27 beta under `<platform>.platform/Developer/Library/Frameworks` (test-bundle framework) for #57.
 
-- **IntentValueQuery (#51, `value-query`)**: `protocol IntentValueQuery : PersistentlyIdentifiable, _SupportsAppDependencies, Sendable` with `associatedtype Input : _IntentValue` — the **input is generic**, not fixed to pixels. For a serializable `Input` (text/structured search) the query is plain inbound and the bridge stays generic (plugin names no iOS-27 symbol); only the generated `<Entity>ValueQuery` struct does, gated by `#if APP_INTENTS_WWDC26` (no `#else` — additive). The visual variant has `Input == SemanticContentDescriptor` (**VisualIntelligence** framework, `pixelBuffer: CVPixelBuffer` + `labels`) → native-only, out of scope here (#58). The bridge added a generic `FlutterBridge.valueQueryExecutor` + `AppIntentsPlugin.queryValuesAsync` + Dart `registerValueQueryHandler`; opt-in via `@EntitySpec(valueQuery: true)`. See `docs/adr/0001-intent-value-query-bridge.md`.
+- **IntentValueQuery (#51, graduated — no flag)**: `protocol IntentValueQuery : PersistentlyIdentifiable, _SupportsAppDependencies, Sendable` with `associatedtype Input : _IntentValue` — the **input is generic**, not fixed to pixels. **It is declared at iOS 26.0 and ships in the iOS 26.5 SDK (Xcode 26.6), so it is NOT `#if`-gated**: the generated `<Entity>ValueQuery` is emitted whenever `@EntitySpec(valueQuery: true)` is set, under `@available(iOS 26.0, *)`. The single exception is an App Schema (#49) entity — the entity type only exists at iOS 27 inside the `#if`, so the query dual-branches with it (iOS 27 / iOS 26). Only `IntentValueQuery.allowedExecutionTargets` is iOS 27. For a serializable `Input` (text/structured search) the query is plain inbound and the bridge stays generic (plugin names no iOS-27 symbol). The visual variant has `Input == SemanticContentDescriptor` (**VisualIntelligence** framework, `pixelBuffer: CVPixelBuffer` + `labels`) → native-only, out of scope here (#58). The bridge added a generic `FlutterBridge.valueQueryExecutor` + `AppIntentsPlugin.queryValuesAsync` + Dart `registerValueQueryHandler`; opt-in via `@EntitySpec(valueQuery: true)`. See `docs/adr/0001-intent-value-query-bridge.md`.
 
 - **Cross-app export (#54, `value-representation`)**: `AppEntity.ValueRepresentation` is a typealias for `IntentValueRepresentation<Item, IntentValue> where Item: Transferable, IntentValue: _IntentValue` with `init(exporting: (Item) async throws -> IntentValue)` (+ a key-path form `ValueRepresentation(exporting: \.prop)` for entities that already hold a system value property). System types conforming include `IntentPerson`, `PlaceDescriptor`, `IntentCurrencyAmount`, `IntentFile`, `EntityCollection`, etc. Export is **system-facing (no Dart round-trip)** → pure Swift codegen, plugin untouched. MVP catalog = `IntentPerson` only, built from the entity's `@EntityId` (`.applicationDefined`) + `@EntityTitle` (`.displayName`) — needs no Dart structured-type representation. `PlaceDescriptor` (needs lat/lon the entity lacks) and the **import** path (reuses #51's value-query bridge) are deferred. Emitted as a `#if APP_INTENTS_WWDC26` `extension <Entity>: Transferable` (no `#else`, additive; `import CoreTransferable` lives inside the `#if`). Opt-in via `@EntitySpec(exportAs: EntityExportType.person)`. See `docs/adr/0002-cross-app-entity-sharing.md`.
 
@@ -489,6 +508,40 @@ I emitted came out"; they pass while emitting Swift that won't compile. Always
 against the beta SDK. Get exact signatures from the SDK directly:
 - Doc search via `xcrun mcpbridge` → `DocumentationSearch` (semantic).
 - Ground truth: `…/AppIntents.framework/Modules/AppIntents.swiftmodule/arm64e-apple-ios.swiftinterface`.
+
+`scripts/verify_experimental_swift.sh` does this. Run it against **both** Xcodes
+via `DEVELOPER_DIR` — the stable run is what proves an ungated feature really
+compiles without iOS 27 (it skips the `-D` pass, since that branch cannot
+compile on an older SDK by design):
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/verify_experimental_swift.sh
+DEVELOPER_DIR=/Applications/Xcode-27.0.0-release.candidate.app/Contents/Developer scripts/verify_experimental_swift.sh
+```
+
+### Which SDK actually has the symbol (audited 2026-09-14)
+
+Xcode 27 RC = `27A266a` (iOS 27.0 SDK); stable Xcode 26.6 = `17F113` (**iOS 26.5**
+SDK). "Released SDK" below means the iOS 26.5 one — a feature present there needs
+no `#if`, only `@available`. Re-audit before gating anything new:
+
+| Symbol | iOS 26.5 SDK | iOS 27.0 SDK | Gate |
+|---|:--:|:--:|---|
+| `IntentValueQuery` (iOS 26.0) | ✅ | ✅ | `@available` only (#51, graduated) |
+| `ShowsSnippetView` (iOS 16.0) | ✅ | ✅ | none needed |
+| `AppIntentsPackage` (iOS 17.0) | ✅ | ✅ | none needed |
+| `IntentDialog(full:supporting:)` (iOS 16.0) | ✅ | ✅ | none needed |
+| `RelevantIntentManager` / `RelevantIntent` (iOS 17.0) | ✅ | ✅ | none needed |
+| `IntentValueRepresentation` | ❌ | ✅ (`anyAppleOS 26.4`) | `#if` — the back-dated availability is a trap, the symbol is absent from 26.5 |
+| `LongRunningIntent` / `CancellableIntent` / `IntentExecutionTargets` | ❌ | ✅ | `#if` |
+| `EntityCollection` / `AppUnionValue` | ❌ | ✅ | `#if` |
+| `SyncableEntity` / `SyncableEntityIdentifier` / `OwnershipProvidingEntity` | ❌ | ✅ | `#if` |
+| `RelevantEntities` / `AppEntityContext` | ❌ | ✅ | `#if` |
+
+`AppEntityContext` still has exactly one factory in the RC (`.audio(_:)` →
+`AudioContext.nowPlaying`), so a "typed context catalog" would have one member.
+`RelevantEntities` gained `removeEntities` / `removeAllEntities` (both overloads)
+which the plugin does not expose yet.
 
 ### TDD Approach
 Follow Red-Green-Refactor:

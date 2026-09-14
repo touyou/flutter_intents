@@ -1,6 +1,7 @@
 import 'package:app_intents_codegen/src/generator/dart_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
+import 'package:app_intents_codegen/src/models/snippet_info.dart';
 import 'package:app_intents_codegen/src/models/union_info.dart';
 import 'package:test/test.dart';
 
@@ -94,6 +95,76 @@ void main() {
         expect(result, contains('_registerIntentHandlers'));
         expect(result, contains("AppIntents().registerIntentHandler"));
         expect(result, contains("'com.example.createTask'"));
+      });
+
+      test('discards the handler result when no snippet reads it', () {
+        final result = generator.generate([
+          const IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+          ),
+        ], []);
+
+        expect(result, contains('return <String, dynamic>{};'));
+        expect(result, isNot(contains('intentResultPayload')));
+      });
+
+      test('returns the handler payload when a snippet reads {result.…}', () {
+        final result = generator.generate([
+          const IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            snippet: SnippetInfo(
+              title: 'Done',
+              rows: [SnippetRowInfo(label: 'Due', value: '{result.dueDate}')],
+            ),
+          ),
+        ], []);
+
+        expect(
+          result,
+          contains('final result = await createTaskIntentHandler();'),
+        );
+        expect(result, contains('return intentResultPayload(result);'));
+      });
+
+      test('a dialog-only {result.…} also keeps the handler payload', () {
+        // The Swift side reads the map either way; discarding it here would
+        // make the dialog render an empty value.
+        final result = generator.generate([
+          const IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            resultDialogTemplate: 'You have {result.openCount} left',
+          ),
+        ], []);
+
+        expect(result, contains('return intentResultPayload(result);'));
+      });
+
+      test('a parameter-only snippet leaves the handler call alone', () {
+        final result = generator.generate([
+          const IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            snippet: SnippetInfo(title: 'Done'),
+          ),
+        ], []);
+
+        expect(result, contains('return <String, dynamic>{};'));
+        expect(result, isNot(contains('intentResultPayload')));
       });
 
       test('skips swift implementation intents', () {

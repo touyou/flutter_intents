@@ -13,7 +13,11 @@ part 'complete_task_intent.intent.dart';
   description: 'Mark a task as completed',
   urlScheme: 'taskapp',
   urlAction: 'complete',
-  resultDialogTemplate: 'Completed task',
+  // Siri speaks the full line; when it also shows the result it puts the
+  // shorter supporting line next to it (ADR 0005).
+  resultDialogTemplate: 'I marked that task as completed',
+  resultDialogSupportingTemplate: 'Completed',
+  resultDialogSystemImageName: 'checkmark.circle',
   parameterSummary: 'Complete {task}',
 )
 class CompleteTaskIntentSpec extends IntentSpecBase {

@@ -8,14 +8,19 @@
 # pass: a project that enables experimental codegen but hasn't set the build
 # flag must still get compiling stable Swift.
 #
-# Requires a beta Xcode with the iOS 27 SDK selected (xcode-select).
+# Run it against BOTH Xcodes. With the iOS 27 SDK it checks both branches. With
+# an older SDK it checks only the stable branch — the WWDC26 branch cannot
+# compile there by design, but everything outside `#if` must, which is what
+# catches a feature that graduated out of the gate too early (#51).
 #
 # Usage: scripts/verify_experimental_swift.sh
+#        DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+#          scripts/verify_experimental_swift.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CODEGEN="$REPO_ROOT/packages/app_intents_codegen"
-BRIDGE="$REPO_ROOT/packages/app_intents/ios/AppIntentsBridge/Sources/AppIntentsBridge"
+BRIDGE="$REPO_ROOT/packages/app_intents/ios/app_intents/Sources/AppIntentsBridge"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -23,12 +28,17 @@ GEN="$WORK/GeneratedExperimental.swift"
 MOD="$WORK/mod"
 mkdir -p "$MOD"
 
-# Pick an iOS Simulator SDK + matching target (no codesigning needed).
+# Pick an iOS Simulator SDK (no codesigning needed) but compile at the PLUGIN'S
+# MINIMUM deployment target, not the SDK's own version. Compiling at the SDK
+# version silently satisfies every `@available` in the generated code, so a
+# newer-than-declared API used without a guard type-checks fine there and only
+# fails in a real app. At iOS 17.0 it fails here, which is the point.
 SDK="$(xcodebuild -showsdks 2>/dev/null | sed -n 's/.*-sdk \(iphonesimulator[0-9.]*\).*/\1/p' | tail -1)"
 SDK_VER="${SDK#iphonesimulator}"
-TARGET="arm64-apple-ios${SDK_VER}-simulator"
+DEPLOYMENT_TARGET="17.0"
+TARGET="arm64-apple-ios${DEPLOYMENT_TARGET}-simulator"
 
-echo "==> Xcode: $(xcodebuild -version | head -1) (SDK: $SDK, target: $TARGET)"
+echo "==> Xcode: $(xcodebuild -version | head -1) (SDK: $SDK, deployment target: iOS $DEPLOYMENT_TARGET)"
 
 echo "==> Emitting experimental Swift"
 ( cd "$CODEGEN" && dart run tool/emit_experimental_swift.dart "$GEN" >/dev/null )
@@ -36,8 +46,7 @@ echo "==> Emitting experimental Swift"
 echo "==> Building AppIntentsBridge module"
 xcrun --sdk "$SDK" swiftc -target "$TARGET" -emit-module -module-name AppIntentsBridge \
   -emit-module-path "$MOD/AppIntentsBridge.swiftmodule" \
-  "$BRIDGE/FlutterBridge.swift" "$BRIDGE/ErrorHandling.swift" \
-  "$BRIDGE/EntityImage.swift" "$BRIDGE/AppIntentsBridge.swift"
+  "$BRIDGE"/*.swift
 
 typecheck() {
   local label="$1"; shift
@@ -51,6 +60,13 @@ typecheck() {
 }
 
 typecheck "stable fallback (no -D APP_INTENTS_WWDC26)"
-typecheck "WWDC26 form (-D APP_INTENTS_WWDC26)" -D APP_INTENTS_WWDC26
 
-echo "==> All experimental Swift type-checks passed (both branches)."
+# The WWDC26 branch names iOS 27 symbols that are absent from earlier SDKs, so
+# only check it when the SDK can actually provide them.
+if [ "${SDK_VER%%.*}" -ge 27 ]; then
+  typecheck "WWDC26 form (-D APP_INTENTS_WWDC26)" -D APP_INTENTS_WWDC26
+  echo "==> All experimental Swift type-checks passed (both branches)."
+else
+  echo "==> Stable branch passed. Skipped the WWDC26 branch: SDK $SDK_VER has no"
+  echo "    iOS 27 symbols. Re-run with DEVELOPER_DIR pointing at an Xcode 27."
+fi

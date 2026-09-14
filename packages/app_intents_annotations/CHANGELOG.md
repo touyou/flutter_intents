@@ -1,3 +1,8 @@
+## Unreleased
+
+- `SnippetTemplate` / `SnippetRow` and `@IntentSpec(snippet:)`, describing the card Siri shows next to a result (ADR 0007).
+- `@IntentSpec` gains `resultDialogSupportingTemplate` and `resultDialogSystemImageName`, for `IntentDialog(full:supporting:)` result dialogs (ADR 0006). Both are additive and optional; existing specs are unaffected.
+
 ## 0.15.0
 
 - No user-facing changes; released in lockstep with `app_intents` 0.15.0.

@@ -35,6 +35,23 @@
         }
       }
     },
+    "Complete ${task}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete ${task}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了 %@"
+          }
+        }
+      }
+    },
     "Complete Task": {
       "extractionState": "manual",
       "localizations": {
@@ -69,36 +86,19 @@
         }
       }
     },
-    "Complete {task}": {
+    "Completed": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Complete %@"
+            "value": "Completed"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "完了 %@"
-          }
-        }
-      }
-    },
-    "Completed task": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Completed task"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "タスクを完了しました"
+            "value": "完了"
           }
         }
       }
@@ -188,13 +188,13 @@
         }
       }
     },
-    "Create task {title}": {
+    "Create task ${title}": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Create task %@"
+            "value": "Create task ${title}"
           }
         },
         "ja": {
@@ -205,13 +205,13 @@
         }
       }
     },
-    "Create task {title} {image}": {
+    "Create task ${title} ${image}": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Create task %1$@ %2$@"
+            "value": "Create task ${title} ${image}"
           }
         },
         "ja": {
@@ -256,6 +256,23 @@
         }
       }
     },
+    "Done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了済み"
+          }
+        }
+      }
+    },
     "Due Date": {
       "extractionState": "manual",
       "localizations": {
@@ -269,6 +286,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "期限"
+          }
+        }
+      }
+    },
+    "I marked that task as completed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I marked that task as completed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのタスクを完了にしました"
           }
         }
       }
@@ -324,6 +358,23 @@
         }
       }
     },
+    "Open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未完了"
+          }
+        }
+      }
+    },
     "Optional description for the task": {
       "extractionState": "manual",
       "localizations": {
@@ -341,6 +392,23 @@
         }
       }
     },
+    "Summarize how many tasks are left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize how many tasks are left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残っているタスクの数をまとめます"
+          }
+        }
+      }
+    },
     "Task": {
       "extractionState": "manual",
       "localizations": {
@@ -354,6 +422,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "タスク"
+          }
+        }
+      }
+    },
+    "Task Summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task Summary"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タスクの残り"
           }
         }
       }
@@ -422,6 +507,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "タスクの期限"
+          }
+        }
+      }
+    },
+    "You have {result.openCount} tasks left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have %@ tasks left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りのタスクは%@件です"
+          }
+        }
+      }
+    },
+    "{result.openCount} left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り%@件"
           }
         }
       }

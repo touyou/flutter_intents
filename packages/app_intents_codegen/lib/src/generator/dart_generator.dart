@@ -4,6 +4,7 @@ import 'package:dart_style/dart_style.dart';
 import '../models/entity_info.dart';
 import '../models/intent_info.dart';
 import '../models/union_info.dart';
+import 'placeholders.dart';
 
 /// Generator for Dart code that registers intent and entity handlers.
 ///
@@ -427,38 +428,60 @@ $fromMapParams    );
   }
 
   /// Builds a single intent handler registration.
+  ///
+  /// The handler's return value is normally discarded — nothing on the native
+  /// side reads it. When a snippet template interpolates `{result.key}` it does
+  /// read it, so the value is passed through [intentResultPayload] and returned
+  /// instead. Keeping the empty-map form for every other intent means existing
+  /// generated output is unchanged.
   Code _buildIntentHandlerRegistration(IntentInfo intent) {
     final cleanName = _cleanClassName(intent.className);
     final handlerName = '${_toCamelCase(cleanName)}Handler';
+    final returnsPayload = _intentReadsHandlerResult(intent);
 
+    final call = StringBuffer();
     if (intent.parameters.isEmpty) {
-      return Code('''
-AppIntents().registerIntentHandler(
-  '${intent.identifier}',
-  (params) async {
-    await $handlerName();
-    return <String, dynamic>{};
-  },
-);
-''');
+      call.writeln(
+        returnsPayload
+            ? '    final result = await $handlerName();'
+            : '    await $handlerName();',
+      );
+    } else {
+      final paramsClassName = '${cleanName}Params';
+      final handlerArgs = intent.parameters
+          .map((p) => '${p.fieldName}: p.${p.fieldName}')
+          .join(', ');
+      call.writeln('    final p = $paramsClassName.fromMap(params);');
+      call.writeln(
+        returnsPayload
+            ? '    final result = await $handlerName($handlerArgs);'
+            : '    await $handlerName($handlerArgs);',
+      );
     }
-
-    final paramsClassName = '${cleanName}Params';
-    final handlerArgs = intent.parameters
-        .map((p) => '${p.fieldName}: p.${p.fieldName}')
-        .join(', ');
+    call.write(
+      returnsPayload
+          ? '    return intentResultPayload(result);'
+          : '    return <String, dynamic>{};',
+    );
 
     return Code('''
 AppIntents().registerIntentHandler(
   '${intent.identifier}',
   (params) async {
-    final p = $paramsClassName.fromMap(params);
-    await $handlerName($handlerArgs);
-    return <String, dynamic>{};
+${call.toString()}
   },
 );
 ''');
   }
+
+  /// Whether [intent] reads the handler's return value anywhere.
+  ///
+  /// Must cover the dialog templates as well as the snippet's, and must use the
+  /// same placeholder parsing as the analyzer and the Swift generator. A dialog
+  /// reading `{result.…}` while this returned false would leave the Swift side
+  /// reading keys out of a map the Dart side had already thrown away.
+  bool _intentReadsHandlerResult(IntentInfo intent) =>
+      readsHandlerResult(resultTemplatesOf(intent));
 
   /// Builds the _registerEntityHandlers() function.
   Method _buildRegisterEntityHandlersFunction(

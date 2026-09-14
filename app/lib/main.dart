@@ -8,6 +8,7 @@ import 'entities/task_entity.dart';
 import 'intents/complete_task_intent.dart';
 import 'intents/create_task_intent.dart';
 import 'intents/create_task_with_image_intent.dart';
+import 'intents/task_summary_intent.dart';
 import 'models/task.dart';
 import 'repositories/task_repository.dart';
 
@@ -28,6 +29,7 @@ void main() async {
   initializeCreateTaskAppIntents();
   initializeCompleteTaskAppIntents();
   initializeCreateTaskWithImageAppIntents();
+  initializeTaskSummaryAppIntents();
   initializeTaskAppIntents();
 
   runApp(const TaskApp());

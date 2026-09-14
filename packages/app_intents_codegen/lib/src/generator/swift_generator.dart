@@ -5,6 +5,7 @@ import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
 import '../models/union_info.dart';
+import 'placeholders.dart';
 
 /// Information about an App Shortcut to generate.
 class AppShortcutInfo {
@@ -95,8 +96,19 @@ class SwiftGenerator {
     if (_needsCacheImport(info)) {
       buffer.writeln('import app_intents');
     }
+    // `.result(view:)` comes from the _AppIntents_SwiftUI overlay, and the
+    // snippet view has to be emitted alongside the intent that constructs it —
+    // otherwise this single-intent output references an undefined type.
+    if (info.snippet != null) {
+      buffer.writeln('import SwiftUI');
+    }
     buffer.writeln();
 
+    if (info.snippet != null) {
+      _writeSnippetView(buffer, info);
+      buffer.writeln();
+      buffer.writeln();
+    }
     _generateIntentBody(buffer, info);
 
     return buffer.toString();
@@ -393,11 +405,13 @@ class SwiftGenerator {
     }
   }
 
-  /// Returns the Swift return type for a perform() method based on dialog presence.
+  /// Returns the Swift return type for a perform() method based on what the
+  /// result carries: a dialog, a snippet view, both, or neither.
   String _performReturnType(IntentInfo info) {
-    return info.resultDialogTemplate != null
-        ? 'some IntentResult & ProvidesDialog'
-        : 'some IntentResult';
+    final parts = <String>['some IntentResult'];
+    if (info.resultDialogTemplate != null) parts.add('ProvidesDialog');
+    if (info.snippet != null) parts.add('ShowsSnippetView');
+    return parts.join(' & ');
   }
 
   /// Writes the perform() method signature.
@@ -669,16 +683,71 @@ class SwiftGenerator {
   }
 
   /// Writes the return statement (with optional dialog).
+  ///
+  /// A plain `resultDialogTemplate` becomes `.init("…")`. Adding
+  /// `resultDialogSupportingTemplate` switches to `IntentDialog(full:supporting:)`
+  /// — the spoken line and the on-screen line, so a voice-only answer can carry
+  /// context a reader already has on screen. `resultDialogSystemImageName` adds
+  /// the symbol, but those initializers are iOS 17.2+ while generated intents
+  /// target iOS 17.0, so the symbol form is built behind `if #available` with
+  /// the symbol-less dialog as the fallback.
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
-    if (info.resultDialogTemplate != null) {
-      final dialogStr = _interpolateDialogTemplate(
-        info.resultDialogTemplate!,
-        info.parameters,
+    final view = info.snippet == null ? null : _snippetViewExpression(info);
+
+    if (info.resultDialogTemplate == null) {
+      buffer.writeln(
+        view == null
+            ? '${indent}return .result()'
+            : '${indent}return .result(view: $view)',
       );
-      buffer.writeln('${indent}return .result(dialog: .init("$dialogStr"))');
-    } else {
-      buffer.writeln('${indent}return .result()');
+      return;
     }
+
+    final full = _interpolateDialogTemplate(
+      info.resultDialogTemplate!,
+      info.parameters,
+      info: info,
+    );
+    final supporting = info.resultDialogSupportingTemplate == null
+        ? null
+        : _interpolateDialogTemplate(
+            info.resultDialogSupportingTemplate!,
+            info.parameters,
+            info: info,
+          );
+    final symbol = info.resultDialogSystemImageName;
+
+    if (symbol == null) {
+      final expression = supporting == null
+          ? '.init("$full")'
+          : 'IntentDialog(full: "$full", supporting: "$supporting")';
+      buffer.writeln(
+        view == null
+            ? '${indent}return .result(dialog: $expression)'
+            : '${indent}return .result(dialog: $expression, view: $view)',
+      );
+      return;
+    }
+
+    final withSymbol = supporting == null
+        ? 'IntentDialog(full: "$full", systemImageName: "$symbol")'
+        : 'IntentDialog(full: "$full", supporting: "$supporting", '
+              'systemImageName: "$symbol")';
+    final withoutSymbol = supporting == null
+        ? 'IntentDialog("$full")'
+        : 'IntentDialog(full: "$full", supporting: "$supporting")';
+
+    buffer.writeln('${indent}let dialog: IntentDialog');
+    buffer.writeln('${indent}if #available(iOS 17.2, *) {');
+    buffer.writeln('$indent${_indent}dialog = $withSymbol');
+    buffer.writeln('$indent} else {');
+    buffer.writeln('$indent${_indent}dialog = $withoutSymbol');
+    buffer.writeln('$indent}');
+    buffer.writeln(
+      view == null
+          ? '${indent}return .result(dialog: dialog)'
+          : '${indent}return .result(dialog: dialog, view: $view)',
+    );
   }
 
   /// Writes the perform method using FlutterBridge (MethodChannel).
@@ -714,8 +783,10 @@ class SwiftGenerator {
   void _writeFlutterBridgeInvoke(
     StringBuffer buffer,
     IntentInfo info,
-    String baseIndent,
-  ) {
+    String baseIndent, {
+    String? invokePrefix,
+    bool writeResultLocals = true,
+  }) {
     final hasValueState = info.parameters.any((p) => p.useValueState);
     if (hasValueState) {
       // When any param opts into IntentParameter.ValueState (#52), build the
@@ -745,17 +816,22 @@ class SwiftGenerator {
         buffer.writeln('$baseIndent}');
       }
       buffer.writeln(
-        '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+        '$baseIndent${invokePrefix ?? _invokeBinding(info)} '
+        'try await FlutterBridge.shared.invoke(',
       );
       buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
       buffer.writeln('$baseIndent${_indent}params: params');
       buffer.writeln('$baseIndent)');
+      if (writeResultLocals) {
+        _writeSnippetResultLocals(buffer, info, baseIndent);
+      }
       return;
     }
 
     // Fast path: no ValueState opt-in → emit the dict literal inline as before.
     buffer.writeln(
-      '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+      '$baseIndent${invokePrefix ?? _invokeBinding(info)} '
+      'try await FlutterBridge.shared.invoke(',
     );
     buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
     if (info.parameters.isEmpty) {
@@ -773,6 +849,166 @@ class SwiftGenerator {
       buffer.writeln('$baseIndent$_indent]');
     }
     buffer.writeln('$baseIndent)');
+    if (writeResultLocals) {
+      _writeSnippetResultLocals(buffer, info, baseIndent);
+    }
+  }
+
+  /// What precedes a `FlutterBridge.shared.invoke` call — a binding, or
+  /// `return` when the call is the value of a wrapper closure.
+  ///
+  /// The result is discarded unless a snippet template reads `{result.…}` from
+  /// it — binding it unconditionally would produce an unused-variable warning
+  /// in every generated intent.
+  String _invokeBinding(IntentInfo info) =>
+      _snippetResultKeys(info).isEmpty ? 'let _ =' : 'let snippetResult =';
+
+  /// Writes one `let` per `{result.key}` a snippet reads, so the template can
+  /// interpolate a plain `String` instead of an `Any?` subscript.
+  void _writeSnippetResultLocals(
+    StringBuffer buffer,
+    IntentInfo info,
+    String indent,
+  ) {
+    final keys = _snippetResultKeys(info);
+    if (keys.isEmpty) return;
+    buffer.writeln(
+      '${indent}let snippetValues = snippetResult as? [String: Any] ?? [:]',
+    );
+    for (final key in keys) {
+      buffer.writeln(
+        '${indent}let ${_snippetResultLocal(key)} = '
+        'snippetValues["$key"].map { String(describing: \$0) } ?? ""',
+      );
+    }
+  }
+
+  /// The distinct `{result.key}` keys this intent reads, in first-use order.
+  ///
+  /// Covers the snippet templates *and* the dialog templates — the dialog and
+  /// the card describe the same result, so it would be strange for one to be
+  /// able to name a handler value and the other not.
+  List<String> _snippetResultKeys(IntentInfo info) =>
+      handlerResultKeys(resultTemplatesOf(info));
+
+  /// Escapes a string for embedding in a Swift string literal.
+  ///
+  /// An unescaped `"` breaks the build and a bare `\(` is silently
+  /// reinterpreted as interpolation, so author-supplied text never goes into
+  /// a literal directly.
+  String _swiftLiteral(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('\n', '\\n')
+      .replaceAll('\r', '\\r')
+      .replaceAll('\t', '\\t');
+
+  /// The Swift name of an intent's generated snippet view.
+  String _snippetViewName(IntentInfo info) => '${info.className}SnippetView';
+
+  /// Builds the snippet view construction used in `.result(view:)`.
+  String _snippetViewExpression(IntentInfo info) {
+    final snippet = info.snippet!;
+    final args = <String>[
+      'snippetTitle: "${_interpolateSnippetTemplate(snippet.title, info)}"',
+      if (snippet.subtitle != null)
+        'snippetSubtitle: '
+            '"${_interpolateSnippetTemplate(snippet.subtitle!, info)}"',
+      for (var i = 0; i < snippet.rows.length; i++)
+        'rowValue$i: '
+            '"${_interpolateSnippetTemplate(snippet.rows[i].value, info)}"',
+    ];
+    return '${_snippetViewName(info)}(${args.join(', ')})';
+  }
+
+  /// Converts a snippet template into a Swift string-literal body.
+  ///
+  /// `{paramName}` becomes `\(paramName)` like a dialog template;
+  /// `{result.key}` becomes the local written by [_writeSnippetResultLocals].
+  String _interpolateSnippetTemplate(String template, IntentInfo info) {
+    // Escape the author's text FIRST, then insert interpolations — running it
+    // the other way round would escape the backslash of the `\(` we just
+    // added and emit it as literal text.
+    var result = _swiftLiteral(template);
+    for (final key in _snippetResultKeys(info)) {
+      result = substitutePlaceholder(
+        result,
+        '$resultPlaceholderPrefix$key',
+        '\\(${_snippetResultLocal(key)})',
+      );
+    }
+    for (final param in info.parameters) {
+      result = substitutePlaceholder(
+        result,
+        param.fieldName,
+        '\\(${param.fieldName})',
+      );
+    }
+    return result;
+  }
+
+  /// Writes the SwiftUI view backing an intent's snippet card.
+  ///
+  /// The layout is fixed (optional symbol, title, optional subtitle, labelled
+  /// rows) and the dynamic parts arrive as stored `String` properties, so no
+  /// shared runtime type is needed and each intent's view is self-contained.
+  /// Row labels stay literal so they localize through the String Catalog.
+  void _writeSnippetView(StringBuffer buffer, IntentInfo info) {
+    final snippet = info.snippet!;
+    final name = _snippetViewName(info);
+
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('struct $name: View {');
+    buffer.writeln('${_indent}let snippetTitle: String');
+    if (snippet.subtitle != null) {
+      buffer.writeln('${_indent}let snippetSubtitle: String');
+    }
+    for (var i = 0; i < snippet.rows.length; i++) {
+      buffer.writeln('${_indent}let rowValue$i: String');
+    }
+    buffer.writeln();
+    buffer.writeln('${_indent}var body: some View {');
+
+    final i2 = '$_indent$_indent';
+    final i3 = '$i2$_indent';
+    final i4 = '$i3$_indent';
+    final i5 = '$i4$_indent';
+
+    buffer.writeln('${i2}VStack(alignment: .leading, spacing: 8) {');
+    buffer.writeln('${i3}HStack(spacing: 8) {');
+    if (snippet.systemImageName != null) {
+      buffer.writeln(
+        '${i4}Image(systemName: "${_swiftLiteral(snippet.systemImageName!)}")',
+      );
+      buffer.writeln('$i4$_indent.font(.title2)');
+    }
+    buffer.writeln('${i4}VStack(alignment: .leading, spacing: 2) {');
+    buffer.writeln('${i5}Text(snippetTitle)');
+    buffer.writeln('$i5$_indent.font(.headline)');
+    if (snippet.subtitle != null) {
+      buffer.writeln('${i5}Text(snippetSubtitle)');
+      buffer.writeln('$i5$_indent.font(.subheadline)');
+      buffer.writeln('$i5$_indent.foregroundStyle(.secondary)');
+    }
+    buffer.writeln('$i4}');
+    buffer.writeln('$i3}');
+    for (var i = 0; i < snippet.rows.length; i++) {
+      buffer.writeln(
+        '${i3}LabeledContent("${_swiftLiteral(snippet.rows[i].label)}") {',
+      );
+      buffer.writeln('${i4}Text(rowValue$i)');
+      buffer.writeln('$i3}');
+    }
+    buffer.writeln('$i2}');
+    buffer.writeln('$i2.padding()');
+    buffer.writeln('$_indent}');
+    buffer.write('}');
+  }
+
+  /// The Swift local holding the string form of `{result.<key>}`.
+  String _snippetResultLocal(String key) {
+    final sanitized = key.replaceAll(RegExp(r'[^A-Za-z0-9]'), '_');
+    return 'snippetValue_$sanitized';
   }
 
   /// Writes the experimental perform() that wraps the background invoke in
@@ -810,8 +1046,24 @@ class SwiftGenerator {
     final wrapper = info.longRunning
         ? 'performBackgroundTask'
         : 'withIntentCancellationHandler';
-    buffer.writeln('${indent2}try await $wrapper {');
-    _writeFlutterBridgeInvoke(buffer, info, indent3);
+
+    // Both wrappers return the closure's value, so when a dialog or snippet
+    // reads `{result.…}` the payload is bound OUTSIDE the closure. Binding it
+    // inside would put the interpolation locals out of scope by the time the
+    // return statement (emitted after the closure) references them.
+    final needsResult = _snippetResultKeys(info).isNotEmpty;
+    buffer.writeln(
+      needsResult
+          ? '${indent2}let snippetResult = try await $wrapper {'
+          : '${indent2}try await $wrapper {',
+    );
+    _writeFlutterBridgeInvoke(
+      buffer,
+      info,
+      indent3,
+      invokePrefix: needsResult ? 'return' : null,
+      writeResultLocals: false,
+    );
     if (info.cancellable) {
       buffer.writeln('$indent2} onCancel: { reason in');
       buffer.writeln(
@@ -822,6 +1074,8 @@ class SwiftGenerator {
     } else {
       buffer.writeln('$indent2}');
     }
+
+    _writeSnippetResultLocals(buffer, info, indent2);
 
     // Clean up temp files after the background work completes.
     _writeFileParamCleanup(buffer, info, indent2);
@@ -1141,11 +1395,10 @@ class SwiftGenerator {
       _writeOwnershipExtension(buffer, info);
     }
 
-    // #51 IntentValueQuery: an additive iOS 27 query type, in its own #if block
-    // (no #else needed — without the flag the entity simply has no value query;
-    // its normal EntityQuery is unaffected). See ADR 0001.
-    if (experimental.isEnabled(ExperimentalFeature.valueQuery) &&
-        info.valueQuery) {
+    // #51 IntentValueQuery: an additive query type. `IntentValueQuery` exists
+    // in the stable SDK at iOS 26.0, so this is NOT experimental — it is emitted
+    // whenever the entity opts in, guarded by plain `@available`. See ADR 0001.
+    if (info.valueQuery) {
       buffer.writeln();
       buffer.writeln();
       _writeValueQueryStruct(buffer, info);
@@ -1402,13 +1655,38 @@ class SwiftGenerator {
     buffer.write('#endif');
   }
 
-  /// Writes the experimental `IntentValueQuery` conforming struct (#51).
+  /// Writes the `IntentValueQuery` conforming struct (#51).
   ///
   /// Receives a serializable text search input from the system and delegates to
-  /// a Dart handler via `FlutterBridge.shared.queryValues`. Gated by
-  /// `#if APP_INTENTS_WWDC26` with no `#else`: the value query is purely
-  /// additive, so released-SDK builds without the flag just omit it.
+  /// a Dart handler via `FlutterBridge.shared.queryValues`.
+  ///
+  /// This is **not** experimental: `IntentValueQuery` is declared at iOS 26.0 in
+  /// the released SDK (verified against the iOS 26.5 and iOS 27.0 SDKs), so a
+  /// plain `@available` is a sufficient guard and no `#if` is needed. The one
+  /// exception is an entity that opts into App Schema (#49): there the entity
+  /// type itself only exists at iOS 27 inside the `#if` branch, so the query has
+  /// to follow it into both branches or it would reference a type newer than
+  /// itself.
   void _writeValueQueryStruct(StringBuffer buffer, EntityInfo info) {
+    if (_usesExperimentalEntitySchema(info)) {
+      buffer.writeln('#if APP_INTENTS_WWDC26');
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 27.0');
+      buffer.writeln();
+      buffer.writeln('#else');
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 26.0');
+      buffer.writeln();
+      buffer.write('#endif');
+    } else {
+      _writeValueQueryStructBody(buffer, info, availability: 'iOS 26.0');
+    }
+  }
+
+  /// Writes the `IntentValueQuery` struct at a single availability.
+  void _writeValueQueryStructBody(
+    StringBuffer buffer,
+    EntityInfo info, {
+    required String availability,
+  }) {
     final idProp = info.properties
         .where((p) => p.role == EntityPropertyRole.id)
         .firstOrNull;
@@ -1422,8 +1700,7 @@ class SwiftGenerator {
         .where((p) => p.role == EntityPropertyRole.image)
         .firstOrNull;
 
-    buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available($availability, *)');
     buffer.writeln('struct ${info.className}ValueQuery: IntentValueQuery {');
     buffer.writeln(
       '${_indent}func values(for input: String) async throws -> [${info.className}] {',
@@ -1447,8 +1724,7 @@ class SwiftGenerator {
     );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
-    buffer.writeln('}');
-    buffer.write('#endif');
+    buffer.write('}');
   }
 
   /// Writes the experimental `OwnershipProvidingEntity` conformance extension.
@@ -2077,6 +2353,8 @@ class SwiftGenerator {
     List<EntityInfo> entities = const [],
     List<AppShortcutInfo> shortcuts = const [],
     List<EnumInfo> enums = const [],
+    String? appIntentsPackage,
+    List<String> includedPackages = const [],
   }) {
     final buffer = StringBuffer();
 
@@ -2094,6 +2372,14 @@ class SwiftGenerator {
     }
     if (intents.any((i) => i.urlScheme != null)) {
       buffer.writeln('import UIKit');
+    }
+    // `.result(view:)` lives in the _AppIntents_SwiftUI overlay, which is only
+    // pulled in by importing SwiftUI alongside AppIntents.
+    if (intents.any((i) => i.snippet != null)) {
+      buffer.writeln('import SwiftUI');
+    }
+    for (final module in _includedPackageModules(includedPackages)) {
+      buffer.writeln('import $module');
     }
     if (intents.any((i) => _hasFileParams(i))) {
       buffer.writeln('import UniformTypeIdentifiers');
@@ -2126,6 +2412,13 @@ class SwiftGenerator {
 
     // Generate intents (without individual imports)
     for (final intent in intents) {
+      // The snippet view comes first: `perform()` constructs it, so keeping
+      // them adjacent makes the generated file readable top to bottom.
+      if (intent.snippet != null) {
+        _writeSnippetView(buffer, intent);
+        buffer.writeln();
+        buffer.writeln();
+      }
       _generateIntentBody(buffer, intent);
       // #55 intent donation: additive reverse executor, in its own #if block
       // (no #else — without the flag the intent simply isn't donatable). The
@@ -2152,7 +2445,61 @@ class SwiftGenerator {
       buffer.writeln(_generateShortcutsProviderBody(shortcuts));
     }
 
+    if (appIntentsPackage != null) {
+      buffer.writeln();
+      _writeAppIntentsPackage(buffer, appIntentsPackage, includedPackages);
+      buffer.writeln();
+    }
+
     return buffer.toString();
+  }
+
+  /// Writes an `AppIntentsPackage` conformance.
+  ///
+  /// Worth knowing before reaching for this: whether a target sees another
+  /// module's intents is decided by **how it links**, not by this declaration.
+  /// Xcode's SPM links statically by default, and a statically linked
+  /// dependency's extracted metadata is merged into the consumer with no
+  /// declaration at all. Apple's own guidance is conditional — use an App
+  /// Intents Package "when referencing code not compiled into a static
+  /// library". So this exists for the dynamic-linking case (and as the
+  /// documented belt-and-braces form); it is not a fix for "my intent does not
+  /// show up", which is a target-membership or link-form problem.
+  void _writeAppIntentsPackage(
+    StringBuffer buffer,
+    String name,
+    List<String> includedPackages,
+  ) {
+    buffer.writeln('@available(iOS 17.0, *)');
+    if (includedPackages.isEmpty) {
+      buffer.writeln('struct $name: AppIntentsPackage {}');
+      return;
+    }
+    final types = includedPackages.map(_packageTypeReference).join(', ');
+    buffer.writeln('struct $name: AppIntentsPackage {');
+    buffer.writeln('${_indent}static var includedPackages:');
+    buffer.writeln('$_indent$_indent[any AppIntentsPackage.Type] {');
+    buffer.writeln('$_indent$_indent$_indent[$types]');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('}');
+  }
+
+  /// The modules an `includedPackages` list needs imported, from the module
+  /// prefix of each fully qualified type name.
+  Set<String> _includedPackageModules(List<String> includedPackages) => {
+    for (final qualified in includedPackages)
+      if (qualified.contains('.')) qualified.split('.').first,
+  };
+
+  /// The Swift expression naming a package type from its qualified name.
+  ///
+  /// Only the **module** prefix is dropped: importing `SharedIntents` makes
+  /// `Groups.SharedPackage` reachable, not `SharedPackage`, so the rest of the
+  /// path has to survive.
+  String _packageTypeReference(String qualified) {
+    final segments = qualified.split('.');
+    final path = segments.length > 1 ? segments.skip(1).join('.') : qualified;
+    return '$path.self';
   }
 
   /// Generates intent body without import statement.
@@ -2517,14 +2864,27 @@ class SwiftGenerator {
   /// Also escapes double quotes to prevent conflicts with Swift string delimiters.
   String _interpolateDialogTemplate(
     String template,
-    List<IntentParamInfo> params,
-  ) {
+    List<IntentParamInfo> params, {
+    IntentInfo? info,
+  }) {
     var result = template;
     // Escape double quotes for Swift string literals
     result = result.replaceAll('"', '\\"');
+    // `{result.key}` reads the handler's return value, via the same local the
+    // snippet uses. Without this the placeholder would reach Siri verbatim.
+    if (info != null) {
+      for (final key in _snippetResultKeys(info)) {
+        result = substitutePlaceholder(
+          result,
+          '$resultPlaceholderPrefix$key',
+          '\\(${_snippetResultLocal(key)})',
+        );
+      }
+    }
     for (final param in params) {
-      result = result.replaceAll(
-        '{${param.fieldName}}',
+      result = substitutePlaceholder(
+        result,
+        param.fieldName,
         '\\(${param.fieldName})',
       );
     }

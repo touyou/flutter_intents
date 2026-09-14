@@ -600,6 +600,75 @@ Intent実行後にSiri/Shortcutsでユーザーにフィードバックを表示
 
 `{paramName}` プレースホルダーは生成されたSwiftコードで実際のパラメータ値に置換されます。戻り値の型に `ProvidesDialog` が追加されます。
 
+##### 読み上げ用と画面表示用を分ける
+
+Siri は結果を読み上げるだけのこともあれば、画面にも出すこともあります。
+`resultDialogSupportingTemplate` を足すとその2つに別の文言を与えられます。読み上げ側は、
+画面を見れば分かる文脈まで含めて喋らせられます:
+
+```dart
+@IntentSpec(
+  identifier: 'CompleteTaskIntent',
+  title: 'Complete Task',
+  resultDialogTemplate: 'I marked that task as completed',  // 読み上げ
+  resultDialogSupportingTemplate: 'Completed',              // 画面表示
+  resultDialogSystemImageName: 'checkmark.circle',          // 任意の SF Symbol
+)
+```
+
+`IntentDialog(full:supporting:)` が生成されます。どちらのテンプレートも
+`{paramName}` 補間に対応し、String Catalog にも載ります。
+
+`resultDialogSystemImageName` が使うイニシャライザは iOS 17.2+ のため、生成コードは
+`if #available(iOS 17.2, *)` で囲み、それ未満ではシンボル無しのダイアログに落とします
+（Intent のデプロイメントターゲットは iOS 17.0 のままです）。
+
+どちらのフィールドも `resultDialogTemplate` が前提です。片方だけを指定した場合は
+黙って無視せず、コード生成エラーになります。
+
+#### スニペットカード
+
+Siri は結果の横にカードを出せます。App Intents はこれを SwiftUI で描くため Flutter
+アプリからは渡せません。そこで `@IntentSpec(snippet:)` は固定レイアウトの記述を受け取り、
+生成器が SwiftUI ビューに変換します:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.app.taskSummary',
+  title: 'Task Summary',
+  resultDialogTemplate: 'You have {result.openCount} tasks left',
+  snippet: SnippetTemplate(
+    title: '{result.headline}',
+    subtitle: 'Updated just now',
+    systemImageName: 'checklist',
+    rows: [
+      SnippetRow(label: 'Open', value: '{result.openCount}'),
+      SnippetRow(label: 'Done', value: '{result.completedCount}'),
+    ],
+  ),
+)
+```
+
+プレースホルダは2系統あります:
+
+| 記法 | 出典 | 実行モード |
+|---|---|---|
+| `{paramName}` | Intent のパラメータ | 全モード |
+| `{result.key}` | Dart ハンドラが返す Map のキー | **FlutterBridge のみ** |
+
+`{result.key}` はハンドラの戻り値を必要とし、それが返ってくるのは `perform()` が
+FlutterBridge を呼ぶ場合だけです。URL scheme / foreground の Intent はアプリに引き渡して
+ハンドラ実行前に return するため、そこで使うと**黙って空のカードを描くのではなく**
+コード生成エラーになります。同じ記法は `resultDialogTemplate` でも使えます。
+
+`{result.…}` を使う Intent では、生成された Dart がハンドラの戻り値を捨てずに
+`intentResultPayload`（`Map` / `toJson()` を持つ値 / `null` を受け付ける）に通して返します。
+他の Intent のハンドラは従来どおりです。
+
+行ラベルはリテラルなので String Catalog でローカライズされます。値は実行ごとに補間される
+ため対象外です。このレイアウトを超える表現が要る場合は `openAppWhenRun` でアプリ本体を
+開いてください。
+
 #### Parameter Summary
 
 Shortcutsエディタでの表示を制御：
@@ -943,6 +1012,75 @@ if #available(iOS 17.0, *) {
 
 これはコードジェネレータでは自動生成されません — エンティティデータが変更される場所でSwiftコードに手動で追加してください。
 
+## IntentValueQuery (#51) — 構造化検索
+
+> **実験的機能ではありません。** `IntentValueQuery` はリリース済み SDK に iOS 26.0 で
+> 宣言されているため、クエリ型は既定で生成されます（`@available(iOS 26.0, *)` で
+> ガード、`#if` も `--experimental` フラグも不要）。
+> `--experimental=value-query` は互換のため受け付けますが no-op として通知します。
+
+事前インデックスが難しいコンテンツ（大規模・サーバーサイド・高頻度更新）向けに、
+`IntentValueQuery` は検索入力を受け取り一致エンティティを返します。エンティティ単位で
+`valueQuery: true` を指定し、`<entity>ValueQuery` という名前のハンドラを定義します:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ProductEntity',
+  title: 'Product',
+  pluralTitle: 'Products',
+  valueQuery: true,
+)
+class ProductEntitySpec extends EntitySpecBase<Product> { /* ... */ }
+
+// 同じ spec ファイル内のハンドラ（システムのテキストクエリを受け取る）:
+Future<List<Product>> productEntityValueQuery(String input) async {
+  return ProductRepository.instance.search(input);
+}
+```
+
+生成 Dart がハンドラを自動登録します。ネイティブ側では value-query executor を配線します
+（[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
+ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
+
+## ターゲット間で Intent を共有する（`AppIntentsPackage`）
+
+生成した Intent をアプリターゲットと Extension（Widget 等）の両方から使いたい場合は、
+同じファイルを両ターゲットにコンパイルするのではなく、**共有 Swift パッケージ**に置いて
+両方がリンクします。同じ Intent 型が2つあると `Metadata.appIntents` に重複し、iOS が
+intent を解決できなくなります。
+
+```bash
+# 共有パッケージ側
+dart run app_intents_codegen:generate_swift \
+  -o ../SharedIntents/Sources/SharedIntents \
+  --app-intents-package SharedIntentsPackage
+
+# 利用側ターゲット
+dart run app_intents_codegen:generate_widget_swift \
+  -o ios/TaskWidget/GeneratedIntents \
+  --app-group group.com.example.app \
+  --storage-identifier com.example.app \
+  --app-intents-package TaskWidgetAppIntentsPackage \
+  --include-package SharedIntents.SharedIntentsPackage
+```
+
+`--include-package` はモジュール修飾名を取り、接頭辞が `import` になります。
+
+**この宣言が何をして何をしないか。** あるターゲットが別モジュールの Intent を見えるか
+どうかは**リンクの形**で決まり、この宣言では決まりません。Xcode の SPM は既定で静的
+リンクで、静的リンクした依存先の抽出済みメタデータは宣言ゼロで利用側にマージされます。
+宣言が生むのは**動的**リンク境界で必要になる `extract.packagedata` のエントリだけです
+（Apple の案内も「静的ライブラリにコンパイルされていないコードを参照するとき」という
+条件付き）。メタデータに型が出てこない場合に見るべきはターゲットメンバシップとリンク
+形態であって、`includedPackages` の足し引きでは変わりません。
+
+2点だけ注意:
+
+- 宣言は**1ターゲットにつき1つ**。メインターゲットでの重複宣言が Shortcuts の intent
+  ルーティングを壊した事例があります。
+- `@AppShortcutsProvider` は**アプリターゲット直下**に置いてください。パッケージ内に移すと
+  自動ショートカットが 0 件になります。
+
 ## WWDC26 実験的機能（opt-in）
 
 codegen は WWDC26 の App Intents API（iOS 26.4 / iOS 27+）を出力できます。これらの
@@ -956,7 +1094,7 @@ Swift は `#if APP_INTENTS_WWDC26` で囲まれビルド設定からも切り替
 # マスタースイッチ + 機能選択（カンマ区切り）。マスター OFF なら一切出力しない。
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-query,value-representation,donation,long-running,app-schema,ownership,rich-types
+  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types
 ```
 
 出力された WWDC26 形をコンパイルするには、Xcode のターゲットの **Active Compilation
@@ -970,7 +1108,6 @@ Conditions**（Swift フラグ）に `APP_INTENTS_WWDC26` を追加します。�
 | `ownership` | `@EntitySpec(ownership:)` による `OwnershipProvidingEntity` 準拠 (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / 実行ターゲット (#52) |
 | `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53) |
-| `value-query` | `IntentValueQuery` 構造化検索 (#51) |
 | `value-representation` | `ValueRepresentation` によるアプリ間エンティティ export (#54) |
 | `donation` | `SyncableEntity` + `RelevantEntities` ドネーション (#55) |
 
@@ -1005,31 +1142,6 @@ class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
 - カタログは**非網羅**です — システムは生文字列で照合するため、任意の `'domain.schema'`
   が使えます。未収録のスキーマは
   `schema: AppSchemas.of(AppSchemaDomain.calendar, 'event')` → `'calendar.event'`。
-
-### IntentValueQuery (#51) — 構造化検索
-
-事前インデックスが難しいコンテンツ（大規模・サーバーサイド・高頻度更新）向けに、
-`IntentValueQuery` は検索入力を受け取り一致エンティティを返します。エンティティ単位で
-`valueQuery: true` を指定し、`<entity>ValueQuery` という名前のハンドラを定義します:
-
-```dart
-@EntitySpec(
-  identifier: 'com.example.app.ProductEntity',
-  title: 'Product',
-  pluralTitle: 'Products',
-  valueQuery: true,
-)
-class ProductEntitySpec extends EntitySpecBase<Product> { /* ... */ }
-
-// 同じ spec ファイル内のハンドラ（システムのテキストクエリを受け取る）:
-Future<List<Product>> productEntityValueQuery(String input) async {
-  return ProductRepository.instance.search(input);
-}
-```
-
-生成 Dart がハンドラを自動登録します。ネイティブ側では value-query executor を配線します
-（[ネイティブ配線](#実験的ブリッジのネイティブ配線)参照）。ビジュアル（カメラ/スクリーン
-ショット、`SemanticContentDescriptor`）版は**対象外**で、ネイティブ完結（別途管理）です。
 
 ### アプリ間エンティティ export (#54)
 
@@ -1132,9 +1244,14 @@ if #available(iOS 26.0, *) {
 #endif
 ```
 
-> 生成 Swift の検証: `scripts/verify_experimental_swift.sh` を実行（iOS 27 SDK の beta
-> Xcode が必要）。生成出力を `-D APP_INTENTS_WWDC26` の有/無の両方で type-check するため、
-> WWDC26 形と安定フォールバック形の両方がコンパイル可能であることが保証されます。
+> 生成 Swift の検証: `scripts/verify_experimental_swift.sh` を `DEVELOPER_DIR` で
+> **両方の Xcode** に対して実行します。Xcode 27 では `-D APP_INTENTS_WWDC26` の有/無で
+> 2回 type-check するため、WWDC26 形と安定フォールバック形の両方がコンパイル可能である
+> ことが分かります。安定版 Xcode では `#if` の付かない分岐だけを検証します（WWDC26 側は
+> その SDK に無い iOS 27 シンボルを名指すため）。**ゲート無しの機能が iOS 27 SDK 無しで
+> コンパイルできることを証明するのはこちらの実行です。** 型チェックは SDK のバージョン
+> ではなく**デプロイメントターゲット iOS 17.0** で行うので、`@available` のガード漏れは
+> 実アプリではなくここで落ちます。
 
 ## WidgetKit の Widget Extension
 

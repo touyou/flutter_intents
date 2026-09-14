@@ -4,6 +4,8 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 
 import '../models/intent_info.dart';
+import '../models/snippet_info.dart';
+import '../generator/placeholders.dart';
 import '../models/union_info.dart';
 import 'union_analyzer.dart';
 
@@ -46,6 +48,31 @@ class IntentAnalyzer {
     final resultDialogTemplate = annotation
         .getField('resultDialogTemplate')
         ?.toStringValue();
+    final resultDialogSupportingTemplate = annotation
+        .getField('resultDialogSupportingTemplate')
+        ?.toStringValue();
+    final resultDialogSystemImageName = annotation
+        .getField('resultDialogSystemImageName')
+        ?.toStringValue();
+    final snippet = _parseSnippet(annotation.getField('snippet'), element);
+    if (resultDialogTemplate == null) {
+      // Both refine a dialog that wouldn't exist; silently dropping them would
+      // look like Siri simply chose not to show the supporting text.
+      if (resultDialogSupportingTemplate != null) {
+        throw InvalidGenerationSourceError(
+          '@IntentSpec(resultDialogSupportingTemplate:) requires '
+          '"resultDialogTemplate" — it is the on-screen half of that dialog.',
+          element: element,
+        );
+      }
+      if (resultDialogSystemImageName != null) {
+        throw InvalidGenerationSourceError(
+          '@IntentSpec(resultDialogSystemImageName:) requires '
+          '"resultDialogTemplate" — the symbol is shown with that dialog.',
+          element: element,
+        );
+      }
+    }
     final parameterSummary = annotation
         .getField('parameterSummary')
         ?.toStringValue();
@@ -93,6 +120,24 @@ class IntentAnalyzer {
       _validateDonatableParameters(element, parameters);
     }
 
+    _validateResultPlaceholders(
+      element: element,
+      templates: [
+        ...?snippet?.templates,
+        ?resultDialogTemplate,
+        ?resultDialogSupportingTemplate,
+      ],
+      urlScheme: urlScheme,
+      supportedModes: supportedModes,
+    );
+    if (snippet != null) {
+      _validateSnippetPlaceholderNames(
+        element: element,
+        snippet: snippet,
+        parameters: parameters,
+      );
+    }
+
     return IntentInfo(
       className: element.name!,
       identifier: identifier,
@@ -103,6 +148,9 @@ class IntentAnalyzer {
       urlScheme: urlScheme,
       urlAction: urlAction,
       resultDialogTemplate: resultDialogTemplate,
+      resultDialogSupportingTemplate: resultDialogSupportingTemplate,
+      resultDialogSystemImageName: resultDialogSystemImageName,
+      snippet: snippet,
       parameterSummary: parameterSummary,
       supportedModes: supportedModes,
       longRunning: longRunning,
@@ -187,6 +235,110 @@ class IntentAnalyzer {
       }
     }
     return result;
+  }
+
+  /// Parses `@IntentSpec(snippet:)` into a [SnippetInfo].
+  SnippetInfo? _parseSnippet(DartObject? field, Element element) {
+    if (field == null || field.isNull) return null;
+
+    final title = field.getField('title')?.toStringValue();
+    if (title == null || title.isEmpty) {
+      throw InvalidGenerationSourceError(
+        'SnippetTemplate requires a non-empty "title" — a card with no '
+        'headline has nothing to show.',
+        element: element,
+      );
+    }
+
+    final rows = <SnippetRowInfo>[];
+    for (final row in field.getField('rows')?.toListValue() ?? const []) {
+      final label = row.getField('label')?.toStringValue();
+      final value = row.getField('value')?.toStringValue();
+      if (label == null || value == null) continue;
+      rows.add(SnippetRowInfo(label: label, value: value));
+    }
+
+    return SnippetInfo(
+      title: title,
+      subtitle: field.getField('subtitle')?.toStringValue(),
+      systemImageName: field.getField('systemImageName')?.toStringValue(),
+      rows: rows,
+    );
+  }
+
+  /// Rejects `{result.…}` placeholders on intents that can never have a result.
+  ///
+  /// The placeholder needs the Dart handler's return value, which only comes
+  /// back in FlutterBridge mode — the URL scheme and cache modes hand off to
+  /// the app and `perform()` returns before the handler has run. Left
+  /// unchecked they would silently render empty at runtime, on a Siri surface
+  /// the developer cannot easily inspect. Applies to dialog templates and
+  /// snippet templates alike, since both read the same result.
+  void _validateResultPlaceholders({
+    required Element element,
+    required List<String> templates,
+    required String? urlScheme,
+    required IntentModeType? supportedModes,
+  }) {
+    if (!readsHandlerResult(templates)) return;
+
+    if (urlScheme != null) {
+      throw InvalidGenerationSourceError(
+        'A "{result.…}" placeholder needs the Dart handler\'s return value, '
+        'but this intent runs through a URL scheme: perform() opens the app '
+        'and returns before the handler produces a result. Use "{paramName}" '
+        'placeholders, or drop "urlScheme" so the intent runs through '
+        'FlutterBridge.',
+        element: element,
+      );
+    }
+    if (supportedModes == IntentModeType.foreground) {
+      throw InvalidGenerationSourceError(
+        'A "{result.…}" placeholder needs the Dart handler\'s return value, '
+        'but this intent uses supportedModes: IntentMode.foreground, which '
+        'caches the parameters and lets the app run the handler later — there '
+        'is no result to show. Use "{paramName}" placeholders instead.',
+        element: element,
+      );
+    }
+  }
+
+  /// Rejects snippet placeholders that name neither a parameter nor a result
+  /// key, which would otherwise reach Siri as literal `{braces}`.
+  void _validateSnippetPlaceholderNames({
+    required Element element,
+    required SnippetInfo snippet,
+    required List<IntentParamInfo> parameters,
+  }) {
+    // Row labels are emitted as literal `LabeledContent` keys, so a placeholder
+    // there is never substituted — Siri would show the braces.
+    for (final row in snippet.rows) {
+      final placeholder = placeholderNames(row.label).firstOrNull;
+      if (placeholder != null) {
+        throw InvalidGenerationSourceError(
+          'SnippetRow(label: "${row.label}") contains the placeholder '
+          '"{$placeholder}", but a row label is static text and is rendered '
+          'literally. Put the placeholder in the row\'s "value" instead.',
+          element: element,
+        );
+      }
+    }
+
+    final names = parameters.map((p) => p.fieldName).toSet();
+    for (final template in snippet.templates) {
+      for (final placeholder in placeholderNames(template)) {
+        if (placeholder.startsWith(resultPlaceholderPrefix)) continue;
+        if (names.contains(placeholder)) continue;
+        throw InvalidGenerationSourceError(
+          'SnippetTemplate references "{$placeholder}", which is not a '
+          'parameter of this intent. Known parameters: '
+          '${names.isEmpty ? '(none)' : names.join(', ')}. '
+          'For handler output use '
+          '"{$resultPlaceholderPrefix$placeholder}".',
+          element: element,
+        );
+      }
+    }
   }
 
   IntentModeType? _parseSupportedModes(DartObject? field) {

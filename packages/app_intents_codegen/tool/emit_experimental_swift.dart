@@ -14,6 +14,7 @@ import 'package:app_intents_codegen/src/experimental/experimental_features.dart'
 import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
+import 'package:app_intents_codegen/src/models/snippet_info.dart';
 
 void main(List<String> args) {
   final out = args.isNotEmpty ? args.first : 'GeneratedVerify.swift';
@@ -61,6 +62,10 @@ void main(List<String> args) {
     pluralTitle: 'Messages',
     schema: 'messages.message', // #49
     ownership: EntityOwnershipType.shared, // #55 ownership
+    // #51 on a schema entity: the query must follow the entity into BOTH
+    // branches (iOS 27 in the #if, iOS 26 in the #else) or it would reference
+    // a type newer than itself.
+    valueQuery: true,
     properties: [
       EntityPropertyInfo(
         fieldName: 'id',
@@ -93,6 +98,14 @@ void main(List<String> args) {
     schema: 'messages.sendMessage', // #49
     longRunning: true, // #52
     cancellable: true, // #52
+    // A `{result.…}` template on a long-running intent: the invoke runs inside
+    // the wrapper closure, so the payload must be bound outside it or the
+    // interpolation locals are out of scope at the return statement.
+    resultDialogTemplate: 'Sent to {result.recipient}',
+    snippet: SnippetInfo(
+      title: '{result.recipient}',
+      rows: [SnippetRowInfo(label: 'Status', value: '{result.status}')],
+    ),
     parameters: [
       IntentParamInfo(
         fieldName: 'text',
@@ -103,8 +116,41 @@ void main(List<String> args) {
     ],
   );
 
+  // Intent exercising the dual-text + symbol result dialog (ADR 0005). Not
+  // experimental — `IntentDialog(full:supporting:)` is iOS 16 and the symbol
+  // form is iOS 17.2, reached through an `if #available` — but it still has to
+  // compile, and only a typecheck proves the availability dance is right.
+  const dialogIntent = IntentInfo(
+    className: 'AnnounceTaskIntent',
+    identifier: 'com.example.app.announceTask',
+    title: 'Announce Task',
+    implementation: IntentImplementationType.dart,
+    resultDialogTemplate: 'I created the task {title}',
+    resultDialogSupportingTemplate: 'Task created',
+    resultDialogSystemImageName: 'checkmark.circle',
+    // ADR 0007: the declarative snippet card, reading both an intent parameter
+    // and a key of the Dart handler's result.
+    snippet: SnippetInfo(
+      title: '{title}',
+      subtitle: 'Saved to {result.listName}',
+      systemImageName: 'checkmark.circle.fill',
+      rows: [
+        SnippetRowInfo(label: 'Due', value: '{result.dueDate}'),
+        SnippetRowInfo(label: 'List', value: 'Inbox'),
+      ],
+    ),
+    parameters: [
+      IntentParamInfo(
+        fieldName: 'title',
+        dartType: 'String',
+        title: 'Title',
+        isOptional: false,
+      ),
+    ],
+  );
+
   final swift = gen.generateAll(
-    intents: [sendIntent],
+    intents: [sendIntent, dialogIntent],
     entities: [productEntity, messageEntity],
   );
 
