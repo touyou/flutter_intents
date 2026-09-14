@@ -572,6 +572,120 @@ void main() {
         );
       });
 
+      test('extracts a snippet template (ADR 0007)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.snippet',
+            title: 'Snippet',
+            snippet: SnippetTemplate(
+              title: '{title}',
+              subtitle: 'Saved to {result.listName}',
+              systemImageName: 'checkmark.circle.fill',
+              rows: [SnippetRow(label: 'Due', value: '{result.dueDate}')],
+            ),
+          )
+          class SnippetIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            SnippetIntent({required this.title});
+          }
+        ''');
+        final info = analyzer.analyze(findClass(library, 'SnippetIntent'))!;
+        expect(info.snippet, isNotNull);
+        expect(info.snippet!.title, '{title}');
+        expect(info.snippet!.subtitle, 'Saved to {result.listName}');
+        expect(info.snippet!.systemImageName, 'checkmark.circle.fill');
+        expect(info.snippet!.rows.single.label, 'Due');
+        expect(info.snippet!.rows.single.value, '{result.dueDate}');
+      });
+
+      test('rejects {result.…} on a URL scheme intent', () async {
+        // perform() opens the app and returns before the handler runs, so the
+        // placeholder would render empty on a surface nobody can debug.
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet',
+            title: 'Bad',
+            urlScheme: 'taskapp',
+            snippet: SnippetTemplate(title: '{result.name}'),
+          )
+          class BadUrlSnippetIntent extends IntentSpecBase {
+            BadUrlSnippetIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadUrlSnippetIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('runs through a URL scheme'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects {result.…} on a foreground intent', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet2',
+            title: 'Bad',
+            supportedModes: IntentMode.foreground,
+            snippet: SnippetTemplate(title: '{result.name}'),
+          )
+          class BadForegroundSnippetIntent extends IntentSpecBase {
+            BadForegroundSnippetIntent();
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(
+            findClass(library, 'BadForegroundSnippetIntent'),
+          ),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('IntentMode.foreground'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a placeholder that names no parameter', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.badsnippet3',
+            title: 'Bad',
+            snippet: SnippetTemplate(title: '{nope}'),
+          )
+          class BadPlaceholderIntent extends IntentSpecBase {
+            @IntentParam(title: 'Title')
+            final String title;
+
+            BadPlaceholderIntent({required this.title});
+          }
+        ''');
+        expect(
+          () => analyzer.analyze(findClass(library, 'BadPlaceholderIntent')),
+          throwsA(
+            isA<Object>().having(
+              (e) => e.toString(),
+              'message',
+              contains('is not a parameter of this intent'),
+            ),
+          ),
+        );
+      });
+
       test('extracts urlScheme and urlAction when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

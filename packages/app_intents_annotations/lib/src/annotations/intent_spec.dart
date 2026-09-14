@@ -1,5 +1,6 @@
 import 'intent_execution_target.dart';
 import 'intent_mode.dart';
+import 'snippet_template.dart';
 
 /// Annotation to specify an app intent.
 class IntentSpec {
@@ -49,6 +50,14 @@ class IntentSpec {
   /// Example: `resultDialogTemplate: 'I created the task {title}'` +
   /// `resultDialogSupportingTemplate: 'Task created'`.
   final String? resultDialogSupportingTemplate;
+
+  /// A declarative card shown alongside the result in Siri.
+  ///
+  /// Generates a SwiftUI snippet view from a fixed layout, because Flutter
+  /// widgets cannot be handed to Siri. See [SnippetTemplate] for the
+  /// placeholder syntax and the FlutterBridge-only restriction on
+  /// `{result.key}`.
+  final SnippetTemplate? snippet;
 
   /// SF Symbol shown alongside the result dialog (e.g. `'checkmark.circle'`).
   ///
@@ -142,6 +151,7 @@ class IntentSpec {
     this.resultDialogTemplate,
     this.resultDialogSupportingTemplate,
     this.resultDialogSystemImageName,
+    this.snippet,
     this.parameterSummary,
     this.supportedModes,
     this.longRunning = false,

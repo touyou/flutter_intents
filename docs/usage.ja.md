@@ -626,6 +626,49 @@ Siri は結果を読み上げるだけのこともあれば、画面にも出す
 どちらのフィールドも `resultDialogTemplate` が前提です。片方だけを指定した場合は
 黙って無視せず、コード生成エラーになります。
 
+#### スニペットカード
+
+Siri は結果の横にカードを出せます。App Intents はこれを SwiftUI で描くため Flutter
+アプリからは渡せません。そこで `@IntentSpec(snippet:)` は固定レイアウトの記述を受け取り、
+生成器が SwiftUI ビューに変換します:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.app.taskSummary',
+  title: 'Task Summary',
+  resultDialogTemplate: 'You have {result.openCount} tasks left',
+  snippet: SnippetTemplate(
+    title: '{result.headline}',
+    subtitle: 'Updated just now',
+    systemImageName: 'checklist',
+    rows: [
+      SnippetRow(label: 'Open', value: '{result.openCount}'),
+      SnippetRow(label: 'Done', value: '{result.completedCount}'),
+    ],
+  ),
+)
+```
+
+プレースホルダは2系統あります:
+
+| 記法 | 出典 | 実行モード |
+|---|---|---|
+| `{paramName}` | Intent のパラメータ | 全モード |
+| `{result.key}` | Dart ハンドラが返す Map のキー | **FlutterBridge のみ** |
+
+`{result.key}` はハンドラの戻り値を必要とし、それが返ってくるのは `perform()` が
+FlutterBridge を呼ぶ場合だけです。URL scheme / foreground の Intent はアプリに引き渡して
+ハンドラ実行前に return するため、そこで使うと**黙って空のカードを描くのではなく**
+コード生成エラーになります。同じ記法は `resultDialogTemplate` でも使えます。
+
+`{result.…}` を使う Intent では、生成された Dart がハンドラの戻り値を捨てずに
+`intentResultPayload`（`Map` / `toJson()` を持つ値 / `null` を受け付ける）に通して返します。
+他の Intent のハンドラは従来どおりです。
+
+行ラベルはリテラルなので String Catalog でローカライズされます。値は実行ごとに補間される
+ため対象外です。このレイアウトを超える表現が要る場合は `openAppWhenRun` でアプリ本体を
+開いてください。
+
 #### Parameter Summary
 
 Shortcutsエディタでの表示を制御：

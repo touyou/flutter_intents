@@ -11,6 +11,7 @@ export 'src/annotations/intent_execution_target.dart';
 export 'src/annotations/intent_mode.dart';
 export 'src/annotations/intent_param.dart';
 export 'src/annotations/intent_spec.dart';
+export 'src/annotations/snippet_template.dart';
 export 'src/annotations/union_value.dart';
 export 'src/annotations/widget_configuration_spec.dart';
 export 'src/schema/app_schema.dart';

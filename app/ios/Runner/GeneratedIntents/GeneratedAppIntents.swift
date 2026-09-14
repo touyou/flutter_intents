@@ -5,6 +5,7 @@
 import AppIntents
 import AppIntentsBridge
 import UIKit
+import SwiftUI
 import UniformTypeIdentifiers
 import app_intents
 
@@ -51,6 +52,57 @@ struct CompleteTaskIntentSpec: AppIntent {
             dialog = IntentDialog(full: "I marked that task as completed", supporting: "Completed")
         }
         return .result(dialog: dialog)
+    }
+}
+
+@available(iOS 17.0, *)
+struct TaskSummaryIntentSpecSnippetView: View {
+    let snippetTitle: String
+    let snippetSubtitle: String
+    let rowValue0: String
+    let rowValue1: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "checklist")
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(snippetTitle)
+                        .font(.headline)
+                    Text(snippetSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            LabeledContent("Open") {
+                Text(rowValue0)
+            }
+            LabeledContent("Done") {
+                Text(rowValue1)
+            }
+        }
+        .padding()
+    }
+}
+
+@available(iOS 17.0, *)
+struct TaskSummaryIntentSpec: AppIntent {
+    static var title: LocalizedStringResource = "Task Summary"
+    static var description: IntentDescription =
+        IntentDescription("Summarize how many tasks are left")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
+        let snippetResult = try await FlutterBridge.shared.invoke(
+            intent: "TaskSummaryIntentSpec",
+            params: [:]
+        )
+        let snippetValues = snippetResult as? [String: Any] ?? [:]
+        let snippetValue_headline = snippetValues["headline"].map { String(describing: $0) } ?? ""
+        let snippetValue_openCount = snippetValues["openCount"].map { String(describing: $0) } ?? ""
+        let snippetValue_completedCount = snippetValues["completedCount"].map { String(describing: $0) } ?? ""
+        return .result(dialog: IntentDialog(full: "You have \(snippetValue_openCount) tasks left", supporting: "\(snippetValue_openCount) left"), view: TaskSummaryIntentSpecSnippetView(snippetTitle: "\(snippetValue_headline)", snippetSubtitle: "Updated just now", rowValue0: "\(snippetValue_openCount)", rowValue1: "\(snippetValue_completedCount)"))
     }
 }
 

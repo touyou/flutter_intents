@@ -1,4 +1,5 @@
 import 'union_info.dart';
+import 'snippet_info.dart';
 
 /// Represents analyzed information about an intent specification.
 class IntentInfo {
@@ -40,6 +41,9 @@ class IntentInfo {
   /// [resultDialogTemplate]. The symbol initializers are iOS 17.2+, so the
   /// generated code falls back to the symbol-less dialog below that version.
   final String? resultDialogSystemImageName;
+
+  /// The declarative snippet card shown with the result, if any.
+  final SnippetInfo? snippet;
 
   /// Template for the parameter summary shown in Shortcuts UI.
   /// Supports {paramName} references.
@@ -83,6 +87,7 @@ class IntentInfo {
     this.resultDialogTemplate,
     this.resultDialogSupportingTemplate,
     this.resultDialogSystemImageName,
+    this.snippet,
     this.parameterSummary,
     this.supportedModes,
     this.longRunning = false,
@@ -108,6 +113,7 @@ class IntentInfo {
         resultDialogSupportingTemplate ==
             other.resultDialogSupportingTemplate &&
         resultDialogSystemImageName == other.resultDialogSystemImageName &&
+        snippet == other.snippet &&
         parameterSummary == other.parameterSummary &&
         supportedModes == other.supportedModes &&
         longRunning == other.longRunning &&
@@ -130,6 +136,7 @@ class IntentInfo {
     resultDialogTemplate,
     resultDialogSupportingTemplate,
     resultDialogSystemImageName,
+    snippet,
     parameterSummary,
     supportedModes,
     longRunning,
@@ -148,6 +155,7 @@ class IntentInfo {
       'resultDialogTemplate: $resultDialogTemplate, '
       'resultDialogSupportingTemplate: $resultDialogSupportingTemplate, '
       'resultDialogSystemImageName: $resultDialogSystemImageName, '
+      'snippet: $snippet, '
       'parameterSummary: $parameterSummary, '
       'supportedModes: $supportedModes, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '

@@ -427,37 +427,59 @@ $fromMapParams    );
   }
 
   /// Builds a single intent handler registration.
+  ///
+  /// The handler's return value is normally discarded — nothing on the native
+  /// side reads it. When a snippet template interpolates `{result.key}` it does
+  /// read it, so the value is passed through [intentResultPayload] and returned
+  /// instead. Keeping the empty-map form for every other intent means existing
+  /// generated output is unchanged.
   Code _buildIntentHandlerRegistration(IntentInfo intent) {
     final cleanName = _cleanClassName(intent.className);
     final handlerName = '${_toCamelCase(cleanName)}Handler';
+    final returnsPayload = _snippetReadsResult(intent);
 
+    final call = StringBuffer();
     if (intent.parameters.isEmpty) {
-      return Code('''
-AppIntents().registerIntentHandler(
-  '${intent.identifier}',
-  (params) async {
-    await $handlerName();
-    return <String, dynamic>{};
-  },
-);
-''');
+      call.writeln(
+        returnsPayload
+            ? '    final result = await $handlerName();'
+            : '    await $handlerName();',
+      );
+    } else {
+      final paramsClassName = '${cleanName}Params';
+      final handlerArgs = intent.parameters
+          .map((p) => '${p.fieldName}: p.${p.fieldName}')
+          .join(', ');
+      call.writeln('    final p = $paramsClassName.fromMap(params);');
+      call.writeln(
+        returnsPayload
+            ? '    final result = await $handlerName($handlerArgs);'
+            : '    await $handlerName($handlerArgs);',
+      );
     }
-
-    final paramsClassName = '${cleanName}Params';
-    final handlerArgs = intent.parameters
-        .map((p) => '${p.fieldName}: p.${p.fieldName}')
-        .join(', ');
+    call.write(
+      returnsPayload
+          ? '    return intentResultPayload(result);'
+          : '    return <String, dynamic>{};',
+    );
 
     return Code('''
 AppIntents().registerIntentHandler(
   '${intent.identifier}',
   (params) async {
-    final p = $paramsClassName.fromMap(params);
-    await $handlerName($handlerArgs);
-    return <String, dynamic>{};
+${call.toString()}
   },
 );
 ''');
+  }
+
+  /// Whether [intent]'s snippet template reads the handler's return value.
+  bool _snippetReadsResult(IntentInfo intent) {
+    final snippet = intent.snippet;
+    if (snippet == null) return false;
+    return snippet.templates.any(
+      (template) => RegExp(r'\{result\.[^}]+\}').hasMatch(template),
+    );
   }
 
   /// Builds the _registerEntityHandlers() function.

@@ -33,6 +33,11 @@ class XcstringsGenerator {
       if (intent.resultDialogSupportingTemplate != null) {
         strings.add(intent.resultDialogSupportingTemplate!);
       }
+      // Snippet row labels are literal `LabeledContent` keys, so they localize
+      // through the catalog. The values are interpolated per run and cannot.
+      for (final row in intent.snippet?.rows ?? const []) {
+        strings.add(row.label);
+      }
       if (intent.parameterSummary != null) {
         strings.add(_toSwiftKeyPathPlaceholders(intent.parameterSummary!));
       }

@@ -32,6 +32,9 @@ class AppShortcutInfo {
 ///
 /// This generator produces Swift code that can be used in iOS 17+ applications
 /// to integrate with the App Intents framework.
+/// Matches a `{placeholder}` in a dialog or snippet template.
+final RegExp _placeholderPattern = RegExp(r'\{([^}]+)\}');
+
 class SwiftGenerator {
   /// Creates a Swift generator.
   ///
@@ -393,11 +396,13 @@ class SwiftGenerator {
     }
   }
 
-  /// Returns the Swift return type for a perform() method based on dialog presence.
+  /// Returns the Swift return type for a perform() method based on what the
+  /// result carries: a dialog, a snippet view, both, or neither.
   String _performReturnType(IntentInfo info) {
-    return info.resultDialogTemplate != null
-        ? 'some IntentResult & ProvidesDialog'
-        : 'some IntentResult';
+    final parts = <String>['some IntentResult'];
+    if (info.resultDialogTemplate != null) parts.add('ProvidesDialog');
+    if (info.snippet != null) parts.add('ShowsSnippetView');
+    return parts.join(' & ');
   }
 
   /// Writes the perform() method signature.
@@ -678,20 +683,28 @@ class SwiftGenerator {
   /// target iOS 17.0, so the symbol form is built behind `if #available` with
   /// the symbol-less dialog as the fallback.
   void _writeReturnResult(StringBuffer buffer, IntentInfo info, String indent) {
+    final view = info.snippet == null ? null : _snippetViewExpression(info);
+
     if (info.resultDialogTemplate == null) {
-      buffer.writeln('${indent}return .result()');
+      buffer.writeln(
+        view == null
+            ? '${indent}return .result()'
+            : '${indent}return .result(view: $view)',
+      );
       return;
     }
 
     final full = _interpolateDialogTemplate(
       info.resultDialogTemplate!,
       info.parameters,
+      info: info,
     );
     final supporting = info.resultDialogSupportingTemplate == null
         ? null
         : _interpolateDialogTemplate(
             info.resultDialogSupportingTemplate!,
             info.parameters,
+            info: info,
           );
     final symbol = info.resultDialogSystemImageName;
 
@@ -699,7 +712,11 @@ class SwiftGenerator {
       final expression = supporting == null
           ? '.init("$full")'
           : 'IntentDialog(full: "$full", supporting: "$supporting")';
-      buffer.writeln('${indent}return .result(dialog: $expression)');
+      buffer.writeln(
+        view == null
+            ? '${indent}return .result(dialog: $expression)'
+            : '${indent}return .result(dialog: $expression, view: $view)',
+      );
       return;
     }
 
@@ -717,7 +734,11 @@ class SwiftGenerator {
     buffer.writeln('$indent} else {');
     buffer.writeln('$indent${_indent}dialog = $withoutSymbol');
     buffer.writeln('$indent}');
-    buffer.writeln('${indent}return .result(dialog: dialog)');
+    buffer.writeln(
+      view == null
+          ? '${indent}return .result(dialog: dialog)'
+          : '${indent}return .result(dialog: dialog, view: $view)',
+    );
   }
 
   /// Writes the perform method using FlutterBridge (MethodChannel).
@@ -784,17 +805,18 @@ class SwiftGenerator {
         buffer.writeln('$baseIndent}');
       }
       buffer.writeln(
-        '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+        '$baseIndent${_invokeBinding(info)} = try await FlutterBridge.shared.invoke(',
       );
       buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
       buffer.writeln('$baseIndent${_indent}params: params');
       buffer.writeln('$baseIndent)');
+      _writeSnippetResultLocals(buffer, info, baseIndent);
       return;
     }
 
     // Fast path: no ValueState opt-in → emit the dict literal inline as before.
     buffer.writeln(
-      '${baseIndent}let _ = try await FlutterBridge.shared.invoke(',
+      '$baseIndent${_invokeBinding(info)} = try await FlutterBridge.shared.invoke(',
     );
     buffer.writeln('$baseIndent${_indent}intent: "${info.className}",');
     if (info.parameters.isEmpty) {
@@ -812,6 +834,174 @@ class SwiftGenerator {
       buffer.writeln('$baseIndent$_indent]');
     }
     buffer.writeln('$baseIndent)');
+    _writeSnippetResultLocals(buffer, info, baseIndent);
+  }
+
+  /// The binding for a `FlutterBridge.shared.invoke` call.
+  ///
+  /// The result is discarded unless a snippet template reads `{result.…}` from
+  /// it — binding it unconditionally would produce an unused-variable warning
+  /// in every generated intent.
+  String _invokeBinding(IntentInfo info) =>
+      _snippetResultKeys(info).isEmpty ? 'let _' : 'let snippetResult';
+
+  /// Writes one `let` per `{result.key}` a snippet reads, so the template can
+  /// interpolate a plain `String` instead of an `Any?` subscript.
+  void _writeSnippetResultLocals(
+    StringBuffer buffer,
+    IntentInfo info,
+    String indent,
+  ) {
+    final keys = _snippetResultKeys(info);
+    if (keys.isEmpty) return;
+    buffer.writeln(
+      '${indent}let snippetValues = snippetResult as? [String: Any] ?? [:]',
+    );
+    for (final key in keys) {
+      buffer.writeln(
+        '${indent}let ${_snippetResultLocal(key)} = '
+        'snippetValues["$key"].map { String(describing: \$0) } ?? ""',
+      );
+    }
+  }
+
+  /// The distinct `{result.key}` keys this intent reads, in first-use order.
+  ///
+  /// Covers the snippet templates *and* the dialog templates — the dialog and
+  /// the card describe the same result, so it would be strange for one to be
+  /// able to name a handler value and the other not.
+  List<String> _snippetResultKeys(IntentInfo info) {
+    final templates = <String>[
+      ...?info.snippet?.templates,
+      ?info.resultDialogTemplate,
+      ?info.resultDialogSupportingTemplate,
+    ];
+    if (templates.isEmpty) return const [];
+    final keys = <String>[];
+    for (final template in templates) {
+      for (final match in _placeholderPattern.allMatches(template)) {
+        final name = match.group(1)!.trim();
+        if (!name.startsWith('result.')) continue;
+        final key = name.substring('result.'.length);
+        if (key.isNotEmpty && !keys.contains(key)) keys.add(key);
+      }
+    }
+    return keys;
+  }
+
+  /// Escapes a string for embedding in a Swift string literal.
+  ///
+  /// An unescaped `"` breaks the build and a bare `\(` is silently
+  /// reinterpreted as interpolation, so author-supplied text never goes into
+  /// a literal directly.
+  String _swiftLiteral(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('\n', '\\n')
+      .replaceAll('\r', '\\r')
+      .replaceAll('\t', '\\t');
+
+  /// The Swift name of an intent's generated snippet view.
+  String _snippetViewName(IntentInfo info) => '${info.className}SnippetView';
+
+  /// Builds the snippet view construction used in `.result(view:)`.
+  String _snippetViewExpression(IntentInfo info) {
+    final snippet = info.snippet!;
+    final args = <String>[
+      'snippetTitle: "${_interpolateSnippetTemplate(snippet.title, info)}"',
+      if (snippet.subtitle != null)
+        'snippetSubtitle: '
+            '"${_interpolateSnippetTemplate(snippet.subtitle!, info)}"',
+      for (var i = 0; i < snippet.rows.length; i++)
+        'rowValue$i: '
+            '"${_interpolateSnippetTemplate(snippet.rows[i].value, info)}"',
+    ];
+    return '${_snippetViewName(info)}(${args.join(', ')})';
+  }
+
+  /// Converts a snippet template into a Swift string-literal body.
+  ///
+  /// `{paramName}` becomes `\(paramName)` like a dialog template;
+  /// `{result.key}` becomes the local written by [_writeSnippetResultLocals].
+  String _interpolateSnippetTemplate(String template, IntentInfo info) {
+    var result = template.replaceAll('"', '\\"');
+    for (final key in _snippetResultKeys(info)) {
+      result = result.replaceAll(
+        '{result.$key}',
+        '\\(${_snippetResultLocal(key)})',
+      );
+    }
+    for (final param in info.parameters) {
+      result = result.replaceAll(
+        '{${param.fieldName}}',
+        '\\(${param.fieldName})',
+      );
+    }
+    return result;
+  }
+
+  /// Writes the SwiftUI view backing an intent's snippet card.
+  ///
+  /// The layout is fixed (optional symbol, title, optional subtitle, labelled
+  /// rows) and the dynamic parts arrive as stored `String` properties, so no
+  /// shared runtime type is needed and each intent's view is self-contained.
+  /// Row labels stay literal so they localize through the String Catalog.
+  void _writeSnippetView(StringBuffer buffer, IntentInfo info) {
+    final snippet = info.snippet!;
+    final name = _snippetViewName(info);
+
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('struct $name: View {');
+    buffer.writeln('${_indent}let snippetTitle: String');
+    if (snippet.subtitle != null) {
+      buffer.writeln('${_indent}let snippetSubtitle: String');
+    }
+    for (var i = 0; i < snippet.rows.length; i++) {
+      buffer.writeln('${_indent}let rowValue$i: String');
+    }
+    buffer.writeln();
+    buffer.writeln('${_indent}var body: some View {');
+
+    final i2 = '$_indent$_indent';
+    final i3 = '$i2$_indent';
+    final i4 = '$i3$_indent';
+    final i5 = '$i4$_indent';
+
+    buffer.writeln('${i2}VStack(alignment: .leading, spacing: 8) {');
+    buffer.writeln('${i3}HStack(spacing: 8) {');
+    if (snippet.systemImageName != null) {
+      buffer.writeln(
+        '${i4}Image(systemName: "${_swiftLiteral(snippet.systemImageName!)}")',
+      );
+      buffer.writeln('$i4$_indent.font(.title2)');
+    }
+    buffer.writeln('${i4}VStack(alignment: .leading, spacing: 2) {');
+    buffer.writeln('${i5}Text(snippetTitle)');
+    buffer.writeln('$i5$_indent.font(.headline)');
+    if (snippet.subtitle != null) {
+      buffer.writeln('${i5}Text(snippetSubtitle)');
+      buffer.writeln('$i5$_indent.font(.subheadline)');
+      buffer.writeln('$i5$_indent.foregroundStyle(.secondary)');
+    }
+    buffer.writeln('$i4}');
+    buffer.writeln('$i3}');
+    for (var i = 0; i < snippet.rows.length; i++) {
+      buffer.writeln(
+        '${i3}LabeledContent("${_swiftLiteral(snippet.rows[i].label)}") {',
+      );
+      buffer.writeln('${i4}Text(rowValue$i)');
+      buffer.writeln('$i3}');
+    }
+    buffer.writeln('$i2}');
+    buffer.writeln('$i2.padding()');
+    buffer.writeln('$_indent}');
+    buffer.write('}');
+  }
+
+  /// The Swift local holding the string form of `{result.<key>}`.
+  String _snippetResultLocal(String key) {
+    final sanitized = key.replaceAll(RegExp(r'[^A-Za-z0-9]'), '_');
+    return 'snippetValue_$sanitized';
   }
 
   /// Writes the experimental perform() that wraps the background invoke in
@@ -2156,6 +2346,11 @@ class SwiftGenerator {
     if (intents.any((i) => i.urlScheme != null)) {
       buffer.writeln('import UIKit');
     }
+    // `.result(view:)` lives in the _AppIntents_SwiftUI overlay, which is only
+    // pulled in by importing SwiftUI alongside AppIntents.
+    if (intents.any((i) => i.snippet != null)) {
+      buffer.writeln('import SwiftUI');
+    }
     if (intents.any((i) => _hasFileParams(i))) {
       buffer.writeln('import UniformTypeIdentifiers');
     }
@@ -2187,6 +2382,13 @@ class SwiftGenerator {
 
     // Generate intents (without individual imports)
     for (final intent in intents) {
+      // The snippet view comes first: `perform()` constructs it, so keeping
+      // them adjacent makes the generated file readable top to bottom.
+      if (intent.snippet != null) {
+        _writeSnippetView(buffer, intent);
+        buffer.writeln();
+        buffer.writeln();
+      }
       _generateIntentBody(buffer, intent);
       // #55 intent donation: additive reverse executor, in its own #if block
       // (no #else — without the flag the intent simply isn't donatable). The
@@ -2578,11 +2780,22 @@ class SwiftGenerator {
   /// Also escapes double quotes to prevent conflicts with Swift string delimiters.
   String _interpolateDialogTemplate(
     String template,
-    List<IntentParamInfo> params,
-  ) {
+    List<IntentParamInfo> params, {
+    IntentInfo? info,
+  }) {
     var result = template;
     // Escape double quotes for Swift string literals
     result = result.replaceAll('"', '\\"');
+    // `{result.key}` reads the handler's return value, via the same local the
+    // snippet uses. Without this the placeholder would reach Siri verbatim.
+    if (info != null) {
+      for (final key in _snippetResultKeys(info)) {
+        result = result.replaceAll(
+          '{result.$key}',
+          '\\(${_snippetResultLocal(key)})',
+        );
+      }
+    }
     for (final param in params) {
       result = result.replaceAll(
         '{${param.fieldName}}',

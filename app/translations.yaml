@@ -24,6 +24,14 @@ ja:
   "Task": "タスク"
   "The task to complete": "完了するタスク"
 
+  # TaskSummaryIntentSpec
+  "Task Summary": "タスクの残り"
+  "Summarize how many tasks are left": "残っているタスクの数をまとめます"
+  "You have {result.openCount} tasks left": "残りのタスクは{result.openCount}件です"
+  "{result.openCount} left": "残り{result.openCount}件"
+  "Open": "未完了"
+  "Done": "完了済み"
+
   # CreateTaskWithImageIntentSpec
   "Create Task with Image": "画像付きタスクを作成"
   "Create a new task with an optional image attachment": "画像を添付して新しいタスクを作成します"

@@ -44,6 +44,13 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **Declarative snippet cards (`ShowsSnippetView`, ADR 0007)**
+  - `@IntentSpec(snippet: SnippetTemplate(title:, subtitle:, systemImageName:, rows:))` → a self-contained `struct <Intent>SnippetView: View` plus `.result(view:)`. Dynamic parts are stored `String` properties, so no shared runtime type is needed; row labels stay literal so `LabeledContent` localizes them through the String Catalog.
+  - **Not experimental**: `ShowsSnippetView` is iOS 16. But `.result(view:)` lives in the **`_AppIntents_SwiftUI` overlay**, so the generated file must `import SwiftUI` — without it the overload simply doesn't exist.
+  - Two placeholder kinds: `{paramName}` (any mode) and `{result.key}` (the Dart handler's returned map). `{result.key}` is **FlutterBridge-only** — URL scheme and foreground modes return before the handler runs — and is a generation error elsewhere rather than an empty card. It works in `resultDialogTemplate` too.
+  - Dart side: for those intents only, the generated registration returns `intentResultPayload(result)` instead of `<String, dynamic>{}`. `intentResultPayload` accepts a `Map`, a value with `toJson()`, or `null`, and throws on anything else.
+  - The example app gained `TaskSummaryIntentSpec` — the first **FlutterBridge-mode** intent in it; the other three are all URL scheme or foreground, so that path had no example coverage.
+  - **Golden tests stayed green while the emitted view body contained a literal `$i5$_indent`.** String assertions cannot see a broken indent helper. Only `swiftc -typecheck` caught it.
 - **Dual-text result dialogs (`IntentDialog(full:supporting:)`, ADR 0006)**
   - `@IntentSpec(resultDialogSupportingTemplate:, resultDialogSystemImageName:)` as sibling fields of `resultDialogTemplate` (not a deprecation). Template alone → unchanged `.init("…")`; + supporting → `IntentDialog(full:supporting:)`; + symbol → built behind `if #available(iOS 17.2, *)` with the symbol-less dialog as fallback, so the intent stays at iOS 17.0.
   - **Not experimental**: `full:supporting:` is iOS 16 in the released SDK. Only the `systemImageName` initializers are 17.2.
@@ -204,7 +211,6 @@ docs/
 
 Items surveyed against the matsudate WWDC 2026 review #4 ("新しい Siri と App Intents", 2026-06-18). Each row is a thing the article describes that this plugin does **not** ship yet. ADR numbers in brackets are pre-reserved.
 
-- **`ShowsSnippetView`** — SwiftUI snippet card in Siri results. Flutter doesn't render SwiftUI, so the only viable path is a **declarative template** (title/subtitle/image/key-value) that codegen turns into a fixed `@ViewBuilder`. ADR 0004 already flagged this as a separate-issue spike. Needs a template DSL design before any code. [ADR-0006]
 - **`$param.requestValue`** — mid-`perform()` value request. Requires a 2-way suspending RPC: Swift `perform()` suspends → plugin asks Dart for a missing value → Dart returns → `perform()` resumes. Large-scope bridge change; pick Dart-visible vs hidden-inside-generated-Swift first. [ADR-0007]
 - **`PlaceDescriptor` export** — `EntityExportKind.placeDescriptor` case for #54 `ValueRepresentation(exporting:)`. ADR 0002 (line 3) explicitly defers this with `IntentPerson` only. Needs `@EntityProperty(role: 'latitude'/'longitude')` (or auto-detect-by-name) + Xcode 27 beta typecheck confirming the `PlaceDescriptor` constructor signature/availability. [extends ADR-0002]
 - **`LongRunningIntent` progress + cancellation forwarding to Dart** — the current `performBackgroundTask(...) onCancel: { reason in /* … */ }` is a stub; nothing reaches the Dart handler. Needs (1) progress callback channel Dart→Swift to drive `ProgressReportingIntent.progress`, (2) reverse forwarding of `IntentCancellationReason` Swift→Dart, (3) handler signature change in generated Dart. [ADR-0008]

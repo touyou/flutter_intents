@@ -632,6 +632,51 @@ the symbol-less dialog — the intent's deployment target stays at iOS 17.0.
 Both fields require `resultDialogTemplate`; setting either alone is a code
 generation error rather than a silently ignored field.
 
+#### Snippet Card
+
+Siri can show a card next to the result. App Intents renders it with SwiftUI,
+which a Flutter app cannot supply, so `@IntentSpec(snippet:)` takes a fixed
+layout that the generator turns into a SwiftUI view:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.app.taskSummary',
+  title: 'Task Summary',
+  resultDialogTemplate: 'You have {result.openCount} tasks left',
+  snippet: SnippetTemplate(
+    title: '{result.headline}',
+    subtitle: 'Updated just now',
+    systemImageName: 'checklist',
+    rows: [
+      SnippetRow(label: 'Open', value: '{result.openCount}'),
+      SnippetRow(label: 'Done', value: '{result.completedCount}'),
+    ],
+  ),
+)
+```
+
+Two kinds of placeholder are available:
+
+| Placeholder | Source | Execution modes |
+|---|---|---|
+| `{paramName}` | an intent parameter | all |
+| `{result.key}` | a key of the Dart handler's returned map | **FlutterBridge only** |
+
+`{result.key}` needs the handler's return value, which only comes back when
+`perform()` calls FlutterBridge. A URL scheme or foreground intent hands off to
+the app and returns before the handler runs, so using it there is a code
+generation error rather than a card that silently renders empty. The same
+placeholder works in `resultDialogTemplate`.
+
+For a `{result.…}` intent the generated Dart returns the handler's value
+(through `intentResultPayload`, which accepts a `Map`, anything with
+`toJson()`, or `null`) instead of discarding it. Handlers for every other
+intent are unaffected.
+
+Row labels are literal, so they localize through the String Catalog; values are
+interpolated per run. Anything richer than this layout belongs in the app
+itself — open it with `openAppWhenRun` instead.
+
 #### Parameter Summary
 
 Control how the intent appears in the Shortcuts editor:

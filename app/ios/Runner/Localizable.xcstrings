@@ -256,6 +256,23 @@
         }
       }
     },
+    "Done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了済み"
+          }
+        }
+      }
+    },
     "Due Date": {
       "extractionState": "manual",
       "localizations": {
@@ -341,6 +358,23 @@
         }
       }
     },
+    "Open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未完了"
+          }
+        }
+      }
+    },
     "Optional description for the task": {
       "extractionState": "manual",
       "localizations": {
@@ -358,6 +392,23 @@
         }
       }
     },
+    "Summarize how many tasks are left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize how many tasks are left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残っているタスクの数をまとめます"
+          }
+        }
+      }
+    },
     "Task": {
       "extractionState": "manual",
       "localizations": {
@@ -371,6 +422,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "タスク"
+          }
+        }
+      }
+    },
+    "Task Summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task Summary"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タスクの残り"
           }
         }
       }
@@ -439,6 +507,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "タスクの期限"
+          }
+        }
+      }
+    },
+    "You have {result.openCount} tasks left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have {result.openCount} tasks left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りのタスクは{result.openCount}件です"
+          }
+        }
+      }
+    },
+    "{result.openCount} left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{result.openCount} left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り{result.openCount}件"
           }
         }
       }

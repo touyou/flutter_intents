@@ -1,3 +1,7 @@
+## Unreleased
+
+- `intentResultPayload(Object?)` — normalizes an intent handler's return value (a `Map`, anything with `toJson()`, or `null`) into the map a generated snippet template reads. Throws `ArgumentError` on anything else rather than yielding a silently empty card.
+
 ## 0.15.0
 
 - **Fix: on the CocoaPods route the module was named `app_intents_bridge`, so `import AppIntentsBridge` did not resolve (#105).** `app_intents_bridge.podspec` now declares `s.module_name = 'AppIntentsBridge'`, so all three routes take the same import line — the one every `generate_widget_swift` output emits. The old failure was easy to misread: the import itself often reported nothing and only the types surfaced, as `Cannot find 'AppIntentsEntityCache' in scope`. Verified by reading the generated modulemap, which now says `framework module AppIntentsBridge`.

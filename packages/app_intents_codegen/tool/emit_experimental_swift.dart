@@ -14,6 +14,7 @@ import 'package:app_intents_codegen/src/experimental/experimental_features.dart'
 import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
+import 'package:app_intents_codegen/src/models/snippet_info.dart';
 
 void main(List<String> args) {
   final out = args.isNotEmpty ? args.first : 'GeneratedVerify.swift';
@@ -119,6 +120,17 @@ void main(List<String> args) {
     resultDialogTemplate: 'I created the task {title}',
     resultDialogSupportingTemplate: 'Task created',
     resultDialogSystemImageName: 'checkmark.circle',
+    // ADR 0007: the declarative snippet card, reading both an intent parameter
+    // and a key of the Dart handler's result.
+    snippet: SnippetInfo(
+      title: '{title}',
+      subtitle: 'Saved to {result.listName}',
+      systemImageName: 'checkmark.circle.fill',
+      rows: [
+        SnippetRowInfo(label: 'Due', value: '{result.dueDate}'),
+        SnippetRowInfo(label: 'List', value: 'Inbox'),
+      ],
+    ),
     parameters: [
       IntentParamInfo(
         fieldName: 'title',
