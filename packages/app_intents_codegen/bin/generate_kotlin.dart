@@ -100,7 +100,7 @@ Future<void> generateKotlin({
   required String outputFile,
   required String packageName,
 }) async {
-  final analyzeResult = await analyzeSourceFiles(inputDir);
+  final analyzeResult = await analyzeSourceFilesOrExit(inputDir);
 
   if (analyzeResult.isEmpty) {
     stdout.writeln(

@@ -8,6 +8,7 @@ import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
 import 'package:path/path.dart' as path;
+import 'package:source_gen/source_gen.dart' show InvalidGenerationSourceError;
 
 import '../analyzer/entity_analyzer.dart';
 import '../analyzer/enum_analyzer.dart';
@@ -75,11 +76,44 @@ class AnalyzeResult {
       unions.isNotEmpty;
 }
 
+/// An annotation an analyzer rejected, with the file it was found in.
+class InvalidAnnotation {
+  /// Absolute path of the Dart file declaring the annotation.
+  final String filePath;
+
+  /// The analyzer's error.
+  final InvalidGenerationSourceError error;
+
+  const InvalidAnnotation({required this.filePath, required this.error});
+
+  @override
+  String toString() => '$filePath: $error';
+}
+
+/// Thrown by [analyzeSourceFiles] when one or more annotations are invalid.
+///
+/// Every file is still scanned first, so all invalid specs are reported in one
+/// run rather than one per invocation.
+class InvalidAnnotationsException implements Exception {
+  /// The rejected annotations, in scan order.
+  final List<InvalidAnnotation> annotations;
+
+  const InvalidAnnotationsException(this.annotations);
+
+  @override
+  String toString() =>
+      'Found ${annotations.length} invalid annotation(s):\n'
+      '${annotations.map((a) => '  $a').join('\n')}';
+}
+
 /// Scans and analyzes Dart source files for @IntentSpec, @EntitySpec,
 /// @EnumSpec, and @AppShortcutsProvider annotations.
 ///
 /// [inputDir] is the directory to scan (absolute or relative to cwd).
 /// Returns an [AnalyzeResult] with all found annotations.
+///
+/// Throws [InvalidAnnotationsException] if any analyzer rejects an annotation.
+/// A file that fails to resolve is skipped with a warning instead.
 Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final currentDir = Directory.current.path;
   final absoluteInputDir = path.isAbsolute(inputDir)
@@ -143,78 +177,94 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final unionAnalyzer = const UnionAnalyzer();
   final allShortcuts = <AppShortcutInfo>[];
 
+  final invalidAnnotations = <InvalidAnnotation>[];
+
   for (final filePath in dartFiles) {
+    // Only resolution is recoverable: a file the analyzer cannot resolve is
+    // skipped with a warning, as before.
+    final ResolvedLibraryResult resolved;
     try {
       final context = collection.contextFor(filePath);
       final result = await context.currentSession.getResolvedLibrary(filePath);
+      if (result is! ResolvedLibraryResult) continue;
+      resolved = result;
+    } catch (e) {
+      stderr.writeln('  Warning: Could not analyze $filePath: $e');
+      continue;
+    }
 
-      if (result is ResolvedLibraryResult) {
-        final library = result.element;
+    // An analyzer rejecting an annotation is not. Swallowing it here used to
+    // drop the spec from the output while the CLI still exited 0.
+    try {
+      final library = resolved.element;
 
-        for (final element in library.classes) {
-          // Check for @IntentSpec
-          if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
-            final info = intentAnalyzer.analyze(element);
-            if (info != null && !intentsMap.containsKey(info.identifier)) {
-              intentsMap[info.identifier] = info;
-              stdout.writeln('  Found intent: ${info.className}');
-            }
-          }
-
-          // Check for @EntitySpec
-          if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
-            final info = entityAnalyzer.analyze(element);
-            if (info != null && !entitiesMap.containsKey(info.identifier)) {
-              entitiesMap[info.identifier] = info;
-              stdout.writeln('  Found entity: ${info.className}');
-            }
-          }
-
-          // Check for @WidgetConfigurationSpec
-          if (widgetConfigurationAnalyzer.hasWidgetConfigurationSpecAnnotation(
-            element,
-          )) {
-            final info = widgetConfigurationAnalyzer.analyze(element);
-            if (info != null &&
-                !widgetConfigurationsMap.containsKey(info.identifier)) {
-              widgetConfigurationsMap[info.identifier] = info;
-              stdout.writeln('  Found widget configuration: ${info.className}');
-            }
-          }
-
-          // Check for @UnionValueSpec
-          if (unionAnalyzer.hasUnionValueSpecAnnotation(element)) {
-            final info = unionAnalyzer.analyze(element);
-            if (info != null && !unionsMap.containsKey(info.identifier)) {
-              unionsMap[info.identifier] = info;
-              stdout.writeln('  Found union: ${info.className}');
-            }
-          }
-
-          // Check for @AppShortcutsProvider
-          if (shortcutAnalyzer.hasAppShortcutsProviderAnnotation(element)) {
-            final shortcuts = shortcutAnalyzer.analyze(element);
-            for (final shortcut in shortcuts) {
-              allShortcuts.add(shortcut);
-              stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
-            }
+      for (final element in library.classes) {
+        // Check for @IntentSpec
+        if (intentAnalyzer.hasIntentSpecAnnotation(element)) {
+          final info = intentAnalyzer.analyze(element);
+          if (info != null && !intentsMap.containsKey(info.identifier)) {
+            intentsMap[info.identifier] = info;
+            stdout.writeln('  Found intent: ${info.className}');
           }
         }
 
-        // Check for @EnumSpec on enums
-        for (final element in library.enums) {
-          if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
-            final info = enumAnalyzer.analyze(element);
-            if (info != null && !enumsMap.containsKey(info.identifier)) {
-              enumsMap[info.identifier] = info;
-              stdout.writeln('  Found enum: ${info.className}');
-            }
+        // Check for @EntitySpec
+        if (entityAnalyzer.hasEntitySpecAnnotation(element)) {
+          final info = entityAnalyzer.analyze(element);
+          if (info != null && !entitiesMap.containsKey(info.identifier)) {
+            entitiesMap[info.identifier] = info;
+            stdout.writeln('  Found entity: ${info.className}');
+          }
+        }
+
+        // Check for @WidgetConfigurationSpec
+        if (widgetConfigurationAnalyzer.hasWidgetConfigurationSpecAnnotation(
+          element,
+        )) {
+          final info = widgetConfigurationAnalyzer.analyze(element);
+          if (info != null &&
+              !widgetConfigurationsMap.containsKey(info.identifier)) {
+            widgetConfigurationsMap[info.identifier] = info;
+            stdout.writeln('  Found widget configuration: ${info.className}');
+          }
+        }
+
+        // Check for @UnionValueSpec
+        if (unionAnalyzer.hasUnionValueSpecAnnotation(element)) {
+          final info = unionAnalyzer.analyze(element);
+          if (info != null && !unionsMap.containsKey(info.identifier)) {
+            unionsMap[info.identifier] = info;
+            stdout.writeln('  Found union: ${info.className}');
+          }
+        }
+
+        // Check for @AppShortcutsProvider
+        if (shortcutAnalyzer.hasAppShortcutsProviderAnnotation(element)) {
+          final shortcuts = shortcutAnalyzer.analyze(element);
+          for (final shortcut in shortcuts) {
+            allShortcuts.add(shortcut);
+            stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
           }
         }
       }
-    } catch (e) {
-      stderr.writeln('  Warning: Could not analyze $filePath: $e');
+
+      // Check for @EnumSpec on enums
+      for (final element in library.enums) {
+        if (enumAnalyzer.hasEnumSpecAnnotation(element)) {
+          final info = enumAnalyzer.analyze(element);
+          if (info != null && !enumsMap.containsKey(info.identifier)) {
+            enumsMap[info.identifier] = info;
+            stdout.writeln('  Found enum: ${info.className}');
+          }
+        }
+      }
+    } on InvalidGenerationSourceError catch (e) {
+      invalidAnnotations.add(InvalidAnnotation(filePath: filePath, error: e));
     }
+  }
+
+  if (invalidAnnotations.isNotEmpty) {
+    throw InvalidAnnotationsException(invalidAnnotations);
   }
 
   final intents = intentsMap.values.toList();
@@ -254,4 +304,15 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     widgetConfigurations: widgetConfigurations,
     unions: unions,
   );
+}
+
+/// [analyzeSourceFiles] for the CLIs: an invalid annotation is printed to
+/// stderr and the process exits 1, instead of generating incomplete output.
+Future<AnalyzeResult> analyzeSourceFilesOrExit(String inputDir) async {
+  try {
+    return await analyzeSourceFiles(inputDir);
+  } on InvalidAnnotationsException catch (e) {
+    stderr.writeln('Error: $e');
+    exit(1);
+  }
 }

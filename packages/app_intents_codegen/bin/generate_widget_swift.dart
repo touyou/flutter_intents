@@ -180,7 +180,7 @@ Future<void> generateWidgetSwift({
   List<String> includedPackages = const [],
   bool publicAccess = false,
 }) async {
-  final analyzeResult = await analyzeSourceFiles(inputDir);
+  final analyzeResult = await analyzeSourceFilesOrExit(inputDir);
 
   if (analyzeResult.widgetConfigurations.isEmpty) {
     stdout.writeln('No @WidgetConfigurationSpec annotations found.');
