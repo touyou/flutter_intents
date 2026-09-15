@@ -116,6 +116,23 @@ class IntentAnalyzer {
 
     final parameters = _extractParameters(element);
 
+    // #131: URL scheme and foreground (cache) modes return from perform()
+    // before the Dart handler runs, so no execution scope is open when the
+    // handler executes and a request could only ever resolve to null.
+    final requestable = parameters.where((p) => p.requestValue).toList();
+    if (requestable.isNotEmpty &&
+        (urlScheme != null || supportedModes == IntentModeType.foreground)) {
+      throw InvalidGenerationSourceError(
+        '@IntentParam(requestValue: true) on '
+        '"${requestable.map((p) => p.fieldName).join('", "')}" needs the '
+        'FlutterBridge execution mode, but this intent uses '
+        '${urlScheme != null ? '"urlScheme"' : 'supportedModes: IntentMode.foreground'}, '
+        'which returns from perform() before the Dart handler runs — there is '
+        'no running intent left to prompt.',
+        element: element,
+      );
+    }
+
     if (donatable) {
       _validateDonatableParameters(element, parameters);
     }
@@ -403,6 +420,8 @@ class IntentAnalyzer {
       final unionInfo = _resolveUnion(field);
       final useValueState =
           annotation.getField('useValueState')?.toBoolValue() ?? false;
+      final requestValue =
+          annotation.getField('requestValue')?.toBoolValue() ?? false;
       final dartType = field.type.getDisplayString();
 
       if (useValueState && !dartType.endsWith('?')) {
@@ -412,6 +431,18 @@ class IntentAnalyzer {
           'is non-nullable, so "unset" vs "set" cannot be distinguished. '
           'Make the field optional (e.g. "$dartType?") or drop useValueState.',
           element: field,
+        );
+      }
+
+      if (requestValue) {
+        _validateRequestValueParam(
+          field,
+          dartType: dartType,
+          entityType: entityType,
+          enumType: enumType,
+          fileType: fileType,
+          entityCollectionType: entityCollectionType,
+          unionInfo: unionInfo,
         );
       }
 
@@ -428,11 +459,61 @@ class IntentAnalyzer {
           entityCollectionType: entityCollectionType,
           unionInfo: unionInfo,
           useValueState: useValueState,
+          requestValue: requestValue,
         ),
       );
     }
 
     return parameters;
+  }
+
+  /// Rejects `@IntentParam(requestValue: true)` where a prompt could not work
+  /// or would be redundant (#131).
+  ///
+  /// Non-optional: the system already prompts for a missing required parameter
+  /// before `perform()` runs, so a request would never fire — the sibling
+  /// native project ruled the whole API out on exactly this basis, and the
+  /// optional case is what is left of it.
+  ///
+  /// Non-primitive: the answer has to cross the MethodChannel back to the Dart
+  /// handler, and an entity/file/enum/union value has no wire form here.
+  void _validateRequestValueParam(
+    FieldElement field, {
+    required String dartType,
+    String? entityType,
+    String? enumType,
+    String? fileType,
+    String? entityCollectionType,
+    UnionInfo? unionInfo,
+  }) {
+    if (!dartType.endsWith('?')) {
+      throw InvalidGenerationSourceError(
+        '@IntentParam(requestValue: true) requires an optional parameter '
+        '(nullable Dart type). Field "${field.name}" of type "$dartType" is '
+        'non-nullable, and the system already prompts for a missing required '
+        'parameter before perform() runs. Make the field optional, or drop '
+        'requestValue.',
+        element: field,
+      );
+    }
+    final blocker = <String>[];
+    if (entityType != null) blocker.add('entityType');
+    if (enumType != null) blocker.add('enumType');
+    if (fileType != null) blocker.add('fileType (IntentFile)');
+    if (entityCollectionType != null) blocker.add('entityCollectionType');
+    if (unionInfo != null) blocker.add('@UnionValue sealed type');
+    if (blocker.isEmpty && !_isDonatablePrimitive(dartType)) {
+      blocker.add('non-primitive type "$dartType"');
+    }
+    if (blocker.isNotEmpty) {
+      throw InvalidGenerationSourceError(
+        '@IntentParam(requestValue: true) only supports primitive parameters '
+        '(String/int/double/bool/DateTime), because the requested value is '
+        'returned to the Dart handler over the MethodChannel. Parameter '
+        '"${field.name}" is incompatible: ${blocker.join(', ')}.',
+        element: field,
+      );
+    }
   }
 
   /// Resolves the union (#53) when [field]'s type is a `@UnionValueSpec`

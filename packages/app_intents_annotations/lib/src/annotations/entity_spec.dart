@@ -121,6 +121,20 @@ class EntitySpec {
   /// representation. See `docs/adr/0002-cross-app-entity-sharing.md`.
   final EntityExportType? exportAs;
 
+  /// **Experimental (WWDC26, iOS 27+).** Whether the entity can also be
+  /// **imported** from the system type named by [exportAs] (#129).
+  ///
+  /// The export direction is system-facing and needs no Dart round-trip; import
+  /// does — whether an `IntentPerson` handed over by another app matches an
+  /// existing contact, or should create one, depends on your data. When set,
+  /// the generated `ValueRepresentation` gains an `importing:` closure that
+  /// asks Dart through the value-query bridge; register the handler with
+  /// `AppIntents().registerValueImportHandler(<identifier>, …)`.
+  ///
+  /// Requires [exportAs] — a representation must have a direction to import
+  /// *from*. See `docs/adr/0002-cross-app-entity-sharing.md`.
+  final bool importable;
+
   /// **Experimental (WWDC26, iOS 27+).** Whether this entity's identifier is
   /// stable across devices, allowing Siri to refer to it consistently when a
   /// conversation moves between devices (#55, `SyncableEntity`).
@@ -163,6 +177,7 @@ class EntitySpec {
     this.ownership,
     this.valueQuery = false,
     this.exportAs,
+    this.importable = false,
     this.syncable = false,
     this.relevantEntities = false,
   });

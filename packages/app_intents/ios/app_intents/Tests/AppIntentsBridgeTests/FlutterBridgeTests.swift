@@ -162,8 +162,8 @@ struct FlutterBridgeTests {
         let box = DonationBox()
         await bridge.registerRelevantEntitiesDonator(
             entityIdentifier: "com.example.song"
-        ) { dicts, context in
-            await box.record(count: dicts.count, context: context)
+        ) { operation, dicts, context in
+            await box.record(operation: operation, count: dicts.count, context: context)
         }
 
         #expect(await bridge.hasRelevantEntitiesDonator(for: "com.example.song"))
@@ -176,6 +176,32 @@ struct FlutterBridgeTests {
 
         #expect(await box.count == 1)
         #expect(await box.context == "audio.nowPlaying")
+        // An absent operation keeps the pre-#133 behaviour.
+        #expect(await box.operation == "update")
+
+        await bridge.clearExecutors()
+    }
+
+    @Test("RelevantEntities donator receives the remove operation (#133)")
+    func relevantEntitiesDonatorReceivesOperation() async throws {
+        let bridge = FlutterBridge.shared
+
+        let box = DonationBox()
+        await bridge.registerRelevantEntitiesDonator(
+            entityIdentifier: "com.example.song"
+        ) { operation, dicts, context in
+            await box.record(operation: operation, count: dicts.count, context: context)
+        }
+
+        try await bridge.donateRelevantEntities(
+            entityIdentifier: "com.example.song",
+            operation: "removeAll",
+            entities: [],
+            context: nil
+        )
+
+        #expect(await box.operation == "removeAll")
+        #expect(await box.count == 0)
 
         await bridge.clearExecutors()
     }
@@ -312,6 +338,102 @@ struct FlutterBridgeTests {
             Issue.record("Expected AppIntentError, got: \(error)")
         }
     }
+    // MARK: - Execution context (#130 / #131)
+
+    @Test("Progress reports reach the registered sink")
+    func progressReachesSink() async throws {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        // A box, not a captured local: the sink is @Sendable and runs on the
+        // actor, so the value has to live somewhere both sides can reach.
+        actor Recorder {
+            var updates: [(Int64, Int64)] = []
+            func record(_ completed: Int64, _ total: Int64) {
+                updates.append((completed, total))
+            }
+        }
+        let recorder = Recorder()
+
+        await bridge.beginExecution("exec-1") { completed, total in
+            Task { await recorder.record(completed, total) }
+        }
+        try await bridge.updateProgress(executionId: "exec-1", completed: 3, total: 10)
+
+        // The sink hops through a Task, so give it a turn to land.
+        try await Task.sleep(nanoseconds: 50_000_000)
+        let updates = await recorder.updates
+        #expect(updates.count == 1)
+        #expect(updates.first?.0 == 3)
+        #expect(updates.first?.1 == 10)
+
+        await bridge.endExecution("exec-1")
+        #expect(await bridge.hasExecution("exec-1") == false)
+    }
+
+    @Test("Reporting progress for a finished execution throws")
+    func progressAfterEndThrows() async throws {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        await bridge.beginExecution("exec-2") { _, _ in }
+        await bridge.endExecution("exec-2")
+
+        // Silently ignoring this would hide a handler reporting progress for an
+        // intent that already returned.
+        await #expect(throws: AppIntentError.self) {
+            try await bridge.updateProgress(executionId: "exec-2", completed: 1, total: 2)
+        }
+    }
+
+    @Test("Value requests are routed to the running intent")
+    func valueRequestRouted() async throws {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        await bridge.beginExecution("exec-3", valueRequester: { parameter in
+            parameter == "note" ? "typed by the user" : nil
+        })
+
+        let value = try await bridge.requestValue(executionId: "exec-3", parameter: "note")
+        #expect(value as? String == "typed by the user")
+
+        let unknown = try await bridge.requestValue(executionId: "exec-3", parameter: "other")
+        #expect(unknown == nil)
+
+        await bridge.endExecution("exec-3")
+    }
+
+    @Test("Cancellation is forwarded to the notifier")
+    func cancellationForwarded() async throws {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        actor Recorder {
+            var seen: [String] = []
+            func record(_ value: String) { seen.append(value) }
+        }
+        let recorder = Recorder()
+
+        await bridge.setCancellationNotifier { executionId, reason in
+            await recorder.record("\(executionId):\(reason)")
+        }
+        await bridge.reportCancellation(executionId: "exec-4", reason: "userCancelled")
+
+        let seen = await recorder.seen
+        #expect(seen == ["exec-4:userCancelled"])
+    }
+
+    @Test("Reporting a cancellation with no notifier wired is harmless")
+    func cancellationWithoutNotifier() async {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+
+        // The system can cancel at any time, including before AppDelegate has
+        // wired anything up; that must not be an error.
+        await bridge.reportCancellation(executionId: "exec-5", reason: "whatever")
+    }
+
 }
 
 /// Actor box for relevant-intent donation tests.
@@ -341,7 +463,9 @@ private actor IntentDonationBox {
 private actor DonationBox {
     var count = 0
     var context: String?
-    func record(count: Int, context: String?) {
+    var operation: String?
+    func record(operation: String, count: Int, context: String?) {
+        self.operation = operation
         self.count = count
         self.context = context
     }

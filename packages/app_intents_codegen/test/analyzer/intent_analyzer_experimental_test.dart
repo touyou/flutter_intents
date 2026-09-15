@@ -6,6 +6,115 @@ import 'package:test/test.dart';
 import '../test_utils.dart';
 
 void main() {
+  group('IntentAnalyzer (#131 requestValue)', () {
+    late IntentAnalyzer analyzer;
+
+    setUp(() {
+      analyzer = IntentAnalyzer();
+    });
+
+    test('parses requestValue on an optional primitive parameter', () async {
+      final library = await resolveSource('''
+        import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+        @IntentSpec(identifier: 'com.example.note', title: 'Note')
+        class NoteIntent extends IntentSpecBase {
+          @IntentParam(title: 'Note', isOptional: true, requestValue: true)
+          final String? note = null;
+        }
+      ''');
+
+      final result = analyzer.analyze(findClass(library, 'NoteIntent'))!;
+      expect(result.parameters.single.requestValue, isTrue);
+    });
+
+    test('rejects requestValue on a non-optional parameter', () async {
+      // The system already prompts for a missing required parameter before
+      // perform() runs, so the request would never fire.
+      final library = await resolveSource('''
+        import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+        @IntentSpec(identifier: 'com.example.note', title: 'Note')
+        class NoteIntent extends IntentSpecBase {
+          @IntentParam(title: 'Note', requestValue: true)
+          final String note = '';
+        }
+      ''');
+
+      expect(
+        () => analyzer.analyze(findClass(library, 'NoteIntent')),
+        throwsA(
+          isA<InvalidGenerationSourceError>().having(
+            (e) => e.message,
+            'message',
+            contains('requires an optional parameter'),
+          ),
+        ),
+      );
+    });
+
+    for (final mode in const [
+      "urlScheme: 'app', urlAction: 'note',",
+      'supportedModes: IntentMode.foreground,',
+    ]) {
+      test(
+        'rejects requestValue on a deferred-handler route ($mode)',
+        () async {
+          // Both routes return from perform() before the Dart handler runs, so
+          // there is no running intent left to prompt.
+          final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(identifier: 'com.example.note', title: 'Note', $mode)
+          class NoteIntent extends IntentSpecBase {
+            @IntentParam(title: 'Note', isOptional: true, requestValue: true)
+            final String? note = null;
+          }
+        ''');
+
+          expect(
+            () => analyzer.analyze(findClass(library, 'NoteIntent')),
+            throwsA(
+              isA<InvalidGenerationSourceError>().having(
+                (e) => e.message,
+                'message',
+                contains('needs the FlutterBridge execution mode'),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    test('rejects requestValue on an entity parameter', () async {
+      final library = await resolveSource('''
+        import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+        @IntentSpec(identifier: 'com.example.pick', title: 'Pick')
+        class PickIntent extends IntentSpecBase {
+          @IntentParam(
+            title: 'Task',
+            isOptional: true,
+            entityType: 'TaskEntity',
+            requestValue: true,
+          )
+          final String? task = null;
+        }
+      ''');
+
+      expect(
+        () => analyzer.analyze(findClass(library, 'PickIntent')),
+        throwsA(
+          isA<InvalidGenerationSourceError>().having(
+            (e) => e.message,
+            'message',
+            contains('only supports primitive parameters'),
+          ),
+        ),
+      );
+    });
+  });
+
   group('IntentAnalyzer (WWDC26 experimental fields)', () {
     late IntentAnalyzer analyzer;
 

@@ -1095,6 +1095,24 @@ Two things to keep in mind:
 - Keep `@AppShortcutsProvider` in the **app target**, not the shared package —
   moving it into a package yields zero auto shortcuts.
 
+> **Do not declare an App Intents Package for a statically linked setup.**
+> A sibling project shipped a build with the declaration and its App Intents
+> stopped being ingested **only through App Store / TestFlight installs** — not
+> "the shortcut is missing", but the app not appearing in Shortcuts at all,
+> while the same build run from Xcode worked. A build bisect pinned it to the
+> commit adding the declaration. The declaration's only contribution to the
+> shipped bundle is `extract.packagedata`, which holds the **mangled names** of
+> `includedPackages` — the one place in App Intents metadata where a type is
+> looked up by mangled name at runtime, and the only thing whose failure could
+> take down the whole bundle. Distribution builds are also the only ones where
+> `STRIP_SWIFT_SYMBOLS` applies.
+>
+> Since a statically linked target already merges the metadata **without** any
+> declaration, adding one there is all risk and no gain. Reach for these flags
+> only when you actually cross a dynamic link boundary. (Root cause is pinned
+> but the fix is not yet confirmed on TestFlight, so treat this as a strong
+> warning rather than a settled fact.)
+
 ## WWDC26 Experimental Features (opt-in)
 
 The codegen can emit WWDC26 App Intents APIs (iOS 26.4 / iOS 27+). Because those
@@ -1108,7 +1126,7 @@ can also toggle it from build settings. Existing stable output is unchanged.
 # Master switch + select features (comma-separated). Master OFF → nothing emitted.
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types
+  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types,reindexing
 ```
 
 To actually compile the emitted WWDC26 form, add `APP_INTENTS_WWDC26` to your
@@ -1121,9 +1139,10 @@ enables experimental codegen but hasn't set the flag still builds.
 | `app-schema` | `@AppEntity/@AppIntent/@AppEnum(schema:)` domain conformance (#49) |
 | `ownership` | `OwnershipProvidingEntity` conformance via `@EntitySpec(ownership:)` (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / execution targets (#52) |
-| `rich-types` | Native `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` params (#53) |
-| `value-representation` | Cross-app entity export via `ValueRepresentation` (#54) |
-| `donation` | `SyncableEntity` + `RelevantEntities` donation (#55) |
+| `rich-types` | Native `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` params (#53), and union-returning value queries (#133) |
+| `value-representation` | Cross-app entity export/import via `ValueRepresentation` (#54, #129) |
+| `donation` | `SyncableEntity` (incl. dual id, #132) + `RelevantEntities` donation (#55, #133) |
+| `reindexing` | `IndexedEntityQuery` — the system asking your app to re-index an entity (#133) |
 
 ### App Schema (#49) — using the catalog
 
@@ -1192,8 +1211,72 @@ The MVP exports as `IntentPerson` (built from the entity's id/title):
 class ContactEntitySpec extends EntitySpecBase<Contact> { /* ... */ }
 ```
 
+Exporting as a **place** needs location data the display roles cannot carry, so
+mark the fields with `@EntityExportField`:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.StoreEntity',
+  title: 'Store', pluralTitle: 'Stores',
+  exportAs: EntityExportType.place,
+)
+class StoreEntitySpec extends EntitySpecBase<Store> {
+  @EntityId final String id;
+  @EntityTitle final String name;              // becomes `commonName`
+  @EntityExportField(EntityExportRole.latitude) final double? lat;
+  @EntityExportField(EntityExportRole.longitude) final double? lng;
+  @EntityExportField(EntityExportRole.address) final String? address;
+  // …
+}
+```
+
+A coordinate pair and/or an address is enough — declare whichever you have (a
+lone latitude is a generation error). Export fields become ordinary stored
+properties on the generated entity and are read back from the same entity
+dictionary your queries return, so **include them in your cache projection**;
+otherwise the export finds them nil and declines.
+
 This generates a `Transferable` conformance with `ValueRepresentation`. Export
 is system-facing (no Flutter round-trip), so no native wiring is required.
+
+**The catalog is fixed by the SDK.** `ValueRepresentation(exporting:)` exists
+only for `IntentPerson` and for types conforming to `_SystemIntentValue`. Of the
+types you might reach for, that means `PlaceDescriptor` works and
+`IntentCurrencyAmount`, `IntentFile` and `EntityCollection` do not — they exist
+in the SDK but are not exportable, which is why there is no enum case for them.
+
+### Cross-app entity import (#129)
+
+Add `importable: true` to also accept the system type **from** another app. The
+generated `importing:` closure asks Dart which entity the incoming value maps
+to, because only your data can answer that:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ContactEntity',
+  title: 'Contact', pluralTitle: 'Contacts',
+  exportAs: EntityExportType.person,
+  importable: true,
+)
+class ContactEntitySpec extends EntitySpecBase<Contact> { /* ... */ }
+```
+
+```dart
+AppIntents().registerValueImportHandler(
+  'com.example.app.ContactEntity',
+  (value) async {
+    // value['kind'] is 'person' | 'place'; the rest is the flattened value —
+    // 'displayName' / 'nameComponents' / 'handle' for a person,
+    // 'commonName' / 'address' / 'latitude' / 'longitude' for a place.
+    final match = await contacts.findByName(value['displayName'] as String?);
+    return match?.toJson();   // null → the import is declined
+  },
+);
+```
+
+Returning `null` makes the generated `importing:` closure throw, which declines
+the import instead of inventing an entity. Creating content on the fly is a valid answer too: return the
+map of what you just created.
 
 ### Donations & discovery (#55)
 
@@ -1204,6 +1287,26 @@ consistently when a conversation moves between devices:
 ```dart
 @EntitySpec(identifier: '…', title: '…', pluralTitle: '…', syncable: true)
 ```
+
+When the id is **local** and a second, server-assigned id is the stable one, mark
+that field with `@EntityStableId` (#132). The generated entity's Swift `id`
+becomes `SyncableEntityIdentifier<String, String>`:
+
+```dart
+@EntitySpec(identifier: '…', title: '…', pluralTitle: '…', syncable: true)
+class DeviceEntitySpec extends EntitySpecBase<Device> {
+  @EntityId final String localId;
+  @EntityTitle final String name;
+  @EntityStableId final String serverId;
+  // …
+}
+```
+
+Because the id type changes, the whole entity and its query dual-branch, and the
+query hands your Dart handler **both halves** of every identifier it is asked
+about — match on whichever your records are keyed by. A dual-id entity cannot be
+used as an `@IntentParam(entityType:)` value (codegen rejects it): the identifier
+has no single string form your handler could match.
 
 **RelevantEntities donation** — set `relevantEntities: true` to generate a
 `register<Entity>RelevantEntitiesDonator()` function. Call it once at startup
@@ -1218,7 +1321,113 @@ await AppIntents().donateRelevantEntities(
   currentlyPlaying.map((s) => s.toJson()).toList(),
   context: 'audio.nowPlaying', // stateful overwrite; pass [] to clear
 );
+
+// #133: explicit removal. Without a context these span every context, which an
+// empty donation cannot express (it only clears the one context it names).
+await AppIntents().removeRelevantEntities(
+  'com.example.app.SongEntity', [stale.toJson()]);
+await AppIntents().removeAllRelevantEntities('com.example.app.SongEntity');
 ```
+
+### Long-running intents: progress and cancellation (#130)
+
+`@IntentSpec(longRunning: true, cancellable: true)` gives the intent the system's
+progress UI and a cancellation hook. The Dart handler reaches both through
+`AppIntentExecution.current` — the handler signature is unchanged, the context is
+installed in a `Zone` around the call:
+
+```dart
+Future<void> exportTasksHandler({required String format}) async {
+  final execution = AppIntentExecution.current;
+  for (var i = 0; i < tasks.length; i++) {
+    if (execution?.isCancelled ?? false) return;   // cooperative: stop cleanly
+    await exportOne(tasks[i]);
+    await execution?.reportProgress((i + 1) / tasks.length);
+  }
+}
+```
+
+`current` is null for any intent that did not open an execution scope — every
+intent that is neither long-running/cancellable nor has a requestable
+parameter, and also the stable `#else` build of a long-running one (progress and
+cancellation are iOS 27 symbols). Treat it as optional, as above: on such a
+build `execution?.reportProgress(…)` is simply a no-op.
+
+`AppIntents().onIntentCancellation` carries the same notices as a stream, for
+tearing down work a handler started and left running.
+
+### Asking the user for a value mid-run (#131)
+
+`@IntentParam(requestValue: true)` lets the handler ask the system to prompt for
+an **optional** parameter that the caller left out:
+
+```dart
+@IntentSpec(identifier: 'com.example.app.addNote', title: 'Add Note')
+class AddNoteIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Note', isOptional: true, requestValue: true)
+  final String? note;
+  // …
+}
+
+Future<void> addNoteHandler({String? note}) async {
+  final text = note ?? await AppIntentExecution.current?.requestValue<String>('note');
+  // … `perform()` stays suspended until the user answers …
+}
+```
+
+Only optional parameters qualify — the system already prompts on its own for a
+missing required one — and only primitive types (`String`/`int`/`double`/`bool`/
+`DateTime`), because the answer travels back over the MethodChannel. Codegen
+rejects anything else. This is **not** experimental: `requestValue` is iOS 16, so
+it works in both build branches.
+
+### One query answering with several entity types (#133)
+
+An app gets a single `IntentValueQuery` per input type, so a search that should
+return more than one kind of entity has to answer with a union. Set
+`valueQuery: true` on the union:
+
+```dart
+@UnionValueSpec(identifier: 'com.example.app.SearchResult', valueQuery: true)
+sealed class SearchResult { const SearchResult(); }
+
+@UnionCase(entityType: 'TaskEntitySpec')
+class TaskResult extends SearchResult { final String id; const TaskResult(this.id); }
+
+@UnionCase(entityType: 'ProjectEntitySpec')
+class ProjectResult extends SearchResult { final String id; const ProjectResult(this.id); }
+```
+
+The Dart handler is registered under the union identifier and tags each result
+with `_type` — the `@UnionCase` subclass name — alongside that entity's own
+fields:
+
+```dart
+AppIntents().registerValueQueryHandler(
+  'com.example.app.SearchResult',
+  (input) async {
+    final query = input['query'] as String? ?? '';
+    return [
+      for (final t in await tasks.search(query))
+        {'_type': 'TaskResult', ...t.toEntityJson()},
+      for (final p in await projects.search(query))
+        {'_type': 'ProjectResult', ...p.toEntityJson()},
+    ];
+  },
+);
+```
+
+Every case's entity must have an `@EntitySpec` in the same generation run — the
+query builds the entity from the handler's result, so it needs that entity's
+shape.
+
+### Re-indexing an entity on request (#133)
+
+With `indexed: true` and the `reindexing` feature on, the generated query also
+conforms to `IndexedEntityQuery`, so the system can ask your app to refresh
+Spotlight's copy of an entity. The generated implementation re-reads through the
+existing query path (which is what reaches Dart) and hands the result to
+`CSSearchableIndex.indexAppEntities` — no extra handler to write.
 
 ### Onscreen entity awareness (#56)
 
@@ -1258,11 +1467,31 @@ Task { @MainActor in
   }
 }
 
+// #130/#131 execution context. Not gated: a requestable parameter is iOS 16,
+// and a cancellation can arrive on any build that opened a scope.
+AppIntentsPlugin.intentProgressForwarder = { executionId, completed, total in
+  try await FlutterBridge.shared.updateProgress(
+    executionId: executionId, completed: completed, total: total)
+}
+AppIntentsPlugin.intentValueRequestForwarder = { executionId, parameter in
+  try await FlutterBridge.shared.requestValue(
+    executionId: executionId, parameter: parameter)
+}
+Task {
+  await FlutterBridge.shared.setCancellationNotifier { executionId, reason in
+    await MainActor.run {
+      AppIntentsPlugin.shared?.notifyIntentCancellation(
+        executionId: executionId, reason: reason)
+    }
+  }
+}
+
 #if APP_INTENTS_WWDC26
 // #55 RelevantEntities donation: forward Dart → the generated donator.
-AppIntentsPlugin.relevantEntitiesDonationForwarder = { id, entities, context in
+// The `operation` argument is "update" / "remove" / "removeAll" (#133).
+AppIntentsPlugin.relevantEntitiesDonationForwarder = { id, operation, entities, context in
   try await FlutterBridge.shared.donateRelevantEntities(
-    entityIdentifier: id, entities: entities, context: context)
+    entityIdentifier: id, operation: operation, entities: entities, context: context)
 }
 // Register each entity's generated donator (one call per relevantEntities entity):
 if #available(iOS 27.0, *) {

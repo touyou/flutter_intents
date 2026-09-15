@@ -176,6 +176,7 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     String entityIdentifier,
     List<Map<String, dynamic>> entities, {
     String? context,
+    RelevantEntitiesOperation operation = RelevantEntitiesOperation.update,
   }) {
     throw UnimplementedError(
       'donateRelevantEntities() has not been implemented.',
@@ -228,6 +229,33 @@ abstract class AppIntentsPlatform extends PlatformInterface {
   /// Clears the onscreen entity association set by [setOnscreenEntity] (#56).
   Future<void> clearOnscreenEntity() {
     throw UnimplementedError('clearOnscreenEntity() has not been implemented.');
+  }
+
+  /// Reports progress for a running long-running intent execution (#130).
+  ///
+  /// [executionId] names the `perform()` call that is waiting; [completed] and
+  /// [total] are unit counts fed to the intent's `Progress`.
+  Future<void> reportIntentProgress(
+    String executionId,
+    int completed,
+    int total,
+  ) {
+    throw UnimplementedError(
+      'reportIntentProgress() has not been implemented.',
+    );
+  }
+
+  /// Asks the running intent to prompt the user for a parameter value (#131).
+  ///
+  /// Resolves once the user answers, so it can stay outstanding for as long as
+  /// the system dialog is on screen.
+  Future<Object?> requestIntentValue(String executionId, String parameter) {
+    throw UnimplementedError('requestIntentValue() has not been implemented.');
+  }
+
+  /// A stream of cancellations for running intent executions (#130).
+  Stream<IntentCancellation> get onIntentCancellation {
+    throw UnimplementedError('onIntentCancellation has not been implemented.');
   }
 
   /// Retrieves a cached value from native storage.

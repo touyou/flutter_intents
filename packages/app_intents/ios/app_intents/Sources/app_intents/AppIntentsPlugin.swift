@@ -21,9 +21,10 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// The plugin does not depend on `AppIntentsBridge`, so AppDelegate wires
     /// this closure to `FlutterBridge.shared.donateRelevantEntities`. Mirrors
     /// how the forward executors are wired, but in the opposite direction.
-    /// Parameters: `(entityIdentifier, entityDicts, context)`.
+    /// Parameters: `(entityIdentifier, operation, entityDicts, context)`, where
+    /// operation is `"update"`, `"remove"` or `"removeAll"` (#133).
     public static var relevantEntitiesDonationForwarder:
-        (@Sendable (String, [[String: Any]], String?) async throws -> Void)?
+        (@Sendable (String, String, [[String: Any]], String?) async throws -> Void)?
 
     /// Forwards a Dart `donateIntent` call to the reverse executor (#55).
     ///
@@ -43,6 +44,25 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// set — sending them one at a time would leave only the last one.
     public static var relevantIntentDonationForwarder:
         (@Sendable ([[String: Any]]) async throws -> Void)?
+
+    /// Forwards a Dart `reportIntentProgress` call to the bridge (#130).
+    ///
+    /// AppDelegate wires this to `FlutterBridge.shared.updateProgress`. The
+    /// plugin does not depend on AppIntentsBridge, so the hop goes through a
+    /// closure exactly like the donation forwarders.
+    /// Parameters: `(executionId, completed, total)`.
+    public static var intentProgressForwarder:
+        (@Sendable (String, Int64, Int64) async throws -> Void)?
+
+    /// Forwards a Dart `requestIntentValue` call to the bridge (#131).
+    ///
+    /// AppDelegate wires this to `FlutterBridge.shared.requestValue`. The value
+    /// comes back from the *running* intent, which suspends in `perform()`
+    /// while the system asks the user — so this call can stay outstanding for
+    /// as long as that dialog is on screen.
+    /// Parameters: `(executionId, parameterName)`.
+    public static var intentValueRequestForwarder:
+        (@Sendable (String, String) async throws -> Any?)?
 
     /// Applies the iOS 26+ `appEntityIdentifier` AppEntity association to an
     /// onscreen `NSUserActivity` (#56). Wired in AppDelegate, where the concrete
@@ -230,6 +250,8 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             }
             let entities = (args["entities"] as? [[String: Any]]) ?? []
             let context = args["context"] as? String
+            // #133: absent operation means the original update-only behaviour.
+            let operation = args["operation"] as? String ?? "update"
             guard let forwarder = Self.relevantEntitiesDonationForwarder else {
                 result(FlutterError(
                     code: "DONATION_NOT_CONFIGURED",
@@ -240,7 +262,7 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             }
             Task {
                 do {
-                    try await forwarder(entityIdentifier, entities, context)
+                    try await forwarder(entityIdentifier, operation, entities, context)
                     result(nil)
                 } catch {
                     result(FlutterError(
@@ -330,6 +352,71 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
         case "clearOnscreenEntity":
             Self.clearOnscreenEntity()
             result(nil)
+        case "reportIntentProgress":
+            // #130: Dart -> Swift. The generated long-running perform() opened
+            // an execution scope and registered a sink writing into its own
+            // `progress`; this only routes the numbers to it.
+            guard let args = call.arguments as? [String: Any],
+                  let executionId = args["executionId"] as? String,
+                  let completed = (args["completed"] as? NSNumber)?.int64Value,
+                  let total = (args["total"] as? NSNumber)?.int64Value else {
+                result(FlutterError(
+                    code: "INVALID_ARGS",
+                    message: "executionId, completed and total are required",
+                    details: nil))
+                return
+            }
+            guard let forwarder = Self.intentProgressForwarder else {
+                result(FlutterError(
+                    code: "PROGRESS_NOT_CONFIGURED",
+                    message: "Intent progress forwarder not wired. Set "
+                        + "AppIntentsPlugin.intentProgressForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    try await forwarder(executionId, completed, total)
+                    result(nil)
+                } catch {
+                    result(FlutterError(
+                        code: "PROGRESS_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
+            }
+        case "requestIntentValue":
+            // #131: Dart -> Swift, and the reply only arrives after the user
+            // answers the system prompt. Deliberately has no timeout: the
+            // intent's own perform() is suspended on the same call.
+            guard let args = call.arguments as? [String: Any],
+                  let executionId = args["executionId"] as? String,
+                  let parameter = args["parameter"] as? String else {
+                result(FlutterError(
+                    code: "INVALID_ARGS",
+                    message: "executionId and parameter are required",
+                    details: nil))
+                return
+            }
+            guard let forwarder = Self.intentValueRequestForwarder else {
+                result(FlutterError(
+                    code: "VALUE_REQUEST_NOT_CONFIGURED",
+                    message: "Intent value-request forwarder not wired. Set "
+                        + "AppIntentsPlugin.intentValueRequestForwarder in AppDelegate.",
+                    details: nil))
+                return
+            }
+            Task {
+                do {
+                    let value = try await forwarder(executionId, parameter)
+                    result(value)
+                } catch {
+                    result(FlutterError(
+                        code: "VALUE_REQUEST_FAILED",
+                        message: error.localizedDescription,
+                        details: nil))
+                }
+            }
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -560,6 +647,21 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
                 }
             }
         }
+    }
+
+    // MARK: - Cancellation (#130)
+
+    /// Tells Dart that the system cancelled a running intent execution.
+    ///
+    /// Wired in AppDelegate to `FlutterBridge.shared.setCancellationNotifier`.
+    /// Fire-and-forget: the system may suspend the process right after
+    /// cancelling, so there is nothing useful to do with a reply.
+    @MainActor
+    public func notifyIntentCancellation(executionId: String, reason: String) {
+        channel?.invokeMethod("intentCancelled", arguments: [
+            "executionId": executionId,
+            "reason": reason
+        ])
     }
 
     // MARK: - Intent Execution

@@ -48,6 +48,24 @@ xcrun --sdk "$SDK" swiftc -target "$TARGET" -emit-module -module-name AppIntents
   -emit-module-path "$MOD/AppIntentsBridge.swiftmodule" \
   "$BRIDGE"/*.swift
 
+# The real `app_intents` module imports Flutter, which is not available here, so
+# an entity with a cache key (any `indexed`/`enumerable`/`persistedCacheKey`
+# one) could not be type-checked at all. This stub carries only the surface the
+# generated Swift touches. Keep it in step with AppIntentsPlugin — a signature
+# change there that is not mirrored here would let broken output pass.
+cat > "$WORK/app_intents_stub.swift" <<'SWIFT'
+import Foundation
+
+public class AppIntentsPlugin {
+    public static func getCached(forKey key: String) -> Any? { nil }
+    public static func setPendingAction(identifier: String, params: [String: Any]) {}
+}
+SWIFT
+echo "==> Building app_intents stub module"
+xcrun --sdk "$SDK" swiftc -target "$TARGET" -emit-module -module-name app_intents \
+  -emit-module-path "$MOD/app_intents.swiftmodule" \
+  "$WORK/app_intents_stub.swift"
+
 typecheck() {
   local label="$1"; shift
   echo "==> typecheck: $label"

@@ -11,8 +11,10 @@ export 'app_intents_method_channel.dart'
         IntentHandler,
         EntityQueryHandler,
         SuggestedEntitiesHandler,
-        ValueQueryHandler;
+        ValueQueryHandler,
+        valueImportQuerySuffix;
 
+import 'app_intents_method_channel.dart' show valueImportQuerySuffix;
 import 'app_intents_platform_interface.dart';
 import 'src/models/models.dart';
 
@@ -181,6 +183,42 @@ class AppIntents {
     );
   }
 
+  /// Registers a handler resolving a system value another app handed over back
+  /// into one of your entities (#129).
+  ///
+  /// Called by the `importing:` half of the generated `ValueRepresentation`
+  /// when the entity is declared `@EntitySpec(exportAs: …, importable: true)`.
+  /// The handler receives the system value flattened into a map — its `kind`
+  /// says which representation arrived:
+  ///
+  /// - `'person'`: `identifierKind` + `identifier`, `displayName` or
+  ///   `nameComponents` (a `PersonName`-shaped map), and optionally
+  ///   `handleKind` + `handle`.
+  /// - `'place'`: `commonName`, `address`, `latitude`/`longitude` — whichever
+  ///   the sender provided.
+  ///
+  /// Return the matching entity as a map in the same shape your entity query
+  /// returns, or `null` when nothing matches — the generated `importing:`
+  /// closure then throws, declining the import rather than inventing an
+  /// entity. Creating new
+  /// content on the fly is a legitimate answer too: return the map of what you
+  /// just created.
+  ///
+  /// Registers under the entity identifier with an `#import` suffix, which is
+  /// what the generated Swift asks for. The suffix is **mirrored in
+  /// `SwiftGenerator`** — changing it means changing both.
+  void registerValueImportHandler(
+    String entityIdentifier,
+    Future<Map<String, dynamic>?> Function(Map<String, dynamic> value) handler,
+  ) {
+    registerValueQueryHandler('$entityIdentifier$valueImportQuerySuffix', (
+      input,
+    ) async {
+      final match = await handler(input);
+      return match == null ? <Map<String, dynamic>>[] : [match];
+    });
+  }
+
   /// Donates contextually relevant entities to the system (#55).
   ///
   /// Tells the system which [entities] are relevant right now for [context]
@@ -199,6 +237,39 @@ class AppIntents {
       entityIdentifier,
       entities,
       context: context,
+    );
+  }
+
+  /// Removes previously donated relevant entities (#133).
+  ///
+  /// Scoped to [context] when one is given, otherwise removed from every
+  /// context. Distinct from donating an empty list, which only clears the one
+  /// context it names.
+  Future<void> removeRelevantEntities(
+    String entityIdentifier,
+    List<Map<String, dynamic>> entities, {
+    String? context,
+  }) {
+    return AppIntentsPlatform.instance.donateRelevantEntities(
+      entityIdentifier,
+      entities,
+      context: context,
+      operation: RelevantEntitiesOperation.remove,
+    );
+  }
+
+  /// Removes every relevant entity donated for [entityIdentifier] (#133).
+  ///
+  /// Scoped to [context] when one is given, otherwise every context.
+  Future<void> removeAllRelevantEntities(
+    String entityIdentifier, {
+    String? context,
+  }) {
+    return AppIntentsPlatform.instance.donateRelevantEntities(
+      entityIdentifier,
+      const [],
+      context: context,
+      operation: RelevantEntitiesOperation.removeAll,
     );
   }
 
@@ -274,6 +345,16 @@ class AppIntents {
   /// ```
   Stream<IntentExecutionRequest> get onIntentExecution {
     return AppIntentsPlatform.instance.onIntentExecution;
+  }
+
+  /// A stream of cancellations for running long-running intents (#130).
+  ///
+  /// A handler usually does not need this — inside the handler,
+  /// `AppIntentExecution.current` already knows whether its own execution was
+  /// cancelled. Use the stream to observe cancellations from elsewhere, e.g. to
+  /// tear down work a handler kicked off and left running.
+  Stream<IntentCancellation> get onIntentCancellation {
+    return AppIntentsPlatform.instance.onIntentCancellation;
   }
 
   /// A stream of pending action notifications from native App Intents.

@@ -107,3 +107,69 @@ import はシステムが渡す構造化型を Dart ハンドラに渡してマ�
 **export を先行実装する**（生成コード側で閉じ、標準型カタログは `PlaceDescriptor` 1 種から）。
 **import は [ADR 0001] の実装完了を前提に後続**とし、value query ブリッジを再利用する。
 標準型カタログと構造化型の Dart 表現は、SDK で対応型が固まり次第、段階的に拡張する。
+
+## 追記（2026-09-15）: カタログは SDK 側で閉じている（#128 / #129）
+
+### export カタログは `_SystemIntentValue` で決まる
+
+iOS 27.0 SDK の `.swiftinterface` を読むと、`ValueRepresentation(exporting:)` の
+イニシャライザは**2つの extension にしか無い**:
+
+```swift
+extension IntentValueRepresentation where IntentValue : _SystemIntentValue { init(exporting:) … }
+extension IntentValueRepresentation where IntentValue == IntentPerson      { init(exporting:) … }
+```
+
+つまり export できるのは **`IntentPerson`（特例オーバーロード）** と
+**`_SystemIntentValue` 準拠型**だけ。27.0 SDK 全体で後者に準拠しているのは
+`GeoToolbox.PlaceDescriptor` / `LinkPresentation.LinkMetadata` /
+`MediaIntents.AudioSearch` / `Photos.PHAsset` /
+`VisualIntelligence.SemanticContentDescriptor` / `IntentPrompt` / `SystemShortcut` である。
+
+**`IntentCurrencyAmount` は準拠していない**（`_IntentValue` 止まり）。#128 はこれを
+「iOS 26.5 SDK に存在する」を根拠にカタログ候補に挙げていたが、**型が存在することと
+export できることは別**で、実際に生成して型チェックすると
+
+```
+error: referencing initializer 'init(exporting:)' on 'IntentValueRepresentation'
+       requires that 'IntentCurrencyAmount' conform to '_SystemIntentValue'
+```
+
+で落ちる。よって `EntityExportType` に currency のケースは**作らない**。
+`IntentFile` / `EntityCollection` も同じ理由で不可。
+
+### `PlaceDescriptor` に必要なフィールドの受け渡し
+
+`PlaceDescriptor` は `init(representations:commonName:supportingRepresentations:)` で、
+`.address(String)` と `.coordinate(CLLocationCoordinate2D)` のどちらか（または両方）が要る。
+表示ロール（id/title/subtitle/image）ではこれを表現できないので、新しい
+`@EntityExportField(EntityExportRole.latitude / .longitude / .address)` を足した。
+
+このフィールドは生成エンティティの**通常の格納プロパティ**になり、エンティティ辞書
+（Dart のキャッシュ投影やクエリ結果）から読み戻される。読み戻し側は数値型も扱えるように
+拡張した（`NSNumber` は要求された Swift 数値型に条件付きブリッジするので、Dart が `int` で
+書いた緯度も `Double` として読める）。
+
+エクスポートできる値が無いときは `throw` する。`Transferable` がその表現を辞退する正しい
+方法で、システムはそのフレーバーを提示しなくなる（空の場所を他アプリに渡すより良い）。
+
+### import は value-query ブリッジに相乗りする
+
+`ValueRepresentation(exporting:importing:)` の import 側は Dart 往復が要る
+（他アプリから来た `IntentPerson` が既存の誰にマッチするか、あるいは新規作成するかは
+アプリのデータ次第）。ADR 本文の想定どおり **#51 の value-query ブリッジを再利用**し、
+新しいラウンドトリップ形状は追加しなかった。
+
+区別はクエリ識別子で行う: エンティティ識別子に **`#import` を付ける**。Dart 側は
+`AppIntents().registerValueImportHandler(<identifier>, handler)` が同じ接尾辞で
+value query ハンドラを登録するので、利用者はこの規約を意識しなくてよい。
+接尾辞は codegen（`SwiftGenerator._importQuerySuffix`）とプラグイン
+（`valueImportQuerySuffix`）の**両方に重複して定義**されている（キャッシュキー形式と同じ扱い）
+ので、変えるときは両方直すこと。
+
+システム値は `kind` 付きの `Map` に平坦化して渡す（`person` / `place`）。
+`IntentPerson.Identifier` / `.Name` / `.Handle.Value` は resilient enum なので、
+生成する `switch` には `@unknown default` を必ず付ける（Swift 6 でエラーになる）。
+
+一致するエンティティが無ければ `throw`。null を返してシステムに空を渡すより、
+import を辞退させるほうが正しい。

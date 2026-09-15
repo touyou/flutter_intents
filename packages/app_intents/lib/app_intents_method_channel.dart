@@ -26,6 +26,22 @@ typedef SuggestedEntitiesHandler =
 typedef ValueQueryHandler =
     Future<List<Map<String, dynamic>>> Function(Map<String, dynamic> input);
 
+/// Suffix distinguishing an entity-import value query (#129) from the entity's
+/// own `IntentValueQuery` (#51), which share the bridge.
+///
+/// Mirrored by `SwiftGenerator._importQuerySuffix` in the codegen package —
+/// the generated `importing:` closure asks for this exact identifier, so the
+/// two literals have to move together.
+const String valueImportQuerySuffix = '#import';
+
+/// Reserved params key carrying the native execution id (#130, #131).
+///
+/// The generated `perform()` adds it for intents that open an execution scope
+/// (long-running, cancellable, or with a requestable parameter). It is stripped
+/// before the handler sees the params, so a generated `…Params.fromMap` never
+/// has to know about it.
+const String intentExecutionIdKey = '_executionId';
+
 /// An implementation of [AppIntentsPlatform] that uses method channels.
 class MethodChannelAppIntents extends AppIntentsPlatform {
   /// The method channel used to interact with the native platform.
@@ -49,6 +65,13 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
   /// Registered value query handlers, keyed by entity identifier (#51).
   final Map<String, ValueQueryHandler> _valueQueryHandlers = {};
+
+  /// Executions currently inside a handler, keyed by execution id (#130).
+  final Map<String, AppIntentExecution> _activeExecutions = {};
+
+  /// Stream controller for intent cancellations (#130).
+  final StreamController<IntentCancellation> _cancellationController =
+      StreamController<IntentCancellation>.broadcast();
 
   /// Stream controller for intent execution events.
   final StreamController<IntentExecutionRequest> _intentExecutionController =
@@ -81,6 +104,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
         return _onGetSuggestedEntities(call.arguments as Map<Object?, Object?>);
       case 'queryValues':
         return _onQueryValues(call.arguments as Map<Object?, Object?>);
+      case 'intentCancelled':
+        return _onIntentCancelled(call.arguments as Map<Object?, Object?>);
       default:
         throw PlatformException(
           code: 'UNIMPLEMENTED',
@@ -164,6 +189,22 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return handleValueQuery(entityIdentifier, input);
   }
 
+  /// Handles a cancellation notice from iOS (#130).
+  ///
+  /// Routes it to the execution the handler is running inside — so a handler
+  /// can poll `AppIntentExecution.current.isCancelled` — and re-emits it on
+  /// [onIntentCancellation] for code that tracks executions from the outside.
+  Future<void> _onIntentCancelled(Map<Object?, Object?> arguments) async {
+    final executionId = arguments['executionId'] as String?;
+    if (executionId == null) return;
+    final notice = IntentCancellation(
+      executionId: executionId,
+      reason: arguments['reason'] as String? ?? 'unknown',
+    );
+    _activeExecutions[executionId]?.markCancelled(notice);
+    _cancellationController.add(notice);
+  }
+
   /// Converts a dynamic map to `Map<String, dynamic>`.
   Map<String, dynamic> _convertToStringDynamicMap(Object? value) {
     if (value == null) return {};
@@ -216,16 +257,52 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       _intentExecutionController.stream;
 
   @override
+  Stream<IntentCancellation> get onIntentCancellation =>
+      _cancellationController.stream;
+
+  @override
+  Future<void> reportIntentProgress(
+    String executionId,
+    int completed,
+    int total,
+  ) async {
+    try {
+      await methodChannel.invokeMethod('reportIntentProgress', {
+        'executionId': executionId,
+        'completed': completed,
+        'total': total,
+      });
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this (e.g., Android).
+      // LongRunningIntent progress is iOS-specific.
+    }
+  }
+
+  @override
+  Future<Object?> requestIntentValue(String executionId, String parameter) {
+    // Deliberately NOT swallowing MissingPluginException the way the
+    // fire-and-forget calls do: a value request has a return value the handler
+    // is about to use, so failing quietly would hand it a null the user never
+    // chose.
+    return methodChannel.invokeMethod<Object?>('requestIntentValue', {
+      'executionId': executionId,
+      'parameter': parameter,
+    });
+  }
+
+  @override
   Future<void> donateRelevantEntities(
     String entityIdentifier,
     List<Map<String, dynamic>> entities, {
     String? context,
+    RelevantEntitiesOperation operation = RelevantEntitiesOperation.update,
   }) async {
     try {
       await methodChannel.invokeMethod('donateRelevantEntities', {
         'entityIdentifier': entityIdentifier,
         'entities': entities,
         'context': ?context,
+        'operation': operation.wireName,
       });
     } on MissingPluginException {
       // No-op on platforms that don't implement this (e.g., Android).
@@ -370,8 +447,34 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       );
     }
 
+    // An intent that opened a native execution scope (#130/#131) carries its
+    // id in the params. The handler reaches it through
+    // `AppIntentExecution.current` rather than an argument, so the context is
+    // installed in a Zone around the call — the generated handler signature is
+    // the intent's own parameters and must stay that way.
+    final executionId = params[intentExecutionIdKey] as String?;
+    final handlerParams = executionId == null
+        ? params
+        : (Map<String, dynamic>.of(params)..remove(intentExecutionIdKey));
+
     try {
-      return await handler(params);
+      if (executionId == null) return await handler(handlerParams);
+      final execution = AppIntentExecution(
+        executionId: executionId,
+        reportUnits: (completed, total) =>
+            reportIntentProgress(executionId, completed, total),
+        requestParameterValue: (parameter) =>
+            requestIntentValue(executionId, parameter),
+      );
+      _activeExecutions[executionId] = execution;
+      try {
+        return await runZoned(
+          () => handler(handlerParams),
+          zoneValues: {AppIntentExecution.zoneKey: execution},
+        );
+      } finally {
+        _activeExecutions.remove(executionId);
+      }
     } catch (e) {
       if (e is AppIntentError) rethrow;
       debugPrint('Intent execution error for $identifier: $e');
@@ -470,5 +573,6 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// Call this method when the plugin is no longer needed to free resources.
   void dispose() {
     _intentExecutionController.close();
+    _cancellationController.close();
   }
 }

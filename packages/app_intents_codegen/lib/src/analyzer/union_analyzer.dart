@@ -34,6 +34,8 @@ class UnionAnalyzer {
 
     final identifier = annotation.getField('identifier')?.toStringValue();
     final title = annotation.getField('title')?.toStringValue();
+    final valueQuery =
+        annotation.getField('valueQuery')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -56,6 +58,7 @@ class UnionAnalyzer {
       identifier: identifier,
       title: title,
       cases: cases,
+      valueQuery: valueQuery,
     );
   }
 

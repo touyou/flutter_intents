@@ -177,7 +177,9 @@ void main() {
           contains('func perform() async throws -> some IntentResult'),
         );
         expect(result, contains('FlutterBridge.shared.invoke'));
-        expect(result, contains('intent: "CreateTaskIntent"'));
+        // The bridge key is the @IntentSpec identifier, because that is what
+        // the generated Dart registers its handler under.
+        expect(result, contains('intent: "com.example.createTask"'));
         expect(result, contains('"title": title'));
         expect(result, contains('"dueDate": dueDate'));
         expect(result, contains('return .result()'));
