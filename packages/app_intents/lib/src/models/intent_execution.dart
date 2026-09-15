@@ -113,6 +113,9 @@ class AppIntentExecution {
   /// to ask for a value the caller legitimately omitted.
   Future<T?> requestValue<T>(String parameterName) async {
     final value = await _requestParameterValue(parameterName);
+    // A Date cannot cross the MethodChannel, so the generated Swift answers
+    // with the same ISO-8601 string the params use.
+    if (value is String && T == DateTime) return DateTime.parse(value) as T;
     return value as T?;
   }
 

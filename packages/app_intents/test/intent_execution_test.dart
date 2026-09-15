@@ -18,7 +18,10 @@ void main() {
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
           methodCalls.add(methodCall);
           if (methodCall.method == 'requestIntentValue') {
-            return 'answered';
+            // A DateTime answer crosses the channel as ISO-8601, like params.
+            return methodCall.arguments['parameter'] == 'due'
+                ? '2026-09-15T09:30:00.000Z'
+                : 'answered';
           }
           return null;
         });
@@ -168,6 +171,21 @@ void main() {
       );
       expect(call.arguments['parameter'], equals('note'));
       expect(call.arguments['executionId'], equals('exec-1'));
+    });
+
+    test('requestValue<DateTime> parses the ISO-8601 answer', () async {
+      DateTime? answer;
+
+      platform.registerIntentHandler('com.example.schedule', (params) async {
+        answer = await AppIntentExecution.current!.requestValue<DateTime>(
+          'due',
+        );
+        return {};
+      });
+
+      await execute('com.example.schedule', {intentExecutionIdKey: 'exec-1'});
+
+      expect(answer, equals(DateTime.utc(2026, 9, 15, 9, 30)));
     });
 
     test('the execution is dropped once the handler returns', () async {

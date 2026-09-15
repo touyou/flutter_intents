@@ -1274,8 +1274,8 @@ AppIntents().registerValueImportHandler(
 );
 ```
 
-Returning `null` makes the system decline the drop rather than receive an
-invented entity. Creating content on the fly is a valid answer too: return the
+Returning `null` makes the generated `importing:` closure throw, which declines
+the import instead of inventing an entity. Creating content on the fly is a valid answer too: return the
 map of what you just created.
 
 ### Donations & discovery (#55)

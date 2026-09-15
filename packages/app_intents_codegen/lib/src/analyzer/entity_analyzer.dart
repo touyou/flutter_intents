@@ -256,6 +256,20 @@ class EntityAnalyzer {
         .map((p) => p.exportRole!)
         .toSet();
 
+    // `fieldFor` takes the first match, so a repeated role would silently
+    // export one field and ignore the other.
+    for (final role in declaredRoles) {
+      final fields = properties.where((p) => p.exportRole == role).toList();
+      if (fields.length < 2) continue;
+      throw InvalidGenerationSourceError(
+        'Entity `${element.name}` marks more than one field as the '
+        '${role.name} export field '
+        '(${fields.map((f) => '`${f.fieldName}`').join(', ')}). Each export '
+        'role can be declared once.',
+        element: element,
+      );
+    }
+
     if (exportAs == null) {
       if (declaredRoles.isEmpty) return;
       throw InvalidGenerationSourceError(

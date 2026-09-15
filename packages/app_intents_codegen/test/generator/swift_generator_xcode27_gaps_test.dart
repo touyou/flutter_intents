@@ -235,6 +235,78 @@ void main() {
       expect(result, contains('.map(SearchResult.productResult)'));
     });
 
+    test('two value-query unions sharing an entity emit one decoder', () {
+      UnionInfo union(String name) => UnionInfo(
+        className: name,
+        identifier: 'com.example.$name',
+        valueQuery: true,
+        cases: const [
+          UnionCaseInfo(
+            dartClassName: 'ProductHit',
+            entityType: 'ProductEntity',
+          ),
+        ],
+      );
+      final result = _experimental().generateAll(
+        entities: [
+          _entity(
+            className: 'ProductEntity',
+            identifier: 'com.example.product',
+          ),
+        ],
+        unions: [union('SearchResult'), union('VisualResult')],
+      );
+
+      // Swift rejects a second `_fromUnionDictionary` on the same type.
+      expect(
+        '_fromUnionDictionary(_ dict'.allMatches(result).length,
+        equals(1),
+      );
+      expect(result, contains('struct SearchResultValueQuery'));
+      expect(result, contains('struct VisualResultValueQuery'));
+    });
+
+    test('a union parameter naming a dual-id entity is rejected', () {
+      expect(
+        () => _experimental().generateAll(
+          intents: [
+            IntentInfo(
+              className: 'OpenThingIntent',
+              identifier: 'com.example.openThing',
+              title: 'Open Thing',
+              implementation: IntentImplementationType.dart,
+              parameters: const [
+                IntentParamInfo(
+                  fieldName: 'thing',
+                  dartType: 'Thing',
+                  title: 'Thing',
+                  isOptional: false,
+                  unionInfo: UnionInfo(
+                    className: 'Thing',
+                    identifier: 'com.example.Thing',
+                    cases: [
+                      UnionCaseInfo(
+                        dartClassName: 'DeviceThing',
+                        entityType: 'DeviceEntity',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          entities: [_entity(syncable: true, stableId: true)],
+        ),
+        throwsA(
+          isA<InvalidGenerationSourceError>().having(
+            (e) => e.message,
+            'message',
+            contains('no single string form'),
+          ),
+        ),
+      );
+    });
+
     test('a union case naming an unknown entity is a generation error', () {
       expect(
         () => _experimental().generateAll(

@@ -196,11 +196,11 @@ class AppIntents {
   ///   `handleKind` + `handle`.
   /// - `'place'`: `commonName`, `address`, `latitude`/`longitude` — whichever
   ///   the sender provided.
-  /// - `'currencyAmount'`: `amount` (double) + `currencyCode`.
   ///
   /// Return the matching entity as a map in the same shape your entity query
-  /// returns, or `null` when nothing matches — the import then fails and the
-  /// system declines the drop rather than inventing an entity. Creating new
+  /// returns, or `null` when nothing matches — the generated `importing:`
+  /// closure then throws, declining the import rather than inventing an
+  /// entity. Creating new
   /// content on the fly is a legitimate answer too: return the map of what you
   /// just created.
   ///

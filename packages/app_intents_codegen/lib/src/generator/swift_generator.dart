@@ -1641,6 +1641,10 @@ class SwiftGenerator {
     );
     buffer.writeln('$_indent}');
     buffer.writeln();
+    // suggestedEntities() is the complete source here, not a subset: an
+    // indexed entity always has a cache key, the cache holds the full entity
+    // list Dart projects, and suggestedEntities() returns it whenever it is
+    // non-empty. Only an empty cache falls through to the Dart handler.
     buffer.writeln('${_indent}func reindexAllEntities(');
     buffer.writeln(
       '$_indent${_indent}indexDescription: CSSearchableIndexDescription',
@@ -3059,6 +3063,7 @@ class SwiftGenerator {
     // is iOS 27+, so on the stable `#else` the union type doesn't exist and a
     // union parameter falls back to its first case's entity type instead.
     final allUnions = _collectUnions(intents, unions);
+    final decodedUnionEntities = <String>{};
     for (final union in allUnions) {
       _generateUnionEnum(buffer, union);
       buffer.writeln();
@@ -3067,7 +3072,7 @@ class SwiftGenerator {
       // several entity types, which is the shape free-text and visual search
       // need (the system allows a single query per input type).
       if (union.valueQuery) {
-        _writeUnionValueQuery(buffer, union, entities);
+        _writeUnionValueQuery(buffer, union, entities, decodedUnionEntities);
         buffer.writeln();
         buffer.writeln();
       }
@@ -3137,8 +3142,14 @@ class SwiftGenerator {
     if (dualIdClasses.isEmpty) return;
     for (final intent in intents) {
       for (final param in intent.parameters) {
-        final used = param.entityType ?? param.entityCollectionType;
-        if (used == null || !dualIdClasses.contains(used)) continue;
+        // A union case serializes as `["_type": …, "id": e.id]` too, so it
+        // hits the same wall as a direct entity parameter.
+        final used = <String?>[
+          param.entityType,
+          param.entityCollectionType,
+          ...?param.unionInfo?.cases.map((c) => c.entityType),
+        ].whereType<String>().where(dualIdClasses.contains).firstOrNull;
+        if (used == null) continue;
         throw InvalidGenerationSourceError(
           'Intent `${intent.className}` takes `$used` as the parameter '
           '"${param.fieldName}", but that entity declares an @EntityStableId '
@@ -3258,6 +3269,7 @@ class SwiftGenerator {
     StringBuffer buffer,
     UnionInfo union,
     List<EntityInfo> entities,
+    Set<String> decodedUnionEntities,
   ) {
     final byClassName = {for (final e in entities) e.className: e};
     for (final c in union.cases) {
@@ -3275,6 +3287,9 @@ class SwiftGenerator {
     // One decoding helper per case entity, so the switch below stays readable
     // and the mapping is not duplicated inline per case.
     for (final c in union.cases) {
+      // One helper per entity type across the whole file: two cases (or two
+      // unions) naming the same entity would otherwise redeclare it.
+      if (!decodedUnionEntities.add(c.entityType)) continue;
       final entity = byClassName[c.entityType]!;
       _writeUnionCaseDecoder(buffer, entity);
       buffer.writeln();

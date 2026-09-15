@@ -87,6 +87,28 @@ void main() {
       );
     });
 
+    test('a repeated export role is an error', () async {
+      final library = await resolveSource(
+        _source('exportAs: EntityExportType.place,', '''
+          @EntityExportField(EntityExportRole.address)
+          final String home = '';
+          @EntityExportField(EntityExportRole.address)
+          final String work = '';
+        '''),
+      );
+
+      expect(
+        () => analyzer.analyze(findClass(library, 'PlaceEntity')),
+        throwsA(
+          isA<InvalidGenerationSourceError>().having(
+            (e) => e.message,
+            'message',
+            contains('more than one field as the address export field'),
+          ),
+        ),
+      );
+    });
+
     test('half a coordinate is an error', () async {
       final library = await resolveSource(
         _source('exportAs: EntityExportType.place,', '''

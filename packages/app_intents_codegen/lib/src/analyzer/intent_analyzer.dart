@@ -116,6 +116,23 @@ class IntentAnalyzer {
 
     final parameters = _extractParameters(element);
 
+    // #131: URL scheme and foreground (cache) modes return from perform()
+    // before the Dart handler runs, so no execution scope is open when the
+    // handler executes and a request could only ever resolve to null.
+    final requestable = parameters.where((p) => p.requestValue).toList();
+    if (requestable.isNotEmpty &&
+        (urlScheme != null || supportedModes == IntentModeType.foreground)) {
+      throw InvalidGenerationSourceError(
+        '@IntentParam(requestValue: true) on '
+        '"${requestable.map((p) => p.fieldName).join('", "')}" needs the '
+        'FlutterBridge execution mode, but this intent uses '
+        '${urlScheme != null ? '"urlScheme"' : 'supportedModes: IntentMode.foreground'}, '
+        'which returns from perform() before the Dart handler runs — there is '
+        'no running intent left to prompt.',
+        element: element,
+      );
+    }
+
     if (donatable) {
       _validateDonatableParameters(element, parameters);
     }

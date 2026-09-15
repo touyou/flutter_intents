@@ -53,6 +53,39 @@ void main() {
       );
     });
 
+    for (final mode in const [
+      "urlScheme: 'app', urlAction: 'note',",
+      'supportedModes: IntentMode.foreground,',
+    ]) {
+      test(
+        'rejects requestValue on a deferred-handler route ($mode)',
+        () async {
+          // Both routes return from perform() before the Dart handler runs, so
+          // there is no running intent left to prompt.
+          final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(identifier: 'com.example.note', title: 'Note', $mode)
+          class NoteIntent extends IntentSpecBase {
+            @IntentParam(title: 'Note', isOptional: true, requestValue: true)
+            final String? note = null;
+          }
+        ''');
+
+          expect(
+            () => analyzer.analyze(findClass(library, 'NoteIntent')),
+            throwsA(
+              isA<InvalidGenerationSourceError>().having(
+                (e) => e.message,
+                'message',
+                contains('needs the FlutterBridge execution mode'),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     test('rejects requestValue on an entity parameter', () async {
       final library = await resolveSource('''
         import 'package:app_intents_annotations/app_intents_annotations.dart';
