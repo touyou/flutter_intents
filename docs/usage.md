@@ -1109,9 +1109,8 @@ Two things to keep in mind:
 >
 > Since a statically linked target already merges the metadata **without** any
 > declaration, adding one there is all risk and no gain. Reach for these flags
-> only when you actually cross a dynamic link boundary. (Root cause is pinned
-> but the fix is not yet confirmed on TestFlight, so treat this as a strong
-> warning rather than a settled fact.)
+> only when you actually cross a dynamic link boundary. Removing the declaration
+> has been confirmed to restore ingestion in a TestFlight build.
 
 ## WWDC26 Experimental Features (opt-in)
 

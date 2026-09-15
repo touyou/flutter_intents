@@ -81,7 +81,9 @@ void main(List<String> arguments) async {
           'target linking this code can declare it. Only needed when the '
           'generated intents live in a module reached through DYNAMIC linking '
           '- with Xcode SPM\'s default static linking the metadata already '
-          'merges without any declaration.',
+          'merges without any declaration. Do NOT use it for a statically '
+          'linked target: that has been observed to stop App Intents being '
+          'ingested in TestFlight/App Store builds only (docs/adr/0008).',
     )
     ..addMultiOption(
       'include-package',

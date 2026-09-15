@@ -65,7 +65,10 @@ void main(List<String> arguments) async {
       'app-intents-package',
       help:
           'Emit an AppIntentsPackage conformance for this extension target '
-          'with the given type name.',
+          'with the given type name. Only needed across a DYNAMIC link '
+          'boundary; on a statically linked target it has been observed to '
+          'stop App Intents being ingested in TestFlight/App Store builds '
+          'only (docs/adr/0008).',
     )
     ..addMultiOption(
       'include-package',
