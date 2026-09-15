@@ -172,8 +172,14 @@ void main(List<String> args) {
     identifier: 'com.example.app.SearchResult',
     valueQuery: true,
     cases: [
-      UnionCaseInfo(dartClassName: 'ProductResult', entityType: 'ProductEntity'),
-      UnionCaseInfo(dartClassName: 'MessageResult', entityType: 'MessageEntity'),
+      UnionCaseInfo(
+        dartClassName: 'ProductResult',
+        entityType: 'ProductEntity',
+      ),
+      UnionCaseInfo(
+        dartClassName: 'MessageResult',
+        entityType: 'MessageEntity',
+      ),
     ],
   );
 
