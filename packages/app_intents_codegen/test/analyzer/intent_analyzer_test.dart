@@ -494,7 +494,7 @@ void main() {
         },
       );
 
-      test('extracts the dual-text dialog fields (ADR 0005)', () async {
+      test('extracts the dual-text dialog fields (ADR 0006)', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';
 

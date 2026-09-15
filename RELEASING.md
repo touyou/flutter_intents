@@ -67,18 +67,24 @@ Commit with `chore: Release vX.Y.Z`.
 ```bash
 # Dry-run each package first to surface validation errors.
 cd packages/app_intents_annotations && dart pub publish --dry-run && cd ../..
-cd packages/app_intents_codegen     && dart pub publish --dry-run && cd ../..
 cd packages/app_intents             && dart pub publish --dry-run && cd ../..
+cd packages/app_intents_codegen     && dart pub publish --dry-run && cd ../..
 ```
 
-If all dry-runs pass, publish in dependency order (annotations → codegen →
-plugin), since `codegen` depends on `annotations` and the plugin's example
-ultimately pulls in all three:
+`app_intents_codegen` shows one hint about `pubspec_overrides.yaml` — that is
+the local path override for `app_intents_annotations`, which is not published.
+Everything else should report `Package has 0 warnings.`
+
+If all dry-runs pass, publish annotations → plugin → codegen. The one ordering
+constraint that matters is that **`annotations` goes first**, since `codegen`
+depends on it at the new version. `app_intents` has no internal dependency, so
+its position is free — it sits in the middle only to match `/pub-publish`,
+which automates these same steps.
 
 ```bash
 cd packages/app_intents_annotations && dart pub publish && cd ../..
-cd packages/app_intents_codegen     && dart pub publish && cd ../..
 cd packages/app_intents             && dart pub publish && cd ../..
+cd packages/app_intents_codegen     && dart pub publish && cd ../..
 ```
 
 ## Tagging

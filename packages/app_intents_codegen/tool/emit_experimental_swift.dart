@@ -116,7 +116,7 @@ void main(List<String> args) {
     ],
   );
 
-  // Intent exercising the dual-text + symbol result dialog (ADR 0005). Not
+  // Intent exercising the dual-text + symbol result dialog (ADR 0006). Not
   // experimental — `IntentDialog(full:supporting:)` is iOS 16 and the symbol
   // form is iOS 17.2, reached through an `if #available` — but it still has to
   // compile, and only a typecheck proves the availability dance is right.
