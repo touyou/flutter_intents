@@ -35,6 +35,12 @@ Xcode 27 RC と安定版 Xcode 26.6（**iOS 26.5** SDK）を突き合わせた�
 宣言されているのに **26.5 SDK に実体がありません**。availability の数字だけを見ず、
 実体の有無を確認すること。判定表は CLAUDE.md にあります。
 
+さらにもう一段あります（2026-09-15 追記）: **型が存在することと、その型をそこで使えることは
+別**です。`IntentCurrencyAmount` は iOS 16 から SDK にありますが、
+`ValueRepresentation(exporting:)` のイニシャライザは `_SystemIntentValue` 準拠型と
+`IntentPerson` にしか無いため、export には使えません（#128、ADR 0002 の追記）。
+**カタログ系の機能は「その API の制約節（`where`）まで読む」こと。**
+
 ### 2. iOS 27 シンボルはどちら側に置けるのか
 
 ゲートが要ると判明した場合、次の問いに答えます:
@@ -75,6 +81,7 @@ Xcode 27 RC と安定版 Xcode 26.6（**iOS 26.5** SDK）を突き合わせた�
 | [0007](0007-declarative-snippet-view.md) | #56 | 宣言的スニペットビュー（`ShowsSnippetView`） | 中（codegen + ハンドラ戻り値の配線） | 0004 |
 | [0008](0008-app-intents-package.md) | #59 | `AppIntentsPackage`（共有パッケージ構成の宣言生成） | 低（宣言のみ・構成は利用者側） | — |
 | [0009](0009-relevant-intents.md) | #55残 | `RelevantIntent` ドネーション（Smart Stack 提案） | 中（ブリッジ + codegen） | 0008 の区別整理 |
+| [0010](0010-intent-execution-context.md) | #130 / #131 | 実行中インテントとの双方向経路（進捗・キャンセル・値要求） | 中（ブリッジ + codegen + Zone） | — |
 
 関連: #58（ビジュアルインテリジェンス）は #51 の `Input` を `SemanticContentDescriptor`
 （ピクセルバッファ）に特殊化したケースで、ネイティブ完結が前提。0001 で線引きを示し、
@@ -95,10 +102,14 @@ API シェイプを次のタグで区別します:
 ## 検証コマンド
 
 ```bash
-# 生成 Swift の dual-branch 型チェック。両方の Xcode で回す。
+# 生成 Swift の dual-branch 型チェック。
 # デプロイメントターゲット iOS 17.0 で型チェックするので、@available のガード漏れが落ちる。
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/verify_experimental_swift.sh
-DEVELOPER_DIR=/Applications/Xcode-27.0.0-release.candidate.app/Contents/Developer scripts/verify_experimental_swift.sh
+# iOS 27 SDK があれば両ブランチ（-D あり/なし）を、無ければ安定ブランチだけを検査する。
+scripts/verify_experimental_swift.sh
+
+# 古い Xcode も残している場合は、そちらでも回すと「ゲート不要な機能が
+# 本当に iOS 27 なしでコンパイルできるか」が確認できる。
+DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer scripts/verify_experimental_swift.sh
 
 # generate_widget_swift --public の出力が共有モジュールとして成立するか。
 # モジュールとしてビルドしてから、それを import する利用側をコンパイルする。

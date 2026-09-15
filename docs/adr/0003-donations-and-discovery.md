@@ -160,3 +160,58 @@ iOS 27 シンボルを名指すのは `#if`-ゲートされた生成クロージ
 
 いずれも「ドネーション呼び出し本体を生成コードへ、プラグインは逆向きジェネリック executor」という
 一つの原則で統一し、プラグイン本体が iOS 27 シンボルを名指さない状態を保つ。
+
+## 追記（2026-09-15）: dual-id と削除 API（#132 / #133）
+
+### 決定 3 の残り: dual-id `SyncableEntityIdentifier`
+
+iOS 27.0 SDK での実体:
+
+```swift
+@available(anyAppleOS 27.0, *)
+public struct SyncableEntityIdentifier<LocalID, StableID>: Sendable
+    where LocalID: EntityIdentifierConvertible & Sendable,
+          StableID: EntityIdentifierConvertible & Sendable {
+    public let local: LocalID?
+    public let stable: StableID?
+    public init(local: LocalID, stable: StableID)
+}
+extension SyncableEntityIdentifier: EntityIdentifierConvertible { … }
+```
+
+`@EntityStableId` を付けたフィールドと `@EntityId` を組にして
+`SyncableEntityIdentifier<String, String>` を作る。**エンティティの `id` の型が変わる**ので、
+App Schema（#49）と同じく**エンティティとクエリ全体を dual-branch** する。`#else` では
+スカラー id のまま、安定 id は普通のプロパティとして残す。
+
+**クエリが文字列ブリッジに落とすとき、両方の半分を送る。** システムが渡してくる識別子は
+`local` だけのことも `stable` だけのこともあり、Dart 側がどちらでレコードを引いているかは
+アプリ次第なので、`[pair.local, pair.stable].compactMap { $0 }` で両方渡して
+ハンドラに選ばせる。
+
+**インテントパラメータとしての利用は生成時エラーにした。** エンティティパラメータは
+`<param>.id` として Dart に渡るが、dual-id ではそれが構造体で MethodChannel に載らない。
+`entityIdentifierString` で文字列化すると、今度は Dart 側のどのレコードとも一致しない
+複合文字列が渡る（黙って壊れる）。エラーにして理由を言うほうが良い。
+
+### `RelevantEntities` の削除 API（#133-1）
+
+RC の `.swiftinterface` に以下がある:
+
+```swift
+public func removeEntities(_ entities: [any AppEntity]) async throws
+public func removeAllEntities() async throws
+public func removeEntities(_ entities: [any AppEntity], from context: AppEntityContext) async throws
+public func removeAllEntities(for context: AppEntityContext) async throws
+```
+
+従来は「空配列で `updateEntities`」で消していたが、それは**1つの context を消せるだけ**で、
+全 context の一括クリアを表現できない。
+
+donator クロージャの第1引数に**操作**（`"update"` / `"remove"` / `"removeAll"`）を足した
+（`registerRelevantEntitiesDonator` のシグネチャ変更）。Dart 側は
+`removeRelevantEntities` / `removeAllRelevantEntities` を追加。context が nil なら
+context 無しオーバーロード（＝全 context）に落とす。
+
+プラグインの `relevantEntitiesDonationForwarder` も引数が1つ増えているので、
+AppDelegate の配線は更新が必要（`docs/usage.md`）。

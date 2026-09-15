@@ -1081,6 +1081,22 @@ dart run app_intents_codegen:generate_widget_swift \
 - `@AppShortcutsProvider` は**アプリターゲット直下**に置いてください。パッケージ内に移すと
   自動ショートカットが 0 件になります。
 
+> **静的リンク構成では App Intents Package を宣言しないでください。**
+> 姉妹プロジェクトで、この宣言を入れたビルドが **App Store / TestFlight 経由の
+> インストールでだけ** App Intents を一切取り込まれなくなる事象が起きました。
+> 「ショートカットが1つ出ない」ではなく、**ショートカットアプリにアプリ名すら出ない**
+> 状態で、同じビルドを Xcode から実行すると正常でした。ビルド二分で宣言を足した
+> コミットまで確定しています。この宣言が出荷バンドルに足すのは
+> `extract.packagedata` だけで、中身は `includedPackages` の**マングル名**です
+> — App Intents メタデータの中で型を実行時にマングル名で引く唯一の経路で、失敗した
+> ときの巻き添えがバンドル全体になりうる箇所です。`STRIP_SWIFT_SYMBOLS` が効くのも
+> 配布ビルドだけです。
+>
+> 静的リンクなら宣言**なし**で既にメタデータはマージされるので、そこに宣言を足すのは
+> リスクだけで利得がありません。これらのフラグは**動的リンク境界を跨ぐとき**にだけ
+> 使ってください。（原因は確定していますが TestFlight での復帰確認はこれからなので、
+> 断定ではなく強い警告として扱ってください。）
+
 ## WWDC26 実験的機能（opt-in）
 
 codegen は WWDC26 の App Intents API（iOS 26.4 / iOS 27+）を出力できます。これらの
@@ -1094,7 +1110,7 @@ Swift は `#if APP_INTENTS_WWDC26` で囲まれビルド設定からも切り替
 # マスタースイッチ + 機能選択（カンマ区切り）。マスター OFF なら一切出力しない。
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types
+  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types,reindexing
 ```
 
 出力された WWDC26 形をコンパイルするには、Xcode のターゲットの **Active Compilation
@@ -1107,9 +1123,10 @@ Conditions**（Swift フラグ）に `APP_INTENTS_WWDC26` を追加します。�
 | `app-schema` | `@AppEntity/@AppIntent/@AppEnum(schema:)` ドメイン準拠 (#49) |
 | `ownership` | `@EntitySpec(ownership:)` による `OwnershipProvidingEntity` 準拠 (#55) |
 | `long-running` | `LongRunningIntent` / `CancellableIntent` / 実行ターゲット (#52) |
-| `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53) |
-| `value-representation` | `ValueRepresentation` によるアプリ間エンティティ export (#54) |
-| `donation` | `SyncableEntity` + `RelevantEntities` ドネーション (#55) |
+| `rich-types` | ネイティブ `Duration` / `PersonNameComponents` / `EntityCollection` / `@UnionValue` パラメータ (#53)、union を返す value query (#133) |
+| `value-representation` | `ValueRepresentation` によるアプリ間エンティティ export / import (#54, #129) |
+| `donation` | `SyncableEntity`（dual id 含む #132） + `RelevantEntities` ドネーション (#55, #133) |
+| `reindexing` | `IndexedEntityQuery` — システムからの再インデックス要求 (#133) |
 
 ### App Schema (#49) — カタログの利用
 
@@ -1158,8 +1175,69 @@ class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
 class ContactEntitySpec extends EntitySpecBase<Contact> { /* ... */ }
 ```
 
+**場所**として export する場合は表示ロールでは表現できない位置情報が要るので、
+`@EntityExportField` でフィールドを指定します:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.StoreEntity',
+  title: 'Store', pluralTitle: 'Stores',
+  exportAs: EntityExportType.place,
+)
+class StoreEntitySpec extends EntitySpecBase<Store> {
+  @EntityId final String id;
+  @EntityTitle final String name;              // commonName になる
+  @EntityExportField(EntityExportRole.latitude) final double? lat;
+  @EntityExportField(EntityExportRole.longitude) final double? lng;
+  @EntityExportField(EntityExportRole.address) final String? address;
+  // …
+}
+```
+
+座標のペアと住所は、どちらか一方だけでも構いません（緯度だけ・経度だけは生成時エラー）。
+export フィールドは生成エンティティの通常の格納プロパティになり、クエリが返すのと同じ
+エンティティ辞書から読み戻されるので、**キャッシュ投影にも含めてください**。含めないと
+export 時に nil になり、そのフレーバーは提示されません。
+
 `ValueRepresentation` を伴う `Transferable` 準拠が生成されます。export はシステム向き
 （Flutter 往復なし）のため、ネイティブ配線は不要です。
+
+**カタログは SDK 側で閉じています。** `ValueRepresentation(exporting:)` は
+`IntentPerson` と `_SystemIntentValue` 準拠型にしか存在しません。手が伸びそうな型で言うと
+`PlaceDescriptor` は使えて、`IntentCurrencyAmount` / `IntentFile` / `EntityCollection` は
+**使えません** — SDK に型はあるが export はできないので、enum のケースも用意していません。
+
+### アプリ間エンティティ import (#129)
+
+`importable: true` を足すと、他アプリから渡ってきたシステム標準型を受け取れます。
+どのエンティティに対応するかはアプリのデータ次第なので、生成される `importing:`
+クロージャは Dart に問い合わせます:
+
+```dart
+@EntitySpec(
+  identifier: 'com.example.app.ContactEntity',
+  title: 'Contact', pluralTitle: 'Contacts',
+  exportAs: EntityExportType.person,
+  importable: true,
+)
+class ContactEntitySpec extends EntitySpecBase<Contact> { /* ... */ }
+```
+
+```dart
+AppIntents().registerValueImportHandler(
+  'com.example.app.ContactEntity',
+  (value) async {
+    // value['kind'] は 'person' | 'place'。残りは平坦化された値
+    // （person: displayName / nameComponents / handle、
+    //   place: commonName / address / latitude / longitude）
+    final match = await contacts.findByName(value['displayName'] as String?);
+    return match?.toJson();   // null なら import を辞退
+  },
+);
+```
+
+`null` を返すとシステムはドロップを辞退します（でっち上げのエンティティを渡さない）。
+その場で新規作成して、作ったものの Map を返すのも正しい答えです。
 
 ### ドネーションと発見性 (#55)
 
@@ -1170,6 +1248,26 @@ UUID）な場合に `syncable: true` を指定すると、会話がデバイス�
 ```dart
 @EntitySpec(identifier: '…', title: '…', pluralTitle: '…', syncable: true)
 ```
+
+id が**ローカル**で、別に付くサーバー側 id が安定 id であるケースでは、そのフィールドに
+`@EntityStableId` を付けます（#132）。生成エンティティの Swift `id` が
+`SyncableEntityIdentifier<String, String>` になります:
+
+```dart
+@EntitySpec(identifier: '…', title: '…', pluralTitle: '…', syncable: true)
+class DeviceEntitySpec extends EntitySpecBase<Device> {
+  @EntityId final String localId;
+  @EntityTitle final String name;
+  @EntityStableId final String serverId;
+  // …
+}
+```
+
+id の型が変わるのでエンティティとクエリ全体が dual-branch になります。クエリは問い合わせ
+られた識別子の**両方の半分**を Dart ハンドラに渡すので、自分のレコードが持っているほうで
+突き合わせてください。dual-id エンティティは `@IntentParam(entityType:)` の値としては
+使えません（生成時エラー）。識別子に単一の文字列表現がなく、ハンドラ側で突き合わせられ
+ないためです。
 
 **RelevantEntities ドネーション** — `relevantEntities: true` で
 `register<Entity>RelevantEntitiesDonator()` 関数が生成されます。起動時に一度呼び（ネイ
@@ -1184,7 +1282,107 @@ await AppIntents().donateRelevantEntities(
   currentlyPlaying.map((s) => s.toJson()).toList(),
   context: 'audio.nowPlaying', // ステートフル上書き; [] でクリア
 );
+
+// #133: 明示的な削除。context を省くと全 context が対象になります（空ドネーションでは
+// 名指しした 1 つの context しか消せません）。
+await AppIntents().removeRelevantEntities(
+  'com.example.app.SongEntity', [stale.toJson()]);
+await AppIntents().removeAllRelevantEntities('com.example.app.SongEntity');
 ```
+
+### 長時間実行 Intent の進捗とキャンセル (#130)
+
+`@IntentSpec(longRunning: true, cancellable: true)` を付けると、システムの進捗 UI と
+キャンセルのフックが得られます。Dart ハンドラはどちらにも `AppIntentExecution.current`
+から触ります（ハンドラのシグネチャは変わりません。コンテキストは呼び出しを包む `Zone`
+に入っています）:
+
+```dart
+Future<void> exportTasksHandler({required String format}) async {
+  final execution = AppIntentExecution.current;
+  for (var i = 0; i < tasks.length; i++) {
+    if (execution?.isCancelled ?? false) return;   // 協調的: きれいに止める
+    await exportOne(tasks[i]);
+    await execution?.reportProgress((i + 1) / tasks.length);
+  }
+}
+```
+
+実行スコープを開かない Intent では `current` は null です（長時間実行でもキャンセル可能
+でも値要求パラメータも無い Intent、および長時間実行 Intent の安定 `#else` ビルド。進捗と
+キャンセルは iOS 27 のシンボルなので）。上の例のように optional 扱いにしてください。
+そうしたビルドでは `execution?.reportProgress(…)` が単に何もしません。
+
+`AppIntents().onIntentCancellation` は同じ通知をストリームでも流します。ハンドラが投げ
+っぱなしにした処理を外側から畳むときに使えます。
+
+### 実行中にユーザーへ値を聞く (#131)
+
+`@IntentParam(requestValue: true)` を付けると、呼び出し側が省略した **optional** パラメータ
+についてシステムに聞き返してもらえます:
+
+```dart
+@IntentSpec(identifier: 'com.example.app.addNote', title: 'Add Note')
+class AddNoteIntentSpec extends IntentSpecBase {
+  @IntentParam(title: 'Note', isOptional: true, requestValue: true)
+  final String? note;
+  // …
+}
+
+Future<void> addNoteHandler({String? note}) async {
+  final text = note ?? await AppIntentExecution.current?.requestValue<String>('note');
+  // … ユーザーが答えるまで perform() は中断したままです …
+}
+```
+
+対象は optional パラメータだけ（非 optional はシステムが自動で聞き返すため）で、型も
+プリミティブ（`String`/`int`/`double`/`bool`/`DateTime`）に限られます（答えが
+MethodChannel を渡るため）。それ以外は生成時に弾かれます。これは**実験的機能ではありません**
+— `requestValue` は iOS 16 なので両ブランチで動きます。
+
+### 1つのクエリで複数のエンティティ型を返す (#133)
+
+入力型ごとに `IntentValueQuery` はアプリに1つしか置けないので、複数種類のエンティティを
+返したい検索は union で答える必要があります。union 側に `valueQuery: true` を指定します:
+
+```dart
+@UnionValueSpec(identifier: 'com.example.app.SearchResult', valueQuery: true)
+sealed class SearchResult { const SearchResult(); }
+
+@UnionCase(entityType: 'TaskEntitySpec')
+class TaskResult extends SearchResult { final String id; const TaskResult(this.id); }
+
+@UnionCase(entityType: 'ProjectEntitySpec')
+class ProjectResult extends SearchResult { final String id; const ProjectResult(this.id); }
+```
+
+Dart ハンドラは union の識別子で登録し、各結果に `_type`（`@UnionCase` のサブクラス名）を
+付けて、そのエンティティのフィールドと一緒に返します:
+
+```dart
+AppIntents().registerValueQueryHandler(
+  'com.example.app.SearchResult',
+  (input) async {
+    final query = input['query'] as String? ?? '';
+    return [
+      for (final t in await tasks.search(query))
+        {'_type': 'TaskResult', ...t.toEntityJson()},
+      for (final p in await projects.search(query))
+        {'_type': 'ProjectResult', ...p.toEntityJson()},
+    ];
+  },
+);
+```
+
+各ケースのエンティティは同じ生成ランに `@EntitySpec` が無ければなりません（クエリが
+ハンドラの結果からそのエンティティを組み立てるため）。
+
+### 要求に応じた再インデックス (#133)
+
+`indexed: true` に加えて `reindexing` フィーチャーを有効にすると、生成クエリが
+`IndexedEntityQuery` にも準拠し、システムから Spotlight の写しを更新するよう要求できる
+ようになります。生成される実装は既存のクエリ経路（＝ Dart に届く経路）で読み直し、結果を
+`CSSearchableIndex.indexAppEntities` に渡します。追加のハンドラ実装は不要です。
 
 ### オンスクリーン認識 (#56)
 
@@ -1223,11 +1421,31 @@ Task { @MainActor in
   }
 }
 
+// #130/#131 実行コンテキスト。ゲートしない: 値要求は iOS 16 で、キャンセルは
+// スコープを開いたどのビルドでも届きうる。
+AppIntentsPlugin.intentProgressForwarder = { executionId, completed, total in
+  try await FlutterBridge.shared.updateProgress(
+    executionId: executionId, completed: completed, total: total)
+}
+AppIntentsPlugin.intentValueRequestForwarder = { executionId, parameter in
+  try await FlutterBridge.shared.requestValue(
+    executionId: executionId, parameter: parameter)
+}
+Task {
+  await FlutterBridge.shared.setCancellationNotifier { executionId, reason in
+    await MainActor.run {
+      AppIntentsPlugin.shared?.notifyIntentCancellation(
+        executionId: executionId, reason: reason)
+    }
+  }
+}
+
 #if APP_INTENTS_WWDC26
 // #55 RelevantEntities ドネーション: Dart → 生成 donator へ転送。
-AppIntentsPlugin.relevantEntitiesDonationForwarder = { id, entities, context in
+// `operation` は "update" / "remove" / "removeAll" (#133)。
+AppIntentsPlugin.relevantEntitiesDonationForwarder = { id, operation, entities, context in
   try await FlutterBridge.shared.donateRelevantEntities(
-    entityIdentifier: id, entities: entities, context: context)
+    entityIdentifier: id, operation: operation, entities: entities, context: context)
 }
 // 各エンティティの生成 donator を登録（relevantEntities エンティティごとに1回）:
 if #available(iOS 27.0, *) {
