@@ -34,6 +34,10 @@ enum ExperimentalFeature {
   /// `docs/adr/0002-cross-app-entity-sharing.md`.
   valueRepresentation('value-representation'),
 
+  /// Spotlight re-indexing (#133): `IndexedEntityQuery` — the system asking the
+  /// app to re-index an `IndexedEntity` on demand. iOS 27 protocol.
+  reindexing('reindexing'),
+
   /// Donations & discovery (#55): `SyncableEntity` conformance (stable-id case)
   /// and `RelevantEntities` contextual donation via the reverse executor
   /// (generated closure registers with the plugin and calls

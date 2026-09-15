@@ -13,11 +13,13 @@ import '../analyzer/entity_analyzer.dart';
 import '../analyzer/enum_analyzer.dart';
 import '../analyzer/intent_analyzer.dart';
 import '../analyzer/shortcut_analyzer.dart';
+import '../analyzer/union_analyzer.dart';
 import '../analyzer/widget_configuration_analyzer.dart';
 import '../generator/swift_generator.dart';
 import '../models/entity_info.dart';
 import '../models/enum_info.dart';
 import '../models/intent_info.dart';
+import '../models/union_info.dart';
 import '../models/widget_configuration_info.dart';
 
 /// Result of analyzing source files for annotations.
@@ -34,6 +36,13 @@ class AnalyzeResult {
   /// Shortcuts found in the source files.
   final List<AppShortcutInfo> shortcuts;
 
+  /// `@UnionValueSpec` sealed classes found in the source files (#53, #133).
+  ///
+  /// Collected independently of intent parameters: a union that only exists to
+  /// be returned by an `IntentValueQuery` is referenced by no parameter, so
+  /// scanning parameters alone would never find it.
+  final List<UnionInfo> unions;
+
   /// Widget configuration intents found in the source files (#98).
   ///
   /// These are generated into a separate Widget Extension file, never into the
@@ -46,6 +55,7 @@ class AnalyzeResult {
     required this.enums,
     required this.shortcuts,
     this.widgetConfigurations = const [],
+    this.unions = const [],
   });
 
   /// Whether any annotations were found.
@@ -61,7 +71,8 @@ class AnalyzeResult {
       intents.isNotEmpty ||
       entities.isNotEmpty ||
       enums.isNotEmpty ||
-      shortcuts.isNotEmpty;
+      shortcuts.isNotEmpty ||
+      unions.isNotEmpty;
 }
 
 /// Scans and analyzes Dart source files for @IntentSpec, @EntitySpec,
@@ -106,6 +117,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
       enums: [],
       shortcuts: [],
       widgetConfigurations: [],
+      unions: [],
     );
   }
 
@@ -116,6 +128,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final entitiesMap = <String, EntityInfo>{};
   final enumsMap = <String, EnumInfo>{};
   final widgetConfigurationsMap = <String, WidgetConfigurationInfo>{};
+  final unionsMap = <String, UnionInfo>{};
 
   final collection = AnalysisContextCollection(
     includedPaths: [absoluteInputDir],
@@ -127,6 +140,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final shortcutAnalyzer = const ShortcutAnalyzer();
   final enumAnalyzer = const EnumAnalyzer();
   final widgetConfigurationAnalyzer = const WidgetConfigurationAnalyzer();
+  final unionAnalyzer = const UnionAnalyzer();
   final allShortcuts = <AppShortcutInfo>[];
 
   for (final filePath in dartFiles) {
@@ -168,6 +182,15 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
             }
           }
 
+          // Check for @UnionValueSpec
+          if (unionAnalyzer.hasUnionValueSpecAnnotation(element)) {
+            final info = unionAnalyzer.analyze(element);
+            if (info != null && !unionsMap.containsKey(info.identifier)) {
+              unionsMap[info.identifier] = info;
+              stdout.writeln('  Found union: ${info.className}');
+            }
+          }
+
           // Check for @AppShortcutsProvider
           if (shortcutAnalyzer.hasAppShortcutsProviderAnnotation(element)) {
             final shortcuts = shortcutAnalyzer.analyze(element);
@@ -198,6 +221,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   final entities = entitiesMap.values.toList();
   final enums = enumsMap.values.toList();
   final widgetConfigurations = widgetConfigurationsMap.values.toList();
+  final unions = unionsMap.values.toList();
 
   // Resolve shortcut intentIdentifier to intent className
   final identifierToClassName = <String, String>{
@@ -217,7 +241,8 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   stdout.writeln('');
   stdout.writeln(
     'Found ${intents.length} intents, ${entities.length} entities, '
-    '${enums.length} enums, ${resolvedShortcuts.length} shortcuts, and '
+    '${enums.length} enums, ${resolvedShortcuts.length} shortcuts, '
+    '${unions.length} unions, and '
     '${widgetConfigurations.length} widget configurations',
   );
 
@@ -227,5 +252,6 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     enums: enums,
     shortcuts: resolvedShortcuts,
     widgetConfigurations: widgetConfigurations,
+    unions: unions,
   );
 }

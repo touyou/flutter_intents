@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_intents/app_intents.dart';
 import 'package:app_intents/app_intents_method_channel.dart';
@@ -11,8 +13,38 @@ class MockAppIntentsPlatform
   final Map<String, SuggestedEntitiesHandler> _suggestedEntitiesHandlers = {};
   final Map<String, ValueQueryHandler> valueQueryHandlers = {};
 
+  final List<Map<String, Object>> reportedProgress = [];
+  final List<Map<String, String>> requestedValues = [];
+  final StreamController<IntentCancellation> cancellations =
+      StreamController<IntentCancellation>.broadcast();
+
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
+
+  @override
+  Future<void> reportIntentProgress(
+    String executionId,
+    int completed,
+    int total,
+  ) async {
+    reportedProgress.add({
+      'executionId': executionId,
+      'completed': completed,
+      'total': total,
+    });
+  }
+
+  @override
+  Future<Object?> requestIntentValue(
+    String executionId,
+    String parameter,
+  ) async {
+    requestedValues.add({'executionId': executionId, 'parameter': parameter});
+    return 'requested';
+  }
+
+  @override
+  Stream<IntentCancellation> get onIntentCancellation => cancellations.stream;
 
   @override
   void registerIntentHandler(String identifier, IntentHandler handler) {
@@ -50,11 +82,13 @@ class MockAppIntentsPlatform
     String entityIdentifier,
     List<Map<String, dynamic>> entities, {
     String? context,
+    RelevantEntitiesOperation operation = RelevantEntitiesOperation.update,
   }) async {
     donatedRelevantEntities.add({
       'entityIdentifier': entityIdentifier,
       'entities': entities,
       'context': context,
+      'operation': operation,
     });
   }
 
@@ -193,6 +227,40 @@ void main() {
         isTrue,
       );
     });
+
+    test(
+      'registerValueImportHandler registers under the #import suffix',
+      () async {
+        appIntentsPlugin.registerValueImportHandler(
+          'com.example.ProductEntity',
+          (value) async => {'id': 'p1', 'title': 'Product'},
+        );
+
+        final handler =
+            fakePlatform.valueQueryHandlers['com.example.ProductEntity#import'];
+        expect(handler, isNotNull);
+        expect(
+          await handler!({'kind': 'person'}),
+          equals([
+            {'id': 'p1', 'title': 'Product'},
+          ]),
+        );
+      },
+    );
+
+    test(
+      'registerValueImportHandler turns no match into an empty list',
+      () async {
+        appIntentsPlugin.registerValueImportHandler(
+          'com.example.ProductEntity',
+          (value) async => null,
+        );
+
+        final handler = fakePlatform
+            .valueQueryHandlers['com.example.ProductEntity#import']!;
+        expect(await handler({'kind': 'person'}), isEmpty);
+      },
+    );
 
     test('donateRelevantEntities delegates to platform', () async {
       await appIntentsPlugin.donateRelevantEntities('com.example.SongEntity', [

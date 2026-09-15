@@ -119,3 +119,29 @@ enum SleepCondition { wakeup, bedtime }
 
 /// A state of the user's activity.
 enum FitnessCondition { workoutActive, activityRingsIncomplete }
+
+/// What a `donateRelevantEntities` call does to the system's picture of an
+/// entity type's relevant entities (#55, extended in #133).
+enum RelevantEntitiesOperation {
+  /// Replaces the entities for the given context.
+  ///
+  /// This is a stateful overwrite, so an empty list clears that one context.
+  update('update'),
+
+  /// Removes the given entities — from one context when a context is passed,
+  /// from every context otherwise.
+  remove('remove'),
+
+  /// Removes **all** donated entities of this type — from one context when a
+  /// context is passed, from every context otherwise.
+  ///
+  /// The entity list is ignored. Before the Xcode 27 SDK the only way to drop a
+  /// donation was an empty [update], which cannot express a clear that spans
+  /// every context.
+  removeAll('removeAll');
+
+  const RelevantEntitiesOperation(this.wireName);
+
+  /// The token sent over the MethodChannel.
+  final String wireName;
+}

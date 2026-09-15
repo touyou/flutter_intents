@@ -17,11 +17,16 @@ class UnionInfo {
   /// The union cases, in declaration order.
   final List<UnionCaseInfo> cases;
 
+  /// Experimental (WWDC26 #133): whether to generate an `IntentValueQuery`
+  /// returning this union.
+  final bool valueQuery;
+
   const UnionInfo({
     required this.className,
     required this.identifier,
     this.title,
     required this.cases,
+    this.valueQuery = false,
   });
 
   @override
@@ -30,16 +35,22 @@ class UnionInfo {
       other.className == className &&
       other.identifier == identifier &&
       other.title == title &&
+      other.valueQuery == valueQuery &&
       _listEquals(other.cases, cases);
 
   @override
-  int get hashCode =>
-      Object.hash(className, identifier, title, Object.hashAll(cases));
+  int get hashCode => Object.hash(
+    className,
+    identifier,
+    title,
+    valueQuery,
+    Object.hashAll(cases),
+  );
 
   @override
   String toString() =>
       'UnionInfo(className: $className, identifier: $identifier, '
-      'title: $title, cases: $cases)';
+      'title: $title, valueQuery: $valueQuery, cases: $cases)';
 }
 
 /// One case of a [UnionInfo].

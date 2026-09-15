@@ -219,6 +219,10 @@ class IntentParamInfo {
   /// dict by reading `$field.valueState`. See `IntentParam.useValueState`.
   final bool useValueState;
 
+  /// Whether the Dart handler can ask the system to prompt for this parameter
+  /// mid-`perform()` (#131). See `IntentParam.requestValue`.
+  final bool requestValue;
+
   const IntentParamInfo({
     required this.fieldName,
     required this.dartType,
@@ -231,6 +235,7 @@ class IntentParamInfo {
     this.entityCollectionType,
     this.unionInfo,
     this.useValueState = false,
+    this.requestValue = false,
   });
 
   @override
@@ -247,7 +252,8 @@ class IntentParamInfo {
         fileType == other.fileType &&
         entityCollectionType == other.entityCollectionType &&
         unionInfo == other.unionInfo &&
-        useValueState == other.useValueState;
+        useValueState == other.useValueState &&
+        requestValue == other.requestValue;
   }
 
   @override
@@ -263,6 +269,7 @@ class IntentParamInfo {
     entityCollectionType,
     unionInfo,
     useValueState,
+    requestValue,
   );
 
   @override
@@ -271,7 +278,7 @@ class IntentParamInfo {
       'description: $description, isOptional: $isOptional, entityType: $entityType, '
       'enumType: $enumType, fileType: $fileType, '
       'entityCollectionType: $entityCollectionType, unionInfo: $unionInfo, '
-      'useValueState: $useValueState)';
+      'useValueState: $useValueState, requestValue: $requestValue)';
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

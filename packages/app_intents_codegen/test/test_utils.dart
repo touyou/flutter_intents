@@ -29,6 +29,7 @@ Future<LibraryElement> resolveSource(String source) async {
         export 'src/annotations/intent_param.dart';
         export 'src/annotations/entity_spec.dart';
         export 'src/annotations/entity_params.dart';
+        export 'src/annotations/entity_export.dart';
         export 'src/annotations/app_shortcut.dart';
         export 'src/annotations/enum_spec.dart';
         export 'src/bases/intent_spec_base.dart';
@@ -129,6 +130,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? fileType;
           final String? entityCollectionType;
           final bool useValueState;
+          final bool requestValue;
 
           const IntentParam({
             required this.title,
@@ -139,10 +141,18 @@ Future<LibraryElement> resolveSource(String source) async {
             this.fileType,
             this.entityCollectionType,
             this.useValueState = false,
+            this.requestValue = false,
           });
         }
       ''',
+      'app_intents_annotations|lib/src/annotations/entity_export.dart': '''
+        enum EntityExportType { person, place }
+
+        enum EntityExportRole { latitude, longitude, address }
+      ''',
       'app_intents_annotations|lib/src/annotations/entity_spec.dart': '''
+        import 'entity_export.dart';
+
         class EntitySpec {
           final String identifier;
           final String title;
@@ -154,6 +164,11 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? persistedCacheKey;
           final String? schema;
           final EntityOwnershipState? ownership;
+          final bool valueQuery;
+          final EntityExportType? exportAs;
+          final bool importable;
+          final bool syncable;
+          final bool relevantEntities;
 
           const EntitySpec({
             required this.identifier,
@@ -166,12 +181,19 @@ Future<LibraryElement> resolveSource(String source) async {
             this.persistedCacheKey,
             this.schema,
             this.ownership,
+            this.valueQuery = false,
+            this.exportAs,
+            this.importable = false,
+            this.syncable = false,
+            this.relevantEntities = false,
           });
         }
 
         enum EntityOwnershipState { unknown, shared, public }
       ''',
       'app_intents_annotations|lib/src/annotations/entity_params.dart': '''
+        import 'entity_export.dart';
+
         class EntityId {
           const EntityId();
         }
@@ -196,6 +218,15 @@ Future<LibraryElement> resolveSource(String source) async {
           final String? title;
           final String? indexingKey;
           const EntityProperty({this.title, this.indexingKey});
+        }
+
+        class EntityStableId {
+          const EntityStableId();
+        }
+
+        class EntityExportField {
+          final EntityExportRole role;
+          const EntityExportField(this.role);
         }
       ''',
       'app_intents_annotations|lib/src/bases/intent_spec_base.dart': '''
@@ -235,7 +266,12 @@ Future<LibraryElement> resolveSource(String source) async {
         class UnionValueSpec {
           final String identifier;
           final String? title;
-          const UnionValueSpec({required this.identifier, this.title});
+          final bool valueQuery;
+          const UnionValueSpec({
+            required this.identifier,
+            this.title,
+            this.valueQuery = false,
+          });
         }
 
         class UnionCase {

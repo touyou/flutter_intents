@@ -232,6 +232,7 @@ Future<void> generateSwift({
     entities: analyzeResult.entities,
     shortcuts: analyzeResult.shortcuts,
     enums: analyzeResult.enums,
+    unions: analyzeResult.unions,
     appIntentsPackage: appIntentsPackage,
     includedPackages: includedPackages,
   );

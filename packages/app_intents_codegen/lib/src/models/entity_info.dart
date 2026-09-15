@@ -61,6 +61,12 @@ class EntityInfo {
   /// `ValueRepresentation(exporting:)` (`#if`-gated).
   final EntityExportKind? exportAs;
 
+  /// Experimental (WWDC26 #54 / #129): whether the generated
+  /// `ValueRepresentation` also carries an `importing:` closure, resolving a
+  /// system value handed over by another app back into this entity through the
+  /// value-query bridge. Requires [exportAs].
+  final bool importable;
+
   /// Experimental (WWDC26 #55): whether the entity's id is stable across
   /// devices. When true and the `donation` feature is enabled, the Swift output
   /// adds a `SyncableEntity` conformance (`#if`-gated, additive). Only the
@@ -90,6 +96,7 @@ class EntityInfo {
     this.ownership,
     this.valueQuery = false,
     this.exportAs,
+    this.importable = false,
     this.syncable = false,
     this.relevantEntities = false,
   });
@@ -97,6 +104,31 @@ class EntityInfo {
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
   /// an explicit initializer (the `@Property` wrapper has no `init(wrappedValue:)`).
   bool get hasExposedProperties => properties.any((p) => p.exposeAsProperty);
+
+  /// Whether the generated Swift entity needs an explicit initializer.
+  ///
+  /// Required as soon as any property is not one of the four display roles:
+  /// a `@Property` wrapper has no `init(wrappedValue:)`, and an export-role
+  /// field must be defaultable so the role-only construction in the generated
+  /// queries keeps compiling.
+  bool get needsExplicitInit =>
+      hasExposedProperties ||
+      properties.any((p) => p.role == EntityPropertyRole.none);
+
+  /// The field holding the stable cross-device identifier (#132), if declared.
+  EntityPropertyInfo? get stableIdProperty =>
+      properties.where((p) => p.isStableId).firstOrNull;
+
+  /// Whether this entity's Swift `id` is a dual
+  /// `SyncableEntityIdentifier<String, String>` (#132) rather than a scalar.
+  ///
+  /// Only true when the entity is [syncable] *and* names a separate stable id:
+  /// an entity whose own id is already stable needs no pair.
+  bool get usesDualIdentifier => syncable && stableIdProperty != null;
+
+  /// The property carrying the given structured-export [role], if declared.
+  EntityPropertyInfo? exportField(EntityExportRoleKind role) =>
+      properties.where((p) => p.exportRole == role).firstOrNull;
 
   /// Whether any exposed property uses semantic `indexingKey` (iOS 18.4+).
   bool get hasIndexingKeys =>
@@ -133,6 +165,7 @@ class EntityInfo {
         ownership == other.ownership &&
         valueQuery == other.valueQuery &&
         exportAs == other.exportAs &&
+        importable == other.importable &&
         syncable == other.syncable &&
         relevantEntities == other.relevantEntities &&
         _listEquals(properties, other.properties);
@@ -154,6 +187,7 @@ class EntityInfo {
     ownership,
     valueQuery,
     exportAs,
+    importable,
     syncable,
     relevantEntities,
     Object.hashAll(properties),
@@ -165,7 +199,8 @@ class EntityInfo {
       'pluralTitle: $pluralTitle, description: $description, modelType: $modelType, '
       'displayImageName: $displayImageName, indexed: $indexed, enumerable: $enumerable, '
       'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
-      'valueQuery: $valueQuery, exportAs: $exportAs, syncable: $syncable, '
+      'valueQuery: $valueQuery, exportAs: $exportAs, importable: $importable, '
+      'syncable: $syncable, '
       'relevantEntities: $relevantEntities, properties: $properties)';
 }
 
@@ -191,6 +226,15 @@ class EntityPropertyInfo {
   /// `@Property(indexingKey:)` semantic indexing (iOS 18.4+).
   final String? indexingKey;
 
+  /// Experimental (WWDC26 #54 / #128): the part this field plays when the
+  /// entity is exported as a system structured type (`@EntityExportField`).
+  final EntityExportRoleKind? exportRole;
+
+  /// Experimental (WWDC26 #55 / #132): whether this field is the entity's
+  /// stable cross-device identifier (`@EntityStableId`), pairing with the
+  /// local `@EntityId` in a `SyncableEntityIdentifier`.
+  final bool isStableId;
+
   const EntityPropertyInfo({
     required this.fieldName,
     required this.dartType,
@@ -198,6 +242,8 @@ class EntityPropertyInfo {
     this.exposeAsProperty = false,
     this.propertyTitle,
     this.indexingKey,
+    this.exportRole,
+    this.isStableId = false,
   });
 
   @override
@@ -209,7 +255,9 @@ class EntityPropertyInfo {
         role == other.role &&
         exposeAsProperty == other.exposeAsProperty &&
         propertyTitle == other.propertyTitle &&
-        indexingKey == other.indexingKey;
+        indexingKey == other.indexingKey &&
+        exportRole == other.exportRole &&
+        isStableId == other.isStableId;
   }
 
   @override
@@ -220,13 +268,16 @@ class EntityPropertyInfo {
     exposeAsProperty,
     propertyTitle,
     indexingKey,
+    exportRole,
+    isStableId,
   );
 
   @override
   String toString() =>
       'EntityPropertyInfo(fieldName: $fieldName, dartType: $dartType, role: $role, '
       'exposeAsProperty: $exposeAsProperty, propertyTitle: $propertyTitle, '
-      'indexingKey: $indexingKey)';
+      'indexingKey: $indexingKey, exportRole: $exportRole, '
+      'isStableId: $isStableId)';
 }
 
 /// Experimental (WWDC26 #55): the ownership state of an entity, mapped to a
@@ -235,7 +286,18 @@ enum EntityOwnershipType { unknown, shared, public }
 
 /// Experimental (WWDC26 #54): the system structured type an entity is exported
 /// as via `ValueRepresentation`. Mirrors `EntityExportType` in annotations.
-enum EntityExportKind { person }
+enum EntityExportKind {
+  /// `AppIntents.IntentPerson`, built from the id/title roles.
+  person,
+
+  /// `GeoToolbox.PlaceDescriptor`, built from the coordinate/address export
+  /// roles plus the title role as `commonName`.
+  place,
+}
+
+/// Experimental (WWDC26 #54 / #128): the part an entity field plays in a
+/// structured export. Mirrors `EntityExportRole` in annotations.
+enum EntityExportRoleKind { latitude, longitude, address }
 
 /// The role of an entity property.
 enum EntityPropertyRole {

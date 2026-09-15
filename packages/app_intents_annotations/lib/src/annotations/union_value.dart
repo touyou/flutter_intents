@@ -33,7 +33,23 @@ class UnionValueSpec {
   /// An optional human-readable title.
   final String? title;
 
-  const UnionValueSpec({required this.identifier, this.title});
+  /// **Experimental (WWDC26, iOS 27+).** Whether to generate an
+  /// `IntentValueQuery` returning this union (#133).
+  ///
+  /// One query that can answer with *several* entity types — the shape visual
+  /// and free-text search need, since an app gets a single query per input
+  /// type. The Dart handler is registered under [identifier] with
+  /// `registerValueQueryHandler` and returns maps carrying a `_type` key naming
+  /// the `@UnionCase` subclass, alongside that case entity's own fields.
+  ///
+  /// Rides the `rich-types` feature, like the union type itself.
+  final bool valueQuery;
+
+  const UnionValueSpec({
+    required this.identifier,
+    this.title,
+    this.valueQuery = false,
+  });
 }
 
 /// Marks a subclass of a [UnionValueSpec] `sealed` class as one union case.

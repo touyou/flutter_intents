@@ -15,6 +15,7 @@ import 'package:app_intents_codegen/src/generator/swift_generator.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
 import 'package:app_intents_codegen/src/models/snippet_info.dart';
+import 'package:app_intents_codegen/src/models/union_info.dart';
 
 void main(List<String> args) {
   final out = args.isNotEmpty ? args.first : 'GeneratedVerify.swift';
@@ -32,6 +33,7 @@ void main(List<String> args) {
     pluralTitle: 'Products',
     valueQuery: true, // #51
     exportAs: EntityExportKind.person, // #54
+    importable: true, // #129 — exporting: + importing: in one representation
     syncable: true, // #55 SyncableEntity
     relevantEntities: true, // #55 RelevantEntities donator
     properties: [
@@ -62,6 +64,8 @@ void main(List<String> args) {
     pluralTitle: 'Messages',
     schema: 'messages.message', // #49
     ownership: EntityOwnershipType.shared, // #55 ownership
+    // #133: IndexedEntity + IndexedEntityQuery re-indexing.
+    indexed: true,
     // #51 on a schema entity: the query must follow the entity into BOTH
     // branches (iOS 27 in the #if, iOS 26 in the #else) or it would reference
     // a type newer than itself.
@@ -85,6 +89,91 @@ void main(List<String> args) {
         propertyTitle: 'Body',
         indexingKey: 'contentDescription',
       ),
+    ],
+  );
+
+  // Entities exercising the extended export catalog (#128): a place built from
+  // coordinate + address export fields, and a currency amount. Both throw from
+  // the export closure, which is what forces the AppIntentsBridge import.
+  const storeEntity = EntityInfo(
+    className: 'StoreEntity',
+    identifier: 'com.example.app.StoreEntity',
+    title: 'Store',
+    pluralTitle: 'Stores',
+    exportAs: EntityExportKind.place, // #128
+    importable: true, // #129
+    properties: [
+      EntityPropertyInfo(
+        fieldName: 'id',
+        dartType: 'String',
+        role: EntityPropertyRole.id,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'name',
+        dartType: 'String',
+        role: EntityPropertyRole.title,
+      ),
+      // Optional coordinate halves and a non-optional address, so the emitted
+      // optional-normalizing locals are exercised in both shapes.
+      EntityPropertyInfo(
+        fieldName: 'latitude',
+        dartType: 'double?',
+        role: EntityPropertyRole.none,
+        exportRole: EntityExportRoleKind.latitude,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'longitude',
+        dartType: 'double?',
+        role: EntityPropertyRole.none,
+        exportRole: EntityExportRoleKind.longitude,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'address',
+        dartType: 'String',
+        role: EntityPropertyRole.none,
+        exportRole: EntityExportRoleKind.address,
+      ),
+    ],
+  );
+
+  // Entity exercising the dual identifier (#132): a local id paired with a
+  // server-assigned stable one. The whole entity + query dual-branches, since
+  // SyncableEntityIdentifier is iOS 27 only.
+  const deviceEntity = EntityInfo(
+    className: 'DeviceEntity',
+    identifier: 'com.example.app.DeviceEntity',
+    title: 'Device',
+    pluralTitle: 'Devices',
+    syncable: true,
+    relevantEntities: true,
+    properties: [
+      EntityPropertyInfo(
+        fieldName: 'localId',
+        dartType: 'String',
+        role: EntityPropertyRole.id,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'name',
+        dartType: 'String',
+        role: EntityPropertyRole.title,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'serverId',
+        dartType: 'String',
+        role: EntityPropertyRole.none,
+        isStableId: true,
+      ),
+    ],
+  );
+
+  // Union returning several entity types from one IntentValueQuery (#133).
+  const searchResult = UnionInfo(
+    className: 'SearchResult',
+    identifier: 'com.example.app.SearchResult',
+    valueQuery: true,
+    cases: [
+      UnionCaseInfo(dartClassName: 'ProductResult', entityType: 'ProductEntity'),
+      UnionCaseInfo(dartClassName: 'MessageResult', entityType: 'MessageEntity'),
     ],
   );
 
@@ -112,6 +201,22 @@ void main(List<String> args) {
         dartType: 'String',
         title: 'Text',
         isOptional: false,
+      ),
+      // #131: an optional parameter the handler can ask the system to prompt
+      // for mid-run. iOS 16 API, so it must compile in BOTH branches.
+      IntentParamInfo(
+        fieldName: 'note',
+        dartType: 'String?',
+        title: 'Note',
+        isOptional: true,
+        requestValue: true,
+      ),
+      IntentParamInfo(
+        fieldName: 'due',
+        dartType: 'DateTime?',
+        title: 'Due',
+        isOptional: true,
+        requestValue: true,
       ),
     ],
   );
@@ -151,7 +256,8 @@ void main(List<String> args) {
 
   final swift = gen.generateAll(
     intents: [sendIntent, dialogIntent],
-    entities: [productEntity, messageEntity],
+    entities: [productEntity, messageEntity, storeEntity, deviceEntity],
+    unions: [searchResult],
   );
 
   File(out).writeAsStringSync('// GENERATED FOR VERIFICATION ONLY\n$swift\n');

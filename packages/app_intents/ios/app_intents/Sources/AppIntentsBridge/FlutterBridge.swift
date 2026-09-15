@@ -51,7 +51,11 @@ public actor FlutterBridge {
     /// type is per-entity and lives in `#if`-gated generated Swift, so each
     /// generated entity registers its own closure here. The closure type stays
     /// generic (dicts only) so this plugin names no iOS-27 symbol. See ADR 0003.
-    private var relevantEntitiesDonators: [String: @Sendable (sending [[String: Any]], sending String?) async throws -> Void] = [:]
+    /// The closure's first argument is the operation — `"update"`, `"remove"`
+    /// or `"removeAll"` (#133). `RelevantEntities` gained explicit removal in
+    /// the Xcode 27 SDK; before that the only way to drop a donation was to
+    /// update with an empty list, which cannot express "clear everything".
+    private var relevantEntitiesDonators: [String: @Sendable (sending String, sending [[String: Any]], sending String?) async throws -> Void] = [:]
 
     /// Applies a whole set of relevant-intent donations (#55).
     ///
@@ -71,6 +75,27 @@ public actor FlutterBridge {
     /// it lives only inside the `#if`-gated generated closure.
     private var intentDonators: [String: @Sendable (sending [String: Any]) async throws -> Void] = [:]
 
+    /// Per-execution progress sinks, keyed by execution id (#130).
+    ///
+    /// A long-running intent's `progress` object lives in the generated
+    /// `perform()`, not here: `ProgressReportingIntent` is an iOS 27 symbol and
+    /// this module must keep compiling against the released SDK. So the
+    /// generated code registers a closure that writes into its own `progress`,
+    /// and the bridge only routes numbers to it.
+    private var progressSinks: [String: @Sendable (Int64, Int64) -> Void] = [:]
+
+    /// Per-execution parameter-value requesters, keyed by execution id (#131).
+    ///
+    /// The closure captures the running intent instance, which is the only
+    /// thing that can call `$param.requestValue()` — the call has to happen on
+    /// the same intent whose `perform()` is currently suspended.
+    private var valueRequesters:
+        [String: @Sendable (sending String) async throws -> sending Any?] = [:]
+
+    /// Forwards a cancellation to Dart (#130). Wired in AppDelegate, mirroring
+    /// the forward executors: this module cannot see the plugin.
+    private var cancellationNotifier: (@Sendable (sending String, sending String) async -> Void)?
+
     /// Private initializer to enforce singleton pattern
     private init() {}
 
@@ -87,6 +112,9 @@ public actor FlutterBridge {
         relevantEntitiesDonators.removeAll()
         relevantIntentDonator = nil
         intentDonators.removeAll()
+        progressSinks.removeAll()
+        valueRequesters.removeAll()
+        cancellationNotifier = nil
     }
 
     /// Sets the intent executor that handles communication with Flutter.
@@ -315,7 +343,7 @@ public actor FlutterBridge {
     ///   - donator: Builds entities from dicts and donates them for `context`.
     public func registerRelevantEntitiesDonator(
         entityIdentifier: String,
-        _ donator: @escaping @Sendable (sending [[String: Any]], sending String?) async throws -> Void
+        _ donator: @escaping @Sendable (sending String, sending [[String: Any]], sending String?) async throws -> Void
     ) {
         relevantEntitiesDonators[entityIdentifier] = donator
     }
@@ -328,12 +356,15 @@ public actor FlutterBridge {
     ///
     /// - Parameters:
     ///   - entityIdentifier: The entity type identifier.
-    ///   - entities: Entity dictionaries to donate (empty clears the context).
+    ///   - operation: `"update"`, `"remove"` or `"removeAll"` (#133).
+    ///   - entities: Entity dictionaries to donate or remove. Ignored by
+    ///     `"removeAll"`.
     ///   - context: An opaque context token (e.g. `"audio.nowPlaying"`), or nil.
     /// - Throws: `AppIntentError.custom("DONATOR_NOT_REGISTERED", ...)` when no
     ///           generated donator is registered for `entityIdentifier`.
     public func donateRelevantEntities(
         entityIdentifier: String,
+        operation: String = "update",
         entities: sending [[String: Any]],
         context: String?
     ) async throws {
@@ -344,7 +375,7 @@ public actor FlutterBridge {
                     + "Call the generated register…RelevantEntitiesDonator() at startup."
             )
         }
-        try await donator(entities, context)
+        try await donator(operation, entities, context)
     }
 
     /// Whether a donator is registered for the given entity type.
@@ -439,5 +470,99 @@ public actor FlutterBridge {
     /// Whether the generated relevant-intent donator has been registered.
     public func hasRelevantIntentDonator() -> Bool {
         return relevantIntentDonator != nil
+    }
+
+    // MARK: - Execution Context (#130 progress / cancellation, #131 value requests)
+
+    /// Opens an execution scope for one `perform()` call.
+    ///
+    /// The execution id travels to Dart in the params dictionary under
+    /// `_executionId`, which is how a Dart handler names the execution it wants
+    /// to report progress for or request a value from. Always pair with
+    /// [endExecution] — a leaked sink keeps the intent instance alive.
+    ///
+    /// - Parameters:
+    ///   - executionId: Identifies this `perform()` call.
+    ///   - progress: Receives `(completed, total)` unit counts from Dart.
+    ///   - valueRequester: Asks the running intent for a parameter value.
+    public func beginExecution(
+        _ executionId: String,
+        progress: (@Sendable (Int64, Int64) -> Void)? = nil,
+        valueRequester: (@Sendable (sending String) async throws -> sending Any?)? = nil
+    ) {
+        if let progress {
+            progressSinks[executionId] = progress
+        }
+        if let valueRequester {
+            valueRequesters[executionId] = valueRequester
+        }
+    }
+
+    /// Closes an execution scope opened by [beginExecution].
+    public func endExecution(_ executionId: String) {
+        progressSinks.removeValue(forKey: executionId)
+        valueRequesters.removeValue(forKey: executionId)
+    }
+
+    /// Whether an execution scope is currently open.
+    public func hasExecution(_ executionId: String) -> Bool {
+        return progressSinks[executionId] != nil || valueRequesters[executionId] != nil
+    }
+
+    /// Routes a progress report from Dart to the running intent (#130).
+    ///
+    /// - Throws: `AppIntentError.custom("EXECUTION_NOT_ACTIVE", …)` when the
+    ///           intent already finished — reporting into a closed execution is
+    ///           a programming error worth surfacing, not a silent no-op.
+    public func updateProgress(
+        executionId: String,
+        completed: Int64,
+        total: Int64
+    ) throws {
+        guard let sink = progressSinks[executionId] else {
+            throw AppIntentError.custom(
+                code: "EXECUTION_NOT_ACTIVE",
+                message: "No long-running intent execution \(executionId) is reporting progress. "
+                    + "Progress can only be reported while the handler is running, and only by "
+                    + "an intent declared @IntentSpec(longRunning: true)."
+            )
+        }
+        sink(completed, total)
+    }
+
+    /// Asks the running intent to prompt the user for a parameter value (#131).
+    ///
+    /// - Returns: The value the user supplied, or nil when the parameter is not
+    ///            one the intent offers.
+    public func requestValue(
+        executionId: String,
+        parameter: sending String
+    ) async throws -> sending Any? {
+        guard let requester = valueRequesters[executionId] else {
+            throw AppIntentError.custom(
+                code: "EXECUTION_NOT_ACTIVE",
+                message: "No intent execution \(executionId) can request values. Values can only "
+                    + "be requested while the handler is running, and only for a parameter "
+                    + "declared @IntentParam(requestValue: true)."
+            )
+        }
+        return try await requester(parameter)
+    }
+
+    /// Sets the closure that tells Dart an intent was cancelled (#130).
+    ///
+    /// Wired in AppDelegate to `AppIntentsPlugin.notifyIntentCancellation`.
+    public func setCancellationNotifier(
+        _ notifier: @escaping @Sendable (sending String, sending String) async -> Void
+    ) {
+        cancellationNotifier = notifier
+    }
+
+    /// Tells Dart that the system cancelled the given execution (#130).
+    ///
+    /// Best-effort by nature: the system may suspend or kill the process
+    /// shortly after cancelling, so an unwired notifier is not an error.
+    public func reportCancellation(executionId: String, reason: String) async {
+        await cancellationNotifier?(executionId, reason)
     }
 }

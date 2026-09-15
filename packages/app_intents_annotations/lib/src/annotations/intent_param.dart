@@ -57,6 +57,21 @@ class IntentParam {
   /// the WWDC 2026 "Code-along: Make your app available to Siri" session.
   final bool useValueState;
 
+  /// Whether the Dart handler may ask the system to prompt the user for this
+  /// parameter while the intent is running (#131).
+  ///
+  /// The generated `perform()` registers a requester for this field, and the
+  /// handler calls
+  /// `AppIntentExecution.current?.requestValue<String>('<field>')`; the call
+  /// suspends `perform()` until the user answers.
+  ///
+  /// **Only for optional parameters.** The system already prompts on its own
+  /// for a missing non-optional parameter, so requesting one is redundant —
+  /// codegen rejects it. It also only supports primitive parameters
+  /// (String/int/double/bool/DateTime), because the answer has to cross the
+  /// MethodChannel back to Dart.
+  final bool requestValue;
+
   const IntentParam({
     required this.title,
     this.description,
@@ -66,5 +81,6 @@ class IntentParam {
     this.fileType,
     this.entityCollectionType,
     this.useValueState = false,
+    this.requestValue = false,
   });
 }
