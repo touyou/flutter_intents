@@ -401,14 +401,17 @@ Measured in a sibling project (IntentTodo, 2026-09-15): a build carrying an
 `AppIntentsPackage` declaration had its App Intents **not ingested at all** when
 installed through TestFlight / App Store — the app did not appear in Shortcuts —
 while the same build run from Xcode worked. A TestFlight build bisect pinned it
-to the commit adding the declaration.
+to the commit adding the declaration, and **removing the declaration restored
+ingestion** in a TestFlight build — cause and fix are both confirmed.
 
 The shipped `Metadata.appintents` was healthy; the declaration's only
 contribution is `extract.packagedata`, holding the **mangled names** of
 `includedPackages`. That is the one place in App Intents metadata where a type is
 resolved by mangled name at runtime, so a failure there takes down the whole
 bundle — which matches the symptom, and matches `STRIP_SWIFT_SYMBOLS` applying to
-distribution builds only.
+distribution builds only. (That mechanism is the explanation consistent with the
+evidence; what is proven is declaration-present → broken, declaration-removed →
+fixed.)
 
 This **confirms rather than contradicts** ADR 0008's finding: a statically linked
 target merges the metadata with zero declarations, so declaring one there is pure

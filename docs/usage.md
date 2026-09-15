@@ -1060,7 +1060,21 @@ that both targets link, rather than compiling the same file into both — two
 copies of one intent type duplicate it in `Metadata.appIntents` and iOS then
 fails to resolve the intent.
 
+**With Xcode's default static linking, do not pass the package flags.** Generate
+into the shared package as usual; the metadata merges into every target that
+links it:
+
 ```bash
+# the shared package — statically linked (Xcode SPM default)
+dart run app_intents_codegen:generate_swift \
+  -o ../SharedIntents/Sources/SharedIntents
+```
+
+Only when the shared package is reached through a **dynamic** link boundary (a
+dynamic framework / `type: .dynamic` product) add the declaration:
+
+```bash
+# DYNAMIC LINKING ONLY — do not use on a statically linked target (see below)
 # the shared package
 dart run app_intents_codegen:generate_swift \
   -o ../SharedIntents/Sources/SharedIntents \
@@ -1109,9 +1123,8 @@ Two things to keep in mind:
 >
 > Since a statically linked target already merges the metadata **without** any
 > declaration, adding one there is all risk and no gain. Reach for these flags
-> only when you actually cross a dynamic link boundary. (Root cause is pinned
-> but the fix is not yet confirmed on TestFlight, so treat this as a strong
-> warning rather than a settled fact.)
+> only when you actually cross a dynamic link boundary. Removing the declaration
+> has been confirmed to restore ingestion in a TestFlight build.
 
 ## WWDC26 Experimental Features (opt-in)
 
