@@ -95,7 +95,7 @@ struct TaskSummaryIntentSpec: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let snippetResult = try await FlutterBridge.shared.invoke(
-            intent: "TaskSummaryIntentSpec",
+            intent: "com.example.taskapp.taskSummary",
             params: [:]
         )
         let snippetValues = snippetResult as? [String: Any] ?? [:]
