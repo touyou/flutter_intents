@@ -208,7 +208,7 @@ Future<void> generateSwift({
   String? appIntentsPackage,
   List<String> includedPackages = const [],
 }) async {
-  final analyzeResult = await analyzeSourceFiles(inputDir);
+  final analyzeResult = await analyzeSourceFilesOrExit(inputDir);
 
   // Gate on the annotations this generator actually consumes. A project that
   // declares only @WidgetConfigurationSpec has nothing to emit here — its

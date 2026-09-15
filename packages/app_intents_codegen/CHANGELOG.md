@@ -1,3 +1,15 @@
+## [Unreleased]
+
+> **Behavior change for CLI users.** `generate_swift`, `generate_widget_swift`
+> and `generate_kotlin` now **fail with exit code 1** when an annotation is
+> invalid. Previously the analyzer's error was printed as a `Warning: Could not
+> analyze …` line, the spec was left out of the output, and the command still
+> exited 0 — so a project whose only specs were invalid got empty output with
+> no failure. If a build that used to pass now stops here, the printed error
+> names the file and the problem; that spec was never being generated.
+
+- `analyzeSourceFiles` throws `InvalidAnnotationsException` instead of swallowing the analyzers' `InvalidGenerationSourceError`. All files are scanned before it throws, so every invalid spec is reported in one run. A file that fails to **resolve** is still skipped with a warning, as before.
+
 ## 0.16.0
 
 > **Heads-up for `@EntitySpec(valueQuery: true)` users.** The `IntentValueQuery`
