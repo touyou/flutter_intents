@@ -1049,7 +1049,20 @@ Future<List<Product>> productEntityValueQuery(String input) async {
 両方がリンクします。同じ Intent 型が2つあると `Metadata.appIntents` に重複し、iOS が
 intent を解決できなくなります。
 
+**Xcode 既定の静的リンクなら、パッケージ用のフラグは付けないでください。** 共有パッケージに
+普通に生成するだけで、リンクした各ターゲットにメタデータがマージされます:
+
 ```bash
+# 共有パッケージ側 — 静的リンク（Xcode SPM の既定）
+dart run app_intents_codegen:generate_swift \
+  -o ../SharedIntents/Sources/SharedIntents
+```
+
+共有パッケージを**動的**リンク境界越しに使う場合（dynamic framework / `type: .dynamic`
+の product）に限り、宣言を足します:
+
+```bash
+# 動的リンク専用 — 静的リンクのターゲットでは使わない（後述）
 # 共有パッケージ側
 dart run app_intents_codegen:generate_swift \
   -o ../SharedIntents/Sources/SharedIntents \
