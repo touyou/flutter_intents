@@ -1,3 +1,13 @@
+## 0.17.0
+
+- `EntityExportType.place`, `EntityExportRole` and `@EntityExportField` — export an entity as a `PlaceDescriptor` (#128).
+- `@EntitySpec(importable:)` — accept the exported system type back from other apps (#129).
+- `@IntentParam(requestValue:)` — let a handler prompt for an optional parameter while running (#131).
+- `@EntityStableId` — the stable half of a syncable entity's identifier, for entities whose `@EntityId` is local (#132).
+- `@UnionValueSpec(valueQuery:)` — an `IntentValueQuery` returning a union (#133).
+
+All additive and optional; existing specs are unaffected.
+
 ## 0.16.0
 
 - `@WidgetConfigurationSpec(relevantIntents:)` — opt a widget configuration into `RelevantIntent` donation (#55, ADR 0009).

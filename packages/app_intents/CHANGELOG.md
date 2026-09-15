@@ -1,3 +1,15 @@
+## 0.17.0
+
+> **Action required if you wired relevant-entity donation (#55).**
+> `AppIntentsPlugin.relevantEntitiesDonationForwarder` and the closure passed to
+> `FlutterBridge.registerRelevantEntitiesDonator` gain an `operation` argument.
+> Update the AppDelegate wiring — see `docs/usage.md`.
+
+- `AppIntentExecution.current` — inside a long-running intent's handler: `reportProgress` / `reportProgressUnits`, `isCancelled` / `cancelled`, and `requestValue<T>(parameter)` (#130, #131, ADR 0010). `AppIntents().onIntentCancellation` observes cancellations from outside the handler.
+- `AppIntents().registerValueImportHandler` (#129).
+- `AppIntents().removeRelevantEntities` / `removeAllRelevantEntities` and `RelevantEntitiesOperation` (#133).
+- iOS: `FlutterBridge.beginExecution` / `endExecution` / `updateProgress` / `requestValue` / `setCancellationNotifier`, plus `AppIntentsPlugin.intentProgressForwarder` / `intentValueRequestForwarder` to wire in AppDelegate.
+
 ## 0.16.0
 
 - `RelevantIntentDonation.toMap()` encodes `DateTime` parameter values as ISO-8601 strings; Flutter's standard method-channel codec cannot carry a `DateTime`, so a donation with one would have thrown before reaching iOS.

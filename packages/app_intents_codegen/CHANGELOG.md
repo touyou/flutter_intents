@@ -1,4 +1,4 @@
-## [Unreleased]
+## 0.17.0
 
 > **Behavior change for CLI users.** `generate_swift`, `generate_widget_swift`
 > and `generate_kotlin` now **fail with exit code 1** when an annotation is
@@ -8,7 +8,20 @@
 > no failure. If a build that used to pass now stops here, the printed error
 > names the file and the problem; that spec was never being generated.
 
+> **Fix for FlutterBridge-mode intents — regenerate your Swift.** The generated
+> `perform()` invoked the Dart handler with the Swift struct name, while the
+> generated Dart registers under `@IntentSpec.identifier`, so no background
+> (FlutterBridge) intent could ever find its handler. URL scheme and foreground
+> (cache) intents were already correct.
+
 - `analyzeSourceFiles` throws `InvalidAnnotationsException` instead of swallowing the analyzers' `InvalidGenerationSourceError`. All files are scanned before it throws, so every invalid spec is reported in one run. A file that fails to **resolve** is still skipped with a warning, as before.
+- **Place export (#128).** `@EntitySpec(exportAs: EntityExportType.place)` exports the entity as a `GeoToolbox.PlaceDescriptor`, built from fields marked `@EntityExportField(EntityExportRole.latitude / .longitude / .address)`. `IntentCurrencyAmount` is deliberately **not** an export type: `ValueRepresentation(exporting:)` is only declared for `IntentPerson` and `_SystemIntentValue` conformers, and it is neither (measured against the iOS 27.0 SDK).
+- **Import (#129).** `@EntitySpec(importable: true)` generates `ValueRepresentation(exporting:importing:)`. The import rides the value-query bridge under `<identifier>#import`; register the Dart side with `AppIntents().registerValueImportHandler`.
+- **Progress, cancellation and `requestValue` (#130, #131, ADR 0010).** Long-running intents open an execution scope, pass its id to Dart, and forward `onCancel:` instead of leaving a comment stub. `@IntentParam(requestValue: true)` lets the handler prompt for an optional primitive parameter mid-run. Generated handler signatures are unchanged — the handler reaches the scope through `AppIntentExecution.current`.
+- **Dual identifiers (#132).** `@EntityStableId` + `@EntitySpec(syncable: true)` makes the entity's id a `SyncableEntityIdentifier<String, String>`; the entity and its query dual-branch. Using such an entity as an `@IntentParam(entityType:)` value is a generation error.
+- **Relevant-entity removal, re-indexing and union value queries (#133).** The generated relevant-entities donator takes an `operation` argument; `IndexedEntityQuery` re-indexing is emitted behind `--experimental=reindexing`; `@UnionValueSpec(valueQuery: true)` generates an `IntentValueQuery` returning the union. `generate_swift` now also collects `@UnionValueSpec` classes that no intent parameter references.
+- The `--app-intents-package` help text warns against using it on a statically linked target, where it has been observed to stop App Intents being ingested in TestFlight / App Store builds only (ADR 0008).
+- Bumps `app_intents_annotations` dependency to `^0.17.0`.
 
 ## 0.16.0
 
