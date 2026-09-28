@@ -340,7 +340,7 @@ Options:
 ### Android AppFunctions API Gotchas
 - `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — unchanged as of alpha12, verified by a successful build (see below)
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
-- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext` — present in alpha12 (confirmed by inspecting the published AAR; release-note wording implied removal but the class is still there)
+- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext` — still present in the alpha12 AAR, but **newly annotated `@RestrictTo(LIBRARY_GROUP)`** (absent in alpha11; checked with `javap -v` on both AARs), i.e. no longer a supported public API for apps. The release notes describe it as removed. `KotlinGenerator` still emits it as the first `@AppFunction` parameter and the build passes (RestrictTo is lint-only), so this is a pending migration, not a breakage — expect it to disappear in a later alpha
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
@@ -939,7 +939,7 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum; keep `appfunctions-service` at alpha09 — it is not published for alpha10–alpha12 and is likely retired, see Gotchas below)
+1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table; keep `appfunctions-service` at alpha09 — it is not published for alpha10–alpha12 and is likely retired, see Gotchas below)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.4.1" apply false

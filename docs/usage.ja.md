@@ -29,7 +29,7 @@ platform :ios, '17.0'
 
 #### Android
 
-`appfunctions:1.0.0-alpha12` は **Android Gradle Plugin 9.1.0+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
+`appfunctions:1.0.0-alpha12` は **Android Gradle Plugin 9.1.1+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
 `android/app/build.gradle.kts` を更新します（`minSdk = 36` は AppFunctions が Android 16 を必要とするため）:
 
 ```kotlin
