@@ -30,7 +30,7 @@ jobs:
         with:
           # Pinned to keep analyze/test reproducible. Bump via Dependabot
           # alongside the package's `environment.sdk` constraint.
-          sdk: '3.10.0'
+          sdk: '3.11.0'
       - name: Install dependencies
         working-directory: packages/${{ matrix.package }}
         run: dart pub get
