@@ -34,7 +34,7 @@ docs/
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
-| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha10** (`appfunctions-service` pinned at alpha09 pending Google Maven publish — see Gotchas) |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha12**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 | App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
@@ -191,7 +191,7 @@ docs/
     - `@AppFunction(isDescribedByKDoc = true)` annotated methods
     - `@AppFunctionSerializable` data classes for entities
     - `AppFunctionsBridge` singleton for MethodChannel communication
-    - `GeneratedAppFunctions` class with no-arg constructor (KSP requirement)
+    - `GeneratedAppFunctions`: abstract `AppFunctionService` with `@AppFunctionServiceEntryPoint`; KSP generates the concrete `GeneratedAppFunctionService` + `assets/generated_app_functions.xml`
   - Android `AppIntentsPlugin.kt`: MethodChannel bridge (`"app_intents"`)
   - CLI command: `dart run app_intents_codegen:generate_kotlin` for Kotlin file output
   - Example app Gradle configured with KSP and AppFunctions dependencies
@@ -338,14 +338,14 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
-- `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — unchanged as of alpha10, verified by a successful build (see below)
+- **alpha12 model: `@AppFunctionServiceEntryPoint`** (migrated 2026-09-28). Every `@AppFunction` must sit in an **abstract** class extending `androidx.appfunctions.AppFunctionService`, annotated `@AppFunctionServiceEntryPoint(serviceName = ..., appFunctionXmlFileName = ...)`. KSP generates the concrete `serviceName` subclass (implements `onExecuteFunction`, exposes `FUNCTION_ID_*`) and `assets/<appFunctionXmlFileName>.xml`. The manifest declares the **generated** class with `BIND_APP_FUNCTION_SERVICE`, action `android.app.appfunctions.AppFunctionService`, and `<property>`s `android.app.appfunctions.schema` = `app_functions_schema.xsd` (shipped in the AAR's assets) and `android.app.appfunctions.v2` = `<appFunctionXmlFileName>.xml`. Function ids are `<package>.GeneratedAppFunctions#<fn>`. Ground truth: the KDoc of `AppFunctionServiceEntryPoint.kt` in `appfunctions-1.0.0-alpha12-sources.jar` (GitHub `androidx-main` is ahead — it renames `@AppFunction` to `@AppFunctionDeclaration`, so don't copy from there).
+- `@AppFunction` is **`androidx.appfunctions.AppFunction`** (core artifact) since alpha10. The alpha11+/alpha12 compiler matches only that FQN — the string `androidx.appfunctions.service` does not occur in the compiler jar. **Code still annotated with `androidx.appfunctions.service.AppFunction` compiles, and KSP silently registers nothing**: before this migration the example app built green with an empty `<appfunctions/>` XML, and the `GeneratedAppFunctionsAppFunctionService` its manifest named was never generated. A green `flutter build apk` proves nothing — check `build/app/generated/ksp/debug/resources/assets/*.xml` for `<id>`s.
+- **No `AppFunctionContext` parameter.** alpha12 made `AppFunctionContext` / `AppFunctionConfiguration` `@RestrictTo(LIBRARY_GROUP)` (release notes: "removed", I9dd8f; the classes are still in the AAR). The compiler's `validateFirstParameter` only runs on the legacy non-entry-point path; entry-point functions are validated with it skipped, and a context parameter anywhere is ignored when building metadata.
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
-- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext` — present in alpha12 (confirmed by inspecting the published AAR; release-note wording implied removal but the class is still there)
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
-- Three Jetpack artifacts: `appfunctions`, `appfunctions-service`, `appfunctions-compiler`
-- **`appfunctions-service` status (pinned at alpha09, possibly deprecated)**: `appfunctions-service:1.0.0-alpha10` was never published to Google Maven (artifact 404 as of 2026-08-21, PR #83). More significantly, the **alpha11 release (2026-08-26) omits `appfunctions-service` entirely** from its artifact list — only `appfunctions`, `appfunctions-compiler`, and `appfunctions-testing` are released. This may signal the artifact is being deprecated or merged into another artifact. **Current fix**: pin `appfunctions-service` at `alpha09` while bumping the other two artifacts. If `appfunctions-service` is permanently dropped upstream, remove this dependency. Verified: `flutter build apk --debug` succeeds with the mixed-version pin and the *existing* `KotlinGenerator` output unchanged.
+- Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Verified 2026-09-28: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
   `appfunctions:1.0.0-alpha11`, KSP `2.3.11`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
@@ -886,7 +886,7 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10` needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum; pin `appfunctions-service` to alpha09 until Google publishes the alpha10 artifact — see Gotchas below)
+1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.2.1" apply false
@@ -900,8 +900,7 @@ if #available(iOS 17.0, *) {
    ```
 4. Configure `android/app/build.gradle.kts`:
    - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`, `minSdk = 36`
-   - Add AppFunctions dependencies (`appfunctions`, `appfunctions-service`, `appfunctions-compiler`)
-   - Add KSP arg: `ksp { arg("appfunctions:aggregateAppFunctions", "true") }`
+   - Add AppFunctions dependencies: `implementation("androidx.appfunctions:appfunctions:…")` + `ksp("androidx.appfunctions:appfunctions-compiler:…")` (no `appfunctions-service`, no KSP args)
    - **Set the JVM target via the `compilerOptions` DSL, not `kotlinOptions`** — the
      legacy `android { kotlinOptions { jvmTarget = ... } }` accessor is an ERROR-level
      deprecation under modern Kotlin Gradle plugins (it fails the build-script
@@ -931,7 +930,7 @@ class MainActivity : FlutterActivity() {
     }
 }
 ```
-7. Register AppFunctionService in `AndroidManifest.xml`
+7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry; see `app/android/app/src/main/AndroidManifest.xml`)
 
 ## Development Commands
 
@@ -1113,9 +1112,10 @@ The Kotlin codegen produces AppFunctions code for Android 16+:
 ```kotlin
 package com.example.app.generated
 
-import androidx.appfunctions.AppFunctionContext
+import androidx.appfunctions.AppFunction
 import androidx.appfunctions.AppFunctionSerializable
-import androidx.appfunctions.service.AppFunction
+import androidx.appfunctions.AppFunctionService
+import androidx.appfunctions.AppFunctionServiceEntryPoint
 import io.flutter.plugin.common.MethodChannel
 
 @AppFunctionSerializable(isDescribedByKDoc = true)
@@ -1125,19 +1125,21 @@ data class TaskEntitySpec(
     val description: String? = null
 )
 
-class GeneratedAppFunctions {
+@AppFunctionServiceEntryPoint(
+    serviceName = "GeneratedAppFunctionService",
+    appFunctionXmlFileName = "generated_app_functions",
+)
+abstract class GeneratedAppFunctions : AppFunctionService() {
     private val bridge: AppFunctionsBridge
         get() = AppFunctionsBridge.getInstance()
 
     /**
      * Create a new task in your task list
      *
-     * @param appFunctionContext The context for this app function execution.
      * @param title The title of the task
      */
     @AppFunction(isDescribedByKDoc = true)
     suspend fun createTask(
-        appFunctionContext: AppFunctionContext,
         title: String
     ): String {
         val params = mutableMapOf<String, Any?>()
@@ -1147,7 +1149,7 @@ class GeneratedAppFunctions {
 }
 ```
 
-KSP compiler auto-generates `GeneratedAppFunctionsAppFunctionService` from the `@AppFunction` annotations.
+KSP generates `GeneratedAppFunctionService` (a concrete subclass implementing `onExecuteFunction`) and `assets/generated_app_functions.xml` from the `@AppFunctionServiceEntryPoint` class. The manifest registers `GeneratedAppFunctionService`.
 
 ## Knowledge Accumulation Workflow
 

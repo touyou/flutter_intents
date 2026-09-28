@@ -361,7 +361,7 @@ struct AppShortcuts: AppShortcutsProvider {
 |------|------|
 | **Android最小バージョン** | API 36 (Android 16) |
 | **Kotlin** | 2.2+ |
-| **Jetpack AppFunctions** | 1.0.0-alpha10（`appfunctions-service` は Google 側の公開待ちのため alpha09 に固定 — 詳細は `CLAUDE.md` 参照） |
+| **Jetpack AppFunctions** | 1.0.0-alpha12（`@AppFunctionServiceEntryPoint` 方式。`appfunctions-service` は不使用 — 詳細は `CLAUDE.md` 参照） |
 
 ### 設計決定事項
 

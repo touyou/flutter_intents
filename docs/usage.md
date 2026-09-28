@@ -58,15 +58,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha11")
-    // appfunctions-service was absent from the alpha10 and alpha11 releases; pin at alpha09.
-    // If permanently dropped upstream, remove this dependency entirely.
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha11")
-}
-
-ksp {
-    arg("appfunctions:aggregateAppFunctions", "true")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
 }
 ```
 
@@ -85,7 +78,34 @@ Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.pr
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
-> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha11` AAR metadata.
+> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha12` AAR metadata.
+
+The generated `GeneratedAppFunctions` is an abstract `AppFunctionService` annotated with
+`@AppFunctionServiceEntryPoint`. KSP generates the concrete `GeneratedAppFunctionService`
+(same Kotlin package as the generated file) and `assets/generated_app_functions.xml`.
+Declare the service in `android/app/src/main/AndroidManifest.xml` inside `<application>`:
+
+```xml
+<service
+    android:name="<your.kotlin.package>.GeneratedAppFunctionService"
+    android:exported="true"
+    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+    <property
+        android:name="android.app.appfunctions.schema"
+        android:value="app_functions_schema.xsd" />
+    <property
+        android:name="android.app.appfunctions.v2"
+        android:value="generated_app_functions.xml" />
+    <intent-filter>
+        <action android:name="android.app.appfunctions.AppFunctionService" />
+    </intent-filter>
+</service>
+```
+
+> Earlier versions of this guide used `appfunctions-service` and the
+> `appfunctions:aggregateAppFunctions` KSP arg. Both are gone: the alpha12 compiler
+> does not recognise `androidx.appfunctions.service.AppFunction`, so that setup builds
+> but registers **no** functions.
 
 ### 3. iOS Native Setup (AppIntentsBridge)
 

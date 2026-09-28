@@ -71,18 +71,38 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(
-          result,
-          contains('import androidx.appfunctions.service.AppFunction'),
-        );
-        expect(
-          result,
-          contains('import androidx.appfunctions.AppFunctionContext'),
-        );
+        expect(result, contains('import androidx.appfunctions.AppFunction\n'));
         expect(result, contains('@AppFunction(isDescribedByKDoc = true)'));
-        expect(result, contains('suspend fun greet('));
-        expect(result, contains('appFunctionContext: AppFunctionContext'));
-        expect(result, contains('): String {'));
+        expect(result, contains('suspend fun greet(): String {'));
+      });
+
+      // appfunctions alpha10 moved @AppFunction out of appfunctions-service,
+      // and alpha12 made AppFunctionContext @RestrictTo(LIBRARY_GROUP) (the
+      // release notes call it removed). Functions declared inside an
+      // @AppFunctionServiceEntryPoint take no context parameter.
+      test('does not emit the removed AppFunctionContext parameter', () {
+        final intentInfo = IntentInfo(
+          className: 'CreateTaskIntent',
+          identifier: 'com.example.createTask',
+          title: 'Create Task',
+          implementation: IntentImplementationType.dart,
+          parameters: [
+            IntentParamInfo(
+              fieldName: 'title',
+              dartType: 'String',
+              title: 'Task Title',
+              isOptional: false,
+            ),
+          ],
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(result, isNot(contains('AppFunctionContext')));
+        expect(result, isNot(contains('appFunctionContext')));
+        expect(result, isNot(contains('androidx.appfunctions.service')));
+        expect(result, contains('suspend fun createTask(\n'));
+        expect(result, contains('    title: String\n'));
       });
 
       test('generates KDoc with title when no description', () {
@@ -773,14 +793,17 @@ void main() {
           ],
         );
 
+        expect(result, contains('import androidx.appfunctions.AppFunction\n'));
         expect(
           result,
-          contains('import androidx.appfunctions.service.AppFunction'),
+          contains('import androidx.appfunctions.AppFunctionService\n'),
         );
         expect(
           result,
-          contains('import androidx.appfunctions.AppFunctionContext'),
+          contains('import androidx.appfunctions.AppFunctionServiceEntryPoint'),
         );
+        expect(result, isNot(contains('AppFunctionContext')));
+        expect(result, isNot(contains('androidx.appfunctions.service')));
         expect(
           result,
           contains('import io.flutter.plugin.common.MethodChannel'),
@@ -903,7 +926,16 @@ void main() {
           ],
         );
 
-        expect(result, contains('class GeneratedAppFunctions {'));
+        expect(
+          result,
+          contains(
+            '@AppFunctionServiceEntryPoint(\n'
+            '    serviceName = "GeneratedAppFunctionService",\n'
+            '    appFunctionXmlFileName = "generated_app_functions",\n'
+            ')\n'
+            'abstract class GeneratedAppFunctions : AppFunctionService() {',
+          ),
+        );
         expect(result, contains('get() = AppFunctionsBridge.getInstance()'));
         expect(result, contains('suspend fun createTask('));
         expect(result, contains('suspend fun completeTask('));
@@ -989,6 +1021,11 @@ void main() {
         );
 
         expect(result, isNot(contains('class GeneratedAppFunctions')));
+        expect(result, isNot(contains('AppFunctionServiceEntryPoint')));
+        expect(
+          result,
+          isNot(contains('import androidx.appfunctions.AppFunction\n')),
+        );
       });
     });
   });
