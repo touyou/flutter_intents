@@ -20,6 +20,15 @@ class KotlinGenerator {
   /// Indentation used for generated Kotlin code.
   static const _indent = '    ';
 
+  /// Name of the concrete `AppFunctionService` KSP generates from the
+  /// `@AppFunctionServiceEntryPoint` class. This is what AndroidManifest.xml
+  /// declares.
+  static const serviceName = 'GeneratedAppFunctionService';
+
+  /// Name (without `.xml`) of the AppFunction XML KSP writes into the APK's
+  /// `assets/`. AndroidManifest.xml points `android.app.appfunctions.v2` at it.
+  static const appFunctionXmlFileName = 'generated_app_functions';
+
   /// Converts a Dart type to its Kotlin equivalent.
   ///
   /// Handles nullable types by preserving the `?` suffix.
@@ -55,8 +64,7 @@ class KotlinGenerator {
   String generateIntent(IntentInfo info) {
     final buffer = StringBuffer();
 
-    buffer.writeln('import androidx.appfunctions.service.AppFunction');
-    buffer.writeln('import androidx.appfunctions.AppFunctionContext');
+    buffer.writeln('import androidx.appfunctions.AppFunction');
     buffer.writeln();
 
     _generateIntentMethod(buffer, info);
@@ -107,8 +115,9 @@ class KotlinGenerator {
     // Imports
     final imports = <String>{};
     if (intents.isNotEmpty) {
-      imports.add('import androidx.appfunctions.service.AppFunction');
-      imports.add('import androidx.appfunctions.AppFunctionContext');
+      imports.add('import androidx.appfunctions.AppFunction');
+      imports.add('import androidx.appfunctions.AppFunctionService');
+      imports.add('import androidx.appfunctions.AppFunctionServiceEntryPoint');
     }
     if (entities.isNotEmpty) {
       imports.add('import androidx.appfunctions.AppFunctionSerializable');
@@ -153,6 +162,11 @@ class KotlinGenerator {
   }
 
   /// Generates the AppFunctions class containing all intent methods.
+  ///
+  /// Since appfunctions 1.0.0-alpha10 every `@AppFunction` must live in an
+  /// abstract `AppFunctionService` annotated with
+  /// `@AppFunctionServiceEntryPoint`; KSP generates the concrete [serviceName]
+  /// subclass (with `onExecuteFunction`) and the [appFunctionXmlFileName] XML.
   void _generateAppFunctionsClass(
     StringBuffer buffer,
     List<IntentInfo> intents,
@@ -163,7 +177,15 @@ class KotlinGenerator {
     );
     buffer.writeln(' * DO NOT MODIFY BY HAND.');
     buffer.writeln(' */');
-    buffer.writeln('class GeneratedAppFunctions {');
+    buffer.writeln('@AppFunctionServiceEntryPoint(');
+    buffer.writeln('${_indent}serviceName = "$serviceName",');
+    buffer.writeln(
+      '${_indent}appFunctionXmlFileName = "$appFunctionXmlFileName",',
+    );
+    buffer.writeln(')');
+    buffer.writeln(
+      'abstract class GeneratedAppFunctions : AppFunctionService() {',
+    );
     buffer.writeln('${_indent}private val bridge: AppFunctionsBridge');
     buffer.writeln(
       '$_indent${_indent}get() = AppFunctionsBridge.getInstance()',
@@ -190,10 +212,7 @@ class KotlinGenerator {
     buffer.writeln('$prefix/**');
     final descText = info.description ?? info.title;
     buffer.writeln(_formatKdocLines(descText, prefix));
-    buffer.writeln('$prefix *');
-    buffer.writeln(
-      '$prefix * @param appFunctionContext The context for this app function execution.',
-    );
+    if (info.parameters.isNotEmpty) buffer.writeln('$prefix *');
     for (final param in info.parameters) {
       final optionalTag = param.isOptional ? ' (optional)' : '';
       if (param.description != null) {
@@ -212,7 +231,10 @@ class KotlinGenerator {
     buffer.writeln('$prefix@AppFunction(isDescribedByKDoc = true)');
 
     // Function signature
-    final paramStrings = <String>['appFunctionContext: AppFunctionContext'];
+    // No AppFunctionContext parameter: it became @RestrictTo(LIBRARY_GROUP) in
+    // appfunctions 1.0.0-alpha12, and functions declared inside an
+    // @AppFunctionServiceEntryPoint are validated without it.
+    final paramStrings = <String>[];
     for (final param in info.parameters) {
       final kotlinType = _kotlinParamType(param);
       if (param.isOptional || param.dartType.endsWith('?')) {
@@ -222,12 +244,16 @@ class KotlinGenerator {
       }
     }
 
-    buffer.writeln('${prefix}suspend fun $funcName(');
-    for (var i = 0; i < paramStrings.length; i++) {
-      final comma = i < paramStrings.length - 1 ? ',' : '';
-      buffer.writeln('$prefix$_indent${paramStrings[i]}$comma');
+    if (paramStrings.isEmpty) {
+      buffer.writeln('${prefix}suspend fun $funcName(): String {');
+    } else {
+      buffer.writeln('${prefix}suspend fun $funcName(');
+      for (var i = 0; i < paramStrings.length; i++) {
+        final comma = i < paramStrings.length - 1 ? ',' : '';
+        buffer.writeln('$prefix$_indent${paramStrings[i]}$comma');
+      }
+      buffer.writeln('$prefix): String {');
     }
-    buffer.writeln('$prefix): String {');
 
     // Function body: build params map and delegate to bridge
     buffer.writeln(

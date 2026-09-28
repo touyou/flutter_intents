@@ -59,14 +59,7 @@ plugins {
 }
 dependencies {
     implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
-    // appfunctions-service は alpha10・alpha11・alpha12 のいずれも Google Maven に公開されていないため、alpha09 に固定する。
-    // 上流で廃止が確定したら、この依存ごと削除する。
-    implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
-}
-
-ksp {
-    arg("appfunctions:aggregateAppFunctions", "true")
 }
 ```
 
@@ -86,6 +79,32 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
 > **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha12` の AAR メタデータに由来します。
+
+生成される `GeneratedAppFunctions` は `@AppFunctionServiceEntryPoint` を付けた抽象 `AppFunctionService` です。
+KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同じ Kotlin パッケージ）と
+`assets/generated_app_functions.xml` を生成するので、`android/app/src/main/AndroidManifest.xml` の
+`<application>` 内でサービスを宣言します:
+
+```xml
+<service
+    android:name="<your.kotlin.package>.GeneratedAppFunctionService"
+    android:exported="true"
+    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+    <property
+        android:name="android.app.appfunctions.schema"
+        android:value="app_functions_schema.xsd" />
+    <property
+        android:name="android.app.appfunctions.v2"
+        android:value="generated_app_functions.xml" />
+    <intent-filter>
+        <action android:name="android.app.appfunctions.AppFunctionService" />
+    </intent-filter>
+</service>
+```
+
+> 以前のこのガイドでは `appfunctions-service` と KSP 引数 `appfunctions:aggregateAppFunctions` を使っていましたが、
+> どちらも不要になりました。alpha12 の compiler は `androidx.appfunctions.service.AppFunction` を認識しないため、
+> 旧構成はビルドこそ通るものの関数が **1 件も** 登録されません。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 

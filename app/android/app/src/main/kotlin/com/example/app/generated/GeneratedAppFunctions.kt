@@ -4,9 +4,10 @@
 
 package com.example.app.generated
 
-import androidx.appfunctions.AppFunctionContext
+import androidx.appfunctions.AppFunction
 import androidx.appfunctions.AppFunctionSerializable
-import androidx.appfunctions.service.AppFunction
+import androidx.appfunctions.AppFunctionService
+import androidx.appfunctions.AppFunctionServiceEntryPoint
 import io.flutter.plugin.common.MethodChannel
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -79,19 +80,21 @@ class AppFunctionsBridge private constructor(private val channel: MethodChannel)
  * Generated AppFunctions from Flutter Intents annotations.
  * DO NOT MODIFY BY HAND.
  */
-class GeneratedAppFunctions {
+@AppFunctionServiceEntryPoint(
+    serviceName = "GeneratedAppFunctionService",
+    appFunctionXmlFileName = "generated_app_functions",
+)
+abstract class GeneratedAppFunctions : AppFunctionService() {
     private val bridge: AppFunctionsBridge
         get() = AppFunctionsBridge.getInstance()
 
     /**
      * Mark a task as completed
      *
-     * @param appFunctionContext The context for this app function execution.
      * @param task The task to complete
      */
     @AppFunction(isDescribedByKDoc = true)
     suspend fun completeTask(
-        appFunctionContext: AppFunctionContext,
         task: String
     ): String {
         val params = mutableMapOf<String, Any?>()
@@ -100,16 +103,23 @@ class GeneratedAppFunctions {
     }
 
     /**
+     * Summarize how many tasks are left
+     */
+    @AppFunction(isDescribedByKDoc = true)
+    suspend fun taskSummary(): String {
+        val params = mutableMapOf<String, Any?>()
+        return bridge.executeIntent("com.example.taskapp.taskSummary", params)
+    }
+
+    /**
      * Create a new task in your task list
      *
-     * @param appFunctionContext The context for this app function execution.
      * @param title The title of the task
      * @param description Optional description for the task (optional)
      * @param dueDate When the task is due (optional)
      */
     @AppFunction(isDescribedByKDoc = true)
     suspend fun createTask(
-        appFunctionContext: AppFunctionContext,
         title: String,
         description: String? = null,
         dueDate: String? = null
@@ -124,13 +134,11 @@ class GeneratedAppFunctions {
     /**
      * Create a new task with an optional image attachment
      *
-     * @param appFunctionContext The context for this app function execution.
      * @param title The title of the task
      * @param image An image to attach to the task (optional)
      */
     @AppFunction(isDescribedByKDoc = true)
     suspend fun createTaskWithImage(
-        appFunctionContext: AppFunctionContext,
         title: String,
         image: String? = null
     ): String {
