@@ -340,7 +340,7 @@ Options:
 ### Android AppFunctions API Gotchas
 - `@AppFunction` is in `androidx.appfunctions.service.AppFunction` (NOT `androidx.appfunctions`) — unchanged as of alpha10, verified by a successful build (see below)
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
-- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext`
+- `AppFunctionContext` is in `androidx.appfunctions.AppFunctionContext` — **REMOVED in alpha12** along with `AppFunctionConfiguration`. The KotlinGenerator still emits `AppFunctionContext` as a parameter; this will not compile against alpha12. Follow-up needed: determine the replacement API and update `KotlinGenerator._generateIntentMethod` (the `appFunctionContext: AppFunctionContext` parameter entry, lines ~111 and ~215) and the generated example file.
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares

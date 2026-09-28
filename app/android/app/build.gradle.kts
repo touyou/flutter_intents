@@ -46,13 +46,13 @@ ksp {
 }
 
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha11")
-    // appfunctions-service was not included in the alpha10 or alpha11 artifact releases
-    // (it 404s on Google Maven for alpha10; alpha11 release notes omit it entirely).
-    // Keep pinned to alpha09. Re-check each release cycle; if appfunctions-service is
-    // permanently dropped, remove this dependency.
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
+    // appfunctions-service was not included in the alpha10, alpha11, or alpha12 artifact
+    // releases (it 404s on Google Maven for alpha10; alpha11/alpha12 release notes omit
+    // it entirely). Keep pinned to alpha09. Re-check each release cycle; if
+    // appfunctions-service is permanently dropped, remove this dependency.
     implementation("androidx.appfunctions:appfunctions-service:1.0.0-alpha09")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha11")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
 }
 
 flutter {
