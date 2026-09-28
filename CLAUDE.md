@@ -344,11 +344,12 @@ Options:
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
-- KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.9`) — match whatever the example app's `settings.gradle.kts` declares
-- Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Verified 2026-09-28: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
+- KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
+- Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha12 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
-  Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.9`,
-  `appfunctions:1.0.0-alpha11`, KSP `2.3.11`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
+  Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.12`,
+  `appfunctions:1.0.0-alpha12`, AGP `9.4.1`,
+  Gradle `9.7.1`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
   `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
   `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
   contains illegal characters: :` — the AppFunctions compiler emits a colon-bearing
@@ -374,6 +375,32 @@ Options:
   alpha (which is what emits the colon-bearing identifier) is.
   (Verified via bisection in PR #48 — the build-script DSL migration below is independent
   and lands fine on 2.2.20.)
+
+  **Re-tested 2026-09-14 (PR #113 follow-up, Kotlin 2.4.20) — still broken.** This is
+  the re-test the decision rule calls for: appfunctions **alpha11** landed, which is
+  the only precondition that licenses a retry. Ran with everything at its latest
+  (Kotlin **2.4.20**, KSP **2.3.12**), three real `flutter build apk --debug` runs:
+
+  | Kotlin | KSP | appfunctions | Result |
+  |---|---|---|---|
+  | 2.2.20 | 2.3.11 | **alpha11** | ✅ baseline (committed toolchain at the time) |
+  | **2.4.20** | **2.3.12** | **alpha11** | ❌ same `Can't escape identifier` failure |
+  | 2.2.20 | **2.3.12** | **alpha11** | ✅ |
+
+  Identical error text to the alpha09 and alpha10 runs — byte-for-byte the same
+  `$Android:appDebug_FunctionComponentRegistry` identifier. The third run again
+  isolates the cause to **Kotlin 2.4.x, not KSP** (KSP 2.3.12 is safe to bump on its
+  own — the example app has since moved to it).
+
+  **Three alphas (09 → 10 → 11) have now produced the identical failure**, so the
+  colon-bearing identifier is not an incidental bug drifting toward a fix — it is how
+  the AppFunctions compiler names its registry. The "retry on each new alpha" rule has
+  been exercised twice at the cost of a full build cycle each time and paid out
+  nothing. **Revised rule**: keep holding Kotlin bumps, but stop re-testing on every
+  alpha. Re-test only when there is positive evidence the identifier changed — an
+  AppFunctions release note or commit touching the registry naming, or a Kotlin
+  release relaxing identifier escaping. Absent that, close Kotlin bump PRs citing
+  this table.
 
 ### Entity Identifier Consistency
 The `entityIdentifier` used in Swift's FlutterBridge calls **must match** the `identifier` from `@EntitySpec` (used in Dart's `registerEntityQueryHandler` / `registerSuggestedEntitiesHandler`). Use `info.identifier` (e.g., `"com.example.taskapp.TaskEntity"`), **not** `info.className` (e.g., `"TaskEntitySpec"`).
@@ -886,13 +913,14 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.2.1 / Gradle 9.5.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.0+ / Gradle 9.3.1+ at minimum)
+1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
-   id("com.android.application") version "9.2.1" apply false
+   id("com.android.application") version "9.4.1" apply false
    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-   id("com.google.devtools.ksp") version "2.3.9" apply false
+   id("com.google.devtools.ksp") version "2.3.12" apply false
    ```
+   Do **not** raise Kotlin past 2.2.20 — see the Kotlin bump decision rule in Gotchas.
 3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
    ```properties
    android.newDsl=false

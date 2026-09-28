@@ -29,7 +29,7 @@ platform :ios, '17.0'
 
 #### Android
 
-`appfunctions:1.0.0-alpha11` requires **Android Gradle Plugin 9.1.0+**, **Gradle 9.3.1+**, and **compileSdk 37**.
+`appfunctions:1.0.0-alpha12` requires **Android Gradle Plugin 9.1.1+**, **Gradle 9.3.1+**, and **compileSdk 37**.
 Update `android/app/build.gradle.kts` (`minSdk = 36` because AppFunctions requires Android 16):
 
 ```kotlin
