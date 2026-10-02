@@ -59,6 +59,10 @@ import Foundation
 public class AppIntentsPlugin {
     public static func getCached(forKey key: String) -> Any? { nil }
     public static func setPendingAction(identifier: String, params: [String: Any]) {}
+    public static func registerShortcutParameterUpdater(
+        entityCacheKeys: [String],
+        _ updater: @escaping () -> Void
+    ) {}
 }
 SWIFT
 echo "==> Building app_intents stub module"

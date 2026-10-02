@@ -330,12 +330,36 @@ class AppIntents {
     return AppIntentsPlatform.instance.clearOnscreenEntity();
   }
 
+  /// Refreshes the parameters of the app's App Shortcuts (#149).
+  ///
+  /// An App Shortcut phrase that references an entity parameter does not
+  /// appear until the system has fetched the entities, and does not change
+  /// until it fetches them again. The generated
+  /// `AppShortcuts.registerParameterUpdater()` (call it from AppDelegate)
+  /// already refreshes once at launch and after every [setCachedValue] /
+  /// [clearCachedValue] on an entity cache key. Call this when entities change
+  /// some other way — for example when the Dart suggested-entities handler,
+  /// not the cache, is the source.
+  ///
+  /// Throws a `PlatformException` (`SHORTCUT_UPDATER_NOT_CONFIGURED`) on iOS
+  /// when the updater was never registered. A no-op on other platforms.
+  Future<void> updateAppShortcutParameters() {
+    return AppIntentsPlatform.instance.updateAppShortcutParameters();
+  }
+
   /// A stream of intent execution requests from the native platform.
   ///
   /// This stream emits [IntentExecutionRequest] objects whenever iOS
   /// triggers an intent execution. Use this for reactive programming
   /// patterns or when you need to handle intents outside of the
   /// registered handler pattern.
+  ///
+  /// Requests emitted before the stream has **ever** had a listener are kept
+  /// (up to 16) and replayed to the first subscriber (#150). That covers the
+  /// cold start, where `processPendingActions()` runs in `main()` but the
+  /// listener that navigates is attached from a widget later. Only the first
+  /// subscriber gets the replay; after that, events nobody listens to are
+  /// dropped as on any broadcast stream.
   ///
   /// Example:
   /// ```dart

@@ -74,8 +74,33 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       StreamController<IntentCancellation>.broadcast();
 
   /// Stream controller for intent execution events.
-  final StreamController<IntentExecutionRequest> _intentExecutionController =
-      StreamController<IntentExecutionRequest>.broadcast();
+  late final StreamController<IntentExecutionRequest>
+  _intentExecutionController =
+      StreamController<IntentExecutionRequest>.broadcast(
+        onListen: _flushUnheardIntentExecutions,
+      );
+
+  /// Requests emitted before [onIntentExecution] ever had a listener (#150).
+  ///
+  /// On a cold start `processPendingActions()` dispatches from `main()`, but
+  /// the code that reacts — usually navigation — subscribes from a widget once
+  /// a router exists. A broadcast stream drops events nobody hears, and the
+  /// native side has already consumed the action, so the first subscriber gets
+  /// these replayed instead. `null` once anyone has listened: buffering after
+  /// that would replay stale intents to a screen opened minutes later.
+  List<IntentExecutionRequest>? _unheardIntentExecutions = [];
+
+  /// How many unheard requests are kept. An app that never listens to
+  /// [onIntentExecution] would otherwise grow the buffer forever; the oldest
+  /// are dropped first.
+  static const int unheardIntentExecutionLimit = 16;
+
+  void _flushUnheardIntentExecutions() {
+    final unheard = _unheardIntentExecutions;
+    _unheardIntentExecutions = null;
+    if (unheard == null) return;
+    unheard.forEach(_intentExecutionController.add);
+  }
 
   /// Whether the method call handler has been set up.
   bool _isHandlerSetUp = false;
@@ -134,9 +159,17 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     String identifier,
     Map<String, dynamic> params,
   ) {
-    _intentExecutionController.add(
-      IntentExecutionRequest(identifier: identifier, params: params),
+    final request = IntentExecutionRequest(
+      identifier: identifier,
+      params: params,
     );
+    final unheard = _unheardIntentExecutions;
+    if (unheard != null && !_intentExecutionController.hasListener) {
+      unheard.add(request);
+      if (unheard.length > unheardIntentExecutionLimit) unheard.removeAt(0);
+    } else {
+      _intentExecutionController.add(request);
+    }
     return handleIntentExecution(identifier, params);
   }
 
@@ -364,6 +397,16 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
       await methodChannel.invokeMethod('clearOnscreenEntity');
     } on MissingPluginException {
       // No-op on platforms that don't implement this (e.g., Android).
+    }
+  }
+
+  @override
+  Future<void> updateAppShortcutParameters() async {
+    try {
+      await methodChannel.invokeMethod('updateAppShortcutParameters');
+    } on MissingPluginException {
+      // No-op on platforms that don't implement this. App Shortcuts are
+      // iOS-specific.
     }
   }
 

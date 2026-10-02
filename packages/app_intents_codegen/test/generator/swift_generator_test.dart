@@ -1,4 +1,5 @@
 import 'package:app_intents_codegen/src/generator/swift_generator.dart';
+import 'package:app_intents_codegen/src/experimental/experimental_features.dart';
 import 'package:app_intents_codegen/src/models/entity_info.dart';
 import 'package:app_intents_codegen/src/models/enum_info.dart';
 import 'package:app_intents_codegen/src/models/intent_info.dart';
@@ -1614,6 +1615,95 @@ void main() {
         expect(result, contains('try await suggestedEntities()'));
       });
 
+      group('suggestedLimit (#151)', () {
+        EntityInfo team({
+          int? suggestedLimit,
+          bool enumerable = true,
+          bool indexed = false,
+        }) => EntityInfo(
+          className: 'TeamEntity',
+          identifier: 'com.example.team',
+          title: 'Team',
+          pluralTitle: 'Teams',
+          enumerable: enumerable,
+          indexed: indexed,
+          suggestedLimit: suggestedLimit,
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String',
+              role: EntityPropertyRole.title,
+            ),
+          ],
+        );
+
+        test('caps suggestedEntities() but not allEntities()', () {
+          final result = generator.generateEntity(team(suggestedLimit: 10));
+
+          expect(result, contains('static let suggestedLimit = 10'));
+          expect(
+            result,
+            contains(
+              'Array(try await completeEntities().prefix(Self.suggestedLimit))',
+            ),
+          );
+          expect(
+            result,
+            contains('func completeEntities() async throws -> [TeamEntity] {'),
+          );
+          expect(result, contains('try await completeEntities()\n'));
+          expect(result, isNot(contains('try await suggestedEntities()')));
+        });
+
+        test('reads the cache in completeEntities(), uncapped', () {
+          final result = generator.generateEntity(team(suggestedLimit: 3));
+          final complete = result.substring(
+            result.indexOf('func completeEntities()'),
+          );
+
+          expect(complete, contains('Self._readCachedEntities()'));
+          expect(complete, contains('FlutterBridge.shared.suggestedEntities('));
+        });
+
+        test('leaves entities(for:) reading the full cache', () {
+          final result = generator.generateEntity(team(suggestedLimit: 3));
+          final forIds = result.substring(
+            result.indexOf('func entities(for'),
+            result.indexOf('static let suggestedLimit'),
+          );
+
+          expect(forIds, contains('Self._readCachedEntities()'));
+          expect(forIds, isNot(contains('suggestedLimit')));
+        });
+
+        test('re-indexes the full list, not the suggestions', () {
+          final generator = SwiftGenerator(
+            experimental: const ExperimentalFeatures(masterEnabled: true),
+          );
+          final result = generator.generateEntity(
+            team(suggestedLimit: 3, indexed: true),
+          );
+
+          expect(
+            result,
+            contains('let refreshed = try await completeEntities()'),
+          );
+        });
+
+        test('output is unchanged without a limit', () {
+          final result = generator.generateEntity(team());
+
+          expect(result, isNot(contains('completeEntities')));
+          expect(result, isNot(contains('suggestedLimit')));
+          expect(result, contains('try await suggestedEntities()'));
+        });
+      });
+
       test('does not generate EnumerableEntityQuery when not enumerable', () {
         final entityInfo = EntityInfo(
           className: 'TeamEntity',
@@ -2211,6 +2301,92 @@ void main() {
 
         expect(result, contains('struct CreateTaskIntent: AppIntent'));
         expect(result, contains('struct AppShortcuts: AppShortcutsProvider'));
+      });
+
+      group('shortcut parameter updater (#149)', () {
+        final shortcuts = [
+          AppShortcutInfo(
+            intentClassName: 'CreateTaskIntent',
+            phrases: ['Create a task'],
+            shortTitle: 'Create Task',
+            systemImageName: 'plus.circle',
+          ),
+        ];
+        final intents = [
+          IntentInfo(
+            className: 'CreateTaskIntent',
+            identifier: 'com.example.createTask',
+            title: 'Create Task',
+            implementation: IntentImplementationType.dart,
+            urlScheme: 'taskapp',
+            urlAction: 'create',
+            parameters: [],
+          ),
+        ];
+        EntityInfo entity(String id, {bool enumerable = false, String? key}) =>
+            EntityInfo(
+              className: 'E${id.hashCode.abs()}',
+              identifier: id,
+              title: 'E',
+              pluralTitle: 'Es',
+              enumerable: enumerable,
+              persistedCacheKey: key,
+              properties: [
+                EntityPropertyInfo(
+                  fieldName: 'id',
+                  dartType: 'String',
+                  role: EntityPropertyRole.id,
+                ),
+              ],
+            );
+
+        test('registers the provider with the plugin', () {
+          final result = generator.generateAll(
+            intents: intents,
+            shortcuts: shortcuts,
+          );
+
+          expect(result, contains('import app_intents'));
+          expect(result, contains('extension AppShortcuts {'));
+          expect(result, contains('static func registerParameterUpdater()'));
+          expect(
+            result,
+            contains(
+              'AppIntentsPlugin.registerShortcutParameterUpdater(entityCacheKeys: [])',
+            ),
+          );
+          expect(
+            result,
+            contains('AppShortcuts.updateAppShortcutParameters()'),
+          );
+        });
+
+        test('passes the cache keys of every cached entity', () {
+          final result = generator.generateAll(
+            intents: intents,
+            shortcuts: shortcuts,
+            entities: [
+              entity('com.example.team', enumerable: true),
+              entity('com.example.task', key: 'custom.tasks'),
+              entity('com.example.uncached'),
+            ],
+          );
+
+          final keys = result.substring(
+            result.indexOf('entityCacheKeys: ['),
+            result.indexOf(']', result.indexOf('entityCacheKeys: [')),
+          );
+          expect(keys, contains('"app_intents.entities.com.example.team",'));
+          expect(keys, contains('"custom.tasks",'));
+          expect(keys, isNot(contains('uncached')));
+        });
+
+        test('is not emitted without shortcuts', () {
+          final result = generator.generateAll(intents: intents);
+
+          expect(result, isNot(contains('registerParameterUpdater')));
+          expect(result, isNot(contains('import app_intents')));
+        });
       });
     });
 

@@ -323,3 +323,21 @@ struct AppShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+@available(iOS 17.0, *)
+extension AppShortcuts {
+    /// Lets Dart refresh App Shortcut parameters, and refreshes them now.
+    ///
+    /// A phrase with an entity parameter stays hidden until the system has
+    /// fetched the entities once. Call this from AppDelegate after
+    /// `AppIntentsPlugin.configure(appGroupIdentifier:)`.
+    static func registerParameterUpdater() {
+        AppIntentsPlugin.registerShortcutParameterUpdater(
+            entityCacheKeys: [
+                "com.example.taskapp.cache.tasks",
+            ]
+        ) {
+            AppShortcuts.updateAppShortcutParameters()
+        }
+    }
+}

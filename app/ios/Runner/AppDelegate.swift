@@ -17,6 +17,10 @@ import AppIntentsBridge
 
     // Wire FlutterBridge to AppIntentsPlugin for intent execution
     if #available(iOS 17.0, *) {
+      // App Shortcut phrases with an entity parameter stay hidden until the
+      // system has fetched the entities once. This refreshes them now and
+      // after every Dart write to the task cache.
+      AppShortcuts.registerParameterUpdater()
       Self.setupFlutterBridgeExecutorsIfNeeded()
     }
   }

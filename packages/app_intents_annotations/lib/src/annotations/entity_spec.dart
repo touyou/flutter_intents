@@ -164,6 +164,24 @@ class EntitySpec {
   /// See `docs/adr/0003-donations-and-discovery.md`.
   final bool relevantEntities;
 
+  /// Caps how many entities the generated `suggestedEntities()` returns,
+  /// while `allEntities()` and `entities(for:)` keep returning the full set.
+  ///
+  /// An App Shortcut phrase with a parameter of this entity type creates **one
+  /// App Shortcut per suggested entity**, so a long suggestion list floods the
+  /// app's shortcuts in Shortcuts and Spotlight. Apple's guidance is to keep
+  /// that set small (the HIG suggests no more than ten). Without this option
+  /// the generated `allEntities()` is the suggestion list, so capping one
+  /// would cap the Shortcuts editor's parameter picker too.
+  ///
+  /// The cap is applied in Swift to whatever the query would otherwise return
+  /// — the persisted cache or the Dart suggested-entities handler — so the
+  /// **order you write the list in is the priority**. Put the entities the
+  /// user is most likely to want first.
+  ///
+  /// Must be positive. `null` (the default) returns every entity.
+  final int? suggestedLimit;
+
   const EntitySpec({
     required this.identifier,
     required this.title,
@@ -180,5 +198,6 @@ class EntitySpec {
     this.importable = false,
     this.syncable = false,
     this.relevantEntities = false,
+    this.suggestedLimit,
   });
 }

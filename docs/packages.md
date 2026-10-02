@@ -307,6 +307,9 @@ class AppIntents {
   void registerEntityQueryHandler(String entityIdentifier, EntityQueryHandler handler);
   void registerSuggestedEntitiesHandler(String entityIdentifier, SuggestedEntitiesHandler handler);
 
+  // App Shortcuts (iOS; no-op elsewhere)
+  Future<void> updateAppShortcutParameters();
+
   // Streams
   Stream<IntentExecutionRequest> get onIntentExecution;
   Stream<String> get pendingActionsStream;
