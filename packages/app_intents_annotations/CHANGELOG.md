@@ -1,3 +1,7 @@
+## 0.18.0
+
+- `@EntitySpec(suggestedLimit:)` caps how many entities `suggestedEntities()` returns, while `allEntities()`, `entities(for:)` and re-indexing keep the full set (#151). Each suggested entity becomes its own App Shortcut when a phrase references the entity, so keep this small (the HIG suggests no more than ten). The list order is the priority.
+
 ## 0.17.0
 
 - `EntityExportType.place`, `EntityExportRole` and `@EntityExportField` — export an entity as a `PlaceDescriptor` (#128).

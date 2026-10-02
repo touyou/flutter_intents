@@ -1,3 +1,22 @@
+## 0.18.0
+
+> **Action required for Android (AppFunctions).** `generate_kotlin` now emits `GeneratedAppFunctions`
+> as an abstract `AppFunctionService` annotated with `@AppFunctionServiceEntryPoint`, and KSP generates
+> the concrete `GeneratedAppFunctionService`. The previous output built, but registered **no** functions
+> with the alpha12 compiler. In the app:
+> - remove the `androidx.appfunctions:appfunctions-service` dependency and the
+>   `appfunctions:aggregateAppFunctions` KSP argument, and
+> - point the manifest `<service>` at `GeneratedAppFunctionService`, using the new permission, properties
+>   and intent action shown in `docs/usage.md` (#147).
+
+> **Action required if you declare `@AppShortcutsProvider`.** `generate_swift` now also emits
+> `AppShortcuts.registerParameterUpdater()` (and `import app_intents`). Call it from AppDelegate after the
+> FlutterBridge executors. A phrase with an entity parameter does not appear without it (#149).
+
+- `@EntitySpec(suggestedLimit:)`: `suggestedEntities()` returns the first N entities. The uncapped list moves to a generated `completeEntities()`, which `allEntities()` and `reindexAllEntities` now call. Without a limit, the output is unchanged (#151).
+- Kotlin: the generated `@AppFunction` methods no longer take an `AppFunctionContext` parameter, which is `@RestrictTo(LIBRARY_GROUP)` in alpha12 (#147).
+- Dependencies: analyzer 14.4.0, build 4.0.11 (#145).
+
 ## 0.17.0
 
 > **Behavior change for CLI users.** `generate_swift`, `generate_widget_swift`

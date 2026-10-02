@@ -1,3 +1,14 @@
+## 0.18.0
+
+> **Action required if you declare `@AppShortcutsProvider` with an entity parameter in a phrase.**
+> Call the newly generated `AppShortcuts.registerParameterUpdater()` from AppDelegate, after
+> `AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge executors. Without
+> it the phrase never appears: the system shows it only after it has fetched the entities once (#149).
+
+- iOS: `AppIntentsPlugin.registerShortcutParameterUpdater(entityCacheKeys:_:)`. It refreshes App Shortcut parameters once on registration, and again after every Dart `setCachedValue` / `clearCachedValue` on one of the entity cache keys, once the write has landed (#149).
+- `AppIntents().updateAppShortcutParameters()` refreshes them from Dart. On iOS it throws `SHORTCUT_UPDATER_NOT_CONFIGURED` when the updater was never registered; on Android it does nothing (#149).
+- `onIntentExecution` keeps requests emitted before the stream has ever had a listener (up to 16) and replays them, in order, to the first subscriber. On a cold start, a widget that navigates in response to an intent no longer misses the intent `processPendingActions()` dispatched from `main()`. Once anyone has listened, unheard requests are dropped as before, so stale intents are never replayed (#150).
+
 ## 0.17.0
 
 > **Action required if you wired relevant-entity donation (#55).**
