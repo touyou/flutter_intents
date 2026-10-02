@@ -330,7 +330,8 @@ extension AppShortcuts {
     ///
     /// A phrase with an entity parameter stays hidden until the system has
     /// fetched the entities once. Call this from AppDelegate after
-    /// `AppIntentsPlugin.configure(appGroupIdentifier:)`.
+    /// `AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge
+    /// executors, so a fetch the cache cannot answer reaches Dart.
     static func registerParameterUpdater() {
         AppIntentsPlugin.registerShortcutParameterUpdater(
             entityCacheKeys: [

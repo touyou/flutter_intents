@@ -196,12 +196,6 @@ if #available(iOS 17.0, *) {
   // Without this, cached data may appear to "reset" across processes.
   AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
 
-  // Only when you declare @AppShortcutsProvider: lets the system fetch the
-  // shortcut parameters now and after every entity cache write. Without it,
-  // a phrase with an entity parameter never appears. See "Shortcuts with an
-  // entity parameter" below.
-  AppShortcuts.registerParameterUpdater()
-
   Task { @MainActor in
     // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
@@ -227,6 +221,13 @@ if #available(iOS 17.0, *) {
       }
       return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
+
+    // Only when you declare @AppShortcutsProvider: lets the system fetch the
+    // shortcut parameters now and after every entity cache write. Without it,
+    // a phrase with an entity parameter never appears. See "Shortcuts with an
+    // entity parameter" below. Register it after the executors, so that a
+    // fetch the cache cannot answer reaches Dart.
+    AppShortcuts.registerParameterUpdater()
   }
 }
 ```
@@ -468,6 +469,7 @@ class MyAppShortcuts {
 ```swift
 // Generated: AppShortcuts.swift
 import AppIntents
+import app_intents
 
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
@@ -516,8 +518,9 @@ does not appear at all until the system has fetched the entities once, and it
 does not change until the system fetches them again. Apple says to call it on
 first launch and after every entity addition, deletion, and rename (WWDC23
 10102). The generated `AppShortcuts.registerParameterUpdater()` does all of
-that once you call it from AppDelegate, right after
-`AppIntentsPlugin.configure(appGroupIdentifier:)`:
+that once you call it from AppDelegate, after
+`AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge
+executors:
 
 - it refreshes the parameters immediately (first launch),
 - it refreshes them after every Dart `setCachedValue` / `clearCachedValue` on an

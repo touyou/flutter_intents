@@ -3676,7 +3676,10 @@ class SwiftGenerator {
       '$_indent/// fetched the entities once. Call this from AppDelegate after',
     );
     buffer.writeln(
-      '$_indent/// `AppIntentsPlugin.configure(appGroupIdentifier:)`.',
+      '$_indent/// `AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge',
+    );
+    buffer.writeln(
+      '$_indent/// executors, so a fetch the cache cannot answer reaches Dart.',
     );
     buffer.writeln('${_indent}static func registerParameterUpdater() {');
     if (keys.isEmpty) {

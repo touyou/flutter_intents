@@ -92,7 +92,9 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// Registers the app's App Shortcut parameter refresh, and runs it once.
     ///
     /// The generated `AppShortcuts.registerParameterUpdater()` calls this, so
-    /// AppDelegate only has to call that after `configure(appGroupIdentifier:)`.
+    /// AppDelegate only has to call that after `configure(appGroupIdentifier:)`
+    /// and the FlutterBridge executors — the immediate refresh may reach the
+    /// suggested-entities executor when the cache is empty.
     ///
     /// The immediate call matters: an App Shortcut phrase that references an
     /// entity parameter does not appear until the system has fetched the

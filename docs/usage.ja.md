@@ -190,12 +190,6 @@ if #available(iOS 17.0, *) {
   // これがないと、キャッシュしたデータがプロセスをまたいで「リセット」されたように見える。
   AppIntentsPlugin.configure(appGroupIdentifier: "group.com.example.app")
 
-  // @AppShortcutsProvider を宣言している場合のみ。ショートカットのパラメータを
-  // 今すぐ、そしてエンティティキャッシュへの書き込みのたびに取得させる。これがないと
-  // エンティティパラメータを含むフレーズは表示されない（後述「エンティティパラメータを
-  // 含むショートカット」参照）。
-  AppShortcuts.registerParameterUpdater()
-
   Task { @MainActor in
     // Intent executor
     await FlutterBridge.shared.setIntentExecutor { identifier, params in
@@ -221,6 +215,13 @@ if #available(iOS 17.0, *) {
       }
       return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
+
+    // @AppShortcutsProvider を宣言している場合のみ。ショートカットのパラメータを
+    // 今すぐ、そしてエンティティキャッシュへの書き込みのたびに取得させる。これがないと
+    // エンティティパラメータを含むフレーズは表示されない（後述「エンティティパラメータを
+    // 含むショートカット」参照）。キャッシュで答えられない取得が Dart に届くよう、
+    // executor の設定後に登録する。
+    AppShortcuts.registerParameterUpdater()
   }
 }
 ```
@@ -462,6 +463,7 @@ class MyAppShortcuts {
 ```swift
 // Generated: AppShortcuts.swift
 import AppIntents
+import app_intents
 
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
@@ -509,7 +511,7 @@ extension AppShortcuts {
 変わりません。Apple は初回起動時と、エンティティの追加・削除・名前変更のたびに
 呼ぶよう説明しています（WWDC23 10102）。生成される
 `AppShortcuts.registerParameterUpdater()` を AppDelegate で
-`AppIntentsPlugin.configure(appGroupIdentifier:)` の直後に呼べば、これらを
+`AppIntentsPlugin.configure(appGroupIdentifier:)` と FlutterBridge の executor 設定の後に呼べば、これらを
 すべてまかなえます:
 
 - 呼んだ時点でパラメータを更新する（初回起動）
