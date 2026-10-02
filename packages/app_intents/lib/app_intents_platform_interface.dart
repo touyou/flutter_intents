@@ -231,6 +231,17 @@ abstract class AppIntentsPlatform extends PlatformInterface {
     throw UnimplementedError('clearOnscreenEntity() has not been implemented.');
   }
 
+  /// Refreshes the parameters of the app's App Shortcuts (#149).
+  ///
+  /// Calls `AppShortcuts.updateAppShortcutParameters()` through the updater
+  /// the generated `AppShortcuts.registerParameterUpdater()` registers.
+  /// iOS-only; a no-op elsewhere.
+  Future<void> updateAppShortcutParameters() {
+    throw UnimplementedError(
+      'updateAppShortcutParameters() has not been implemented.',
+    );
+  }
+
   /// Reports progress for a running long-running intent execution (#130).
   ///
   /// [executionId] names the `perform()` call that is waiting; [completed] and

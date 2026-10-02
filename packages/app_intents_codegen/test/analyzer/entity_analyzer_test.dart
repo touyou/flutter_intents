@@ -264,6 +264,73 @@ void main() {
         expect(result!.persistedCacheKey, isNull);
       });
 
+      test('extracts suggestedLimit when provided (#151)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            enumerable: true,
+            suggestedLimit: 10,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'TeamEntity'));
+
+        expect(result!.suggestedLimit, 10);
+      });
+
+      test('defaults suggestedLimit to null (#151)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'TeamEntity'));
+
+        expect(result!.suggestedLimit, isNull);
+      });
+
+      test('rejects a non-positive suggestedLimit (#151)', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @EntitySpec(
+            identifier: 'com.example.team',
+            title: 'Team',
+            pluralTitle: 'Teams',
+            suggestedLimit: 0,
+          )
+          class TeamEntity extends EntitySpecBase<Team> {}
+
+          class Team {}
+        ''');
+
+        expect(
+          () => analyzer.analyze(findClass(library, 'TeamEntity')),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('must be positive'),
+            ),
+          ),
+        );
+      });
+
       test('extracts persistedCacheKey when provided', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

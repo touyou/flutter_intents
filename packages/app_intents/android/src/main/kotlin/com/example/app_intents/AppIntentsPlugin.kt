@@ -51,7 +51,9 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
             "setCachedValue",
             "clearCachedValue",
             "configureStorage",
-            "processPendingActions" -> result.success(null)
+            "processPendingActions",
+            // App Shortcuts are iOS-only; AppFunctions has no parameter refresh.
+            "updateAppShortcutParameters" -> result.success(null)
             else -> result.notImplemented()
         }
     }

@@ -53,6 +53,12 @@ import AppIntentsBridge
           entityIdentifier: entityIdentifier
         )
       }
+
+      // App Shortcut phrases with an entity parameter stay hidden until the
+      // system has fetched the entities once. This refreshes them now and
+      // after every Dart write to the task cache. Registered after the
+      // executors so a fetch the cache cannot answer still reaches Dart.
+      AppShortcuts.registerParameterUpdater()
     }
   }
 

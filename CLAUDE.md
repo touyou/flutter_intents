@@ -44,6 +44,12 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **Production feedback #149–#151 (2026-10-02)**
+  - **#149 `updateAppShortcutParameters()` is required**, not a "force refresh": a phrase with an entity parameter never appears until the system has fetched the entities once (WWDC23 10102). `generateAll` now emits `extension AppShortcuts { static func registerParameterUpdater() }` whenever shortcuts exist (so `import app_intents` is emitted with any shortcut). It hands the plugin a closure plus the **cache keys of every cached entity**; `AppIntentsPlugin.registerShortcutParameterUpdater(entityCacheKeys:_:)` runs it once immediately and again after each Dart `setCachedValue` / `clearCachedValue` on one of those keys — after the write, because the generated `suggestedEntities()` reads the cache first. Dart: `AppIntents().updateAppShortcutParameters()` (iOS throws `SHORTCUT_UPDATER_NOT_CONFIGURED` when unwired; Android no-op). The example AppDelegate calls `AppShortcuts.registerParameterUpdater()`.
+  - **#150 `onIntentExecution` replay**: requests emitted before the stream has **ever** had a listener are kept (max 16, oldest dropped) and replayed to the first subscriber via the broadcast controller's `onListen`. Deliberately not "buffer whenever nobody listens" — that would replay stale intents to a screen opened minutes later. Handlers registered with `registerIntentHandler` are unaffected (they still run, from `main()`).
+  - **#151 `@EntitySpec(suggestedLimit:)`**: with a limit the query gains `completeEntities()` (the old uncapped body); `suggestedEntities()` returns its `prefix(limit)`, and `allEntities()` / `reindexAllEntities` call `completeEntities()`. `entities(for:)` is untouched. **Without a limit the output is byte-for-byte unchanged.** The cap applies to cache and Dart-handler results alike, so cache order is the priority.
+  - `scripts/verify_experimental_swift.sh`'s stub gained `registerShortcutParameterUpdater`; the emitter now includes a capped enumerable+indexed entity and an `AppShortcuts` provider.
+  - Local `flutter build ios --simulator` fails on this machine with `Flutter.framework/Flutter does not contain architectures "arm64 x86_64"` while `lipo -info` lists exactly those two (an ordering/parsing problem in flutter_tools, unrelated to the code). `xcodebuild -workspace Runner.xcworkspace -scheme Runner -destination "generic/platform=iOS Simulator" ARCHS=arm64 IPHONEOS_DEPLOYMENT_TARGET=17.0 CODE_SIGNING_ALLOWED=NO build` works (the override is needed because the `Flutter` pod target asks for 13.0, which Xcode 27 rejects). Revert the `Podfile.lock` / `project.pbxproj` churn the build leaves behind.
 - **Xcode 27 remaining issues #128–#133 (2026-09-15)**
   - **#128 export catalog**: `EntityExportType.place` → `GeoToolbox.PlaceDescriptor`, built from a new `@EntityExportField(EntityExportRole.latitude/.longitude/.address)`. **`IntentCurrencyAmount` was dropped, not deferred** — `ValueRepresentation(exporting:)` is declared only `where IntentValue: _SystemIntentValue` and `where IntentValue == IntentPerson`, and `IntentCurrencyAmount` is merely `_IntentValue` (measured against the iOS 27.0 SDK; the emitted Swift fails to compile). The whole exportable catalog in that SDK is `IntentPerson`, `PlaceDescriptor`, `LinkMetadata`, `AudioSearch`, `PHAsset`, `SemanticContentDescriptor`, `IntentPrompt`, `SystemShortcut`.
   - **#129 import**: `@EntitySpec(importable: true)` → `ValueRepresentation(exporting:importing:)`. Import reuses #51's value-query bridge under `<identifier>#import`; Dart registers with `registerValueImportHandler`. The suffix literal is **duplicated on purpose** in `SwiftGenerator._importQuerySuffix` and the plugin's `valueImportQuerySuffix` — change both.
@@ -661,7 +667,8 @@ DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer scripts/verify_exp
 
 The script builds `AppIntentsBridge` from source and a **stub `app_intents`
 module** (the real one imports Flutter). The stub carries only what generated
-Swift touches (`AppIntentsPlugin.getCached` / `setPendingAction`) — if you change
+Swift touches (`AppIntentsPlugin.getCached` / `setPendingAction` /
+`registerShortcutParameterUpdater`) — if you change
 those signatures in the plugin, change the stub too, or broken output will pass.
 
 ### Which SDK actually has the symbol (audited 2026-09-15)

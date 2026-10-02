@@ -80,6 +80,12 @@ class EntityInfo {
   /// `register<Entity>RelevantEntitiesDonator()` function (`#if`-gated).
   final bool relevantEntities;
 
+  /// The maximum number of entities `suggestedEntities()` returns (#151), or
+  /// null for no cap. When set, `allEntities()` and `reindexAllEntities` read
+  /// the full list through a separate `completeEntities()` helper instead of
+  /// going through `suggestedEntities()`.
+  final int? suggestedLimit;
+
   const EntityInfo({
     required this.className,
     required this.identifier,
@@ -99,6 +105,7 @@ class EntityInfo {
     this.importable = false,
     this.syncable = false,
     this.relevantEntities = false,
+    this.suggestedLimit,
   });
 
   /// Whether any property is exposed as a Swift `@Property`. Such entities need
@@ -168,6 +175,7 @@ class EntityInfo {
         importable == other.importable &&
         syncable == other.syncable &&
         relevantEntities == other.relevantEntities &&
+        suggestedLimit == other.suggestedLimit &&
         _listEquals(properties, other.properties);
   }
 
@@ -190,6 +198,7 @@ class EntityInfo {
     importable,
     syncable,
     relevantEntities,
+    suggestedLimit,
     Object.hashAll(properties),
   );
 
@@ -201,7 +210,8 @@ class EntityInfo {
       'persistedCacheKey: $persistedCacheKey, schema: $schema, ownership: $ownership, '
       'valueQuery: $valueQuery, exportAs: $exportAs, importable: $importable, '
       'syncable: $syncable, '
-      'relevantEntities: $relevantEntities, properties: $properties)';
+      'relevantEntities: $relevantEntities, suggestedLimit: $suggestedLimit, '
+      'properties: $properties)';
 }
 
 /// Represents analyzed information about an entity property.

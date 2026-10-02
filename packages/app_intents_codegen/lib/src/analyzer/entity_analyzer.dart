@@ -97,6 +97,7 @@ class EntityAnalyzer {
     final syncable = annotation.getField('syncable')?.toBoolValue() ?? false;
     final relevantEntities =
         annotation.getField('relevantEntities')?.toBoolValue() ?? false;
+    final suggestedLimit = annotation.getField('suggestedLimit')?.toIntValue();
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -121,6 +122,13 @@ class EntityAnalyzer {
     final properties = _extractProperties(element);
     _validateExport(element, exportAs, properties);
     _validateStableId(element, syncable: syncable, properties: properties);
+    if (suggestedLimit != null && suggestedLimit <= 0) {
+      throw InvalidGenerationSourceError(
+        '@EntitySpec(suggestedLimit: $suggestedLimit) on `${element.name}` must '
+        'be positive. Leave it unset to suggest every entity.',
+        element: element,
+      );
+    }
     if (importable && exportAs == null) {
       throw InvalidGenerationSourceError(
         '@EntitySpec(importable: true) on `${element.name}` has no exportAs. '
@@ -149,6 +157,7 @@ class EntityAnalyzer {
       importable: importable,
       syncable: syncable,
       relevantEntities: relevantEntities,
+      suggestedLimit: suggestedLimit,
     );
   }
 

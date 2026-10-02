@@ -260,10 +260,50 @@ void main(List<String> args) {
     ],
   );
 
+  // #151: a capped suggestion list. Enumerable + indexed, so allEntities()
+  // and reindexAllEntities() both have to reach the uncapped
+  // completeEntities() helper rather than suggestedEntities().
+  const teamEntity = EntityInfo(
+    className: 'TeamEntity',
+    identifier: 'com.example.app.TeamEntity',
+    title: 'Team',
+    pluralTitle: 'Teams',
+    enumerable: true,
+    indexed: true,
+    suggestedLimit: 10,
+    properties: [
+      EntityPropertyInfo(
+        fieldName: 'id',
+        dartType: 'String',
+        role: EntityPropertyRole.id,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'name',
+        dartType: 'String',
+        role: EntityPropertyRole.title,
+      ),
+    ],
+  );
+
   final swift = gen.generateAll(
     intents: [sendIntent, dialogIntent],
-    entities: [productEntity, messageEntity, storeEntity, deviceEntity],
+    entities: [
+      productEntity,
+      messageEntity,
+      storeEntity,
+      deviceEntity,
+      teamEntity,
+    ],
     unions: [searchResult],
+    // #149: the provider plus its registerParameterUpdater() extension.
+    shortcuts: const [
+      AppShortcutInfo(
+        intentClassName: 'AnnounceTaskIntent',
+        phrases: ['Announce a task in {applicationName}'],
+        shortTitle: 'Announce Task',
+        systemImageName: 'megaphone',
+      ),
+    ],
   );
 
   File(out).writeAsStringSync('// GENERATED FOR VERIFICATION ONLY\n$swift\n');

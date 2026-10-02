@@ -1641,17 +1641,18 @@ class SwiftGenerator {
     );
     buffer.writeln('$_indent}');
     buffer.writeln();
-    // suggestedEntities() is the complete source here, not a subset: an
-    // indexed entity always has a cache key, the cache holds the full entity
-    // list Dart projects, and suggestedEntities() returns it whenever it is
-    // non-empty. Only an empty cache falls through to the Dart handler.
+    // The complete source here, not a subset: an indexed entity always has a
+    // cache key, the cache holds the full entity list Dart projects, and this
+    // method returns it whenever it is non-empty. Only an empty cache falls
+    // through to the Dart handler. With a suggestedLimit (#151) that method is
+    // completeEntities(), since suggestedEntities() is then capped.
     buffer.writeln('${_indent}func reindexAllEntities(');
     buffer.writeln(
       '$_indent${_indent}indexDescription: CSSearchableIndexDescription',
     );
     buffer.writeln('$_indent) async throws {');
     buffer.writeln(
-      '$_indent${_indent}let refreshed = try await suggestedEntities()',
+      '$_indent${_indent}let refreshed = try await ${_completeEntitiesMethod(info)}()',
     );
     buffer.writeln(
       '$_indent${_indent}try await CSSearchableIndex.default().indexAppEntities(refreshed)',
@@ -2711,9 +2712,30 @@ class SwiftGenerator {
     buffer.writeln('$_indent}');
     buffer.writeln();
 
-    // suggestedEntities() method
+    // suggestedEntities() method. With a suggestedLimit (#151) the full list
+    // moves to completeEntities() and suggestedEntities() returns its head:
+    // each suggestion becomes an App Shortcut, but the picker must stay full.
+    final limit = info.suggestedLimit;
+    if (limit != null) {
+      buffer.writeln(
+        '$_indent/// Each suggested entity becomes an App Shortcut, so the list is capped.',
+      );
+      buffer.writeln('${_indent}static let suggestedLimit = $limit');
+      buffer.writeln();
+      buffer.writeln(
+        '${_indent}func suggestedEntities() async throws -> [${info.className}] {',
+      );
+      buffer.writeln(
+        '$_indent${_indent}Array(try await completeEntities().prefix(Self.suggestedLimit))',
+      );
+      buffer.writeln('$_indent}');
+      buffer.writeln();
+      buffer.writeln(
+        '$_indent/// Every entity, uncapped. Backs `allEntities()` and the picker.',
+      );
+    }
     buffer.writeln(
-      '${_indent}func suggestedEntities() async throws -> [${info.className}] {',
+      '${_indent}func ${_completeEntitiesMethod(info)}() async throws -> [${info.className}] {',
     );
     if (cacheKey != null) {
       buffer.writeln(
@@ -2952,10 +2974,18 @@ class SwiftGenerator {
     buffer.writeln(
       '${_indent}func allEntities() async throws -> [${info.className}] {',
     );
-    buffer.writeln('$_indent${_indent}try await suggestedEntities()');
+    buffer.writeln(
+      '$_indent${_indent}try await ${_completeEntitiesMethod(info)}()',
+    );
     buffer.writeln('$_indent}');
     buffer.writeln('}');
   }
+
+  /// The query method returning every entity: `suggestedEntities()` unless a
+  /// `suggestedLimit` (#151) caps it, in which case the full list lives in
+  /// `completeEntities()`.
+  String _completeEntitiesMethod(EntityInfo info) =>
+      info.suggestedLimit == null ? 'suggestedEntities' : 'completeEntities';
 
   /// Writes IndexedEntity extension with attributeSet.
   void _writeIndexedEntityExtension(
@@ -3042,8 +3072,10 @@ class SwiftGenerator {
     if (intents.any((i) => _hasFileParams(i))) {
       buffer.writeln('import UniformTypeIdentifiers');
     }
+    // Shortcuts need it for the parameter-updater registration (#149).
     if (intents.any((i) => _needsCacheImport(i)) ||
-        entities.any((e) => e.effectiveCacheKey != null)) {
+        entities.any((e) => e.effectiveCacheKey != null) ||
+        shortcuts.isNotEmpty) {
       buffer.writeln('import app_intents');
     }
     if (entities.any((e) => e.indexed || e.hasIndexingKeys)) {
@@ -3111,6 +3143,8 @@ class SwiftGenerator {
     // Generate shortcuts provider (without individual imports)
     if (shortcuts.isNotEmpty) {
       buffer.writeln(_generateShortcutsProviderBody(shortcuts));
+      buffer.writeln();
+      buffer.writeln(_generateShortcutParameterUpdater(entities));
     }
 
     if (appIntentsPackage != null) {
@@ -3614,6 +3648,63 @@ class SwiftGenerator {
     buffer.writeln('$_indent}');
     buffer.write('}');
 
+    return buffer.toString();
+  }
+
+  /// Generates the `AppShortcuts.registerParameterUpdater()` helper (#149).
+  ///
+  /// `updateAppShortcutParameters()` is a static on the concrete provider, so
+  /// the plugin (which cannot name it) holds a closure instead. The cache keys
+  /// tell the plugin which `setCachedValue` / `clearCachedValue` calls change
+  /// shortcut parameters, so it can refresh them after the write lands.
+  String _generateShortcutParameterUpdater(List<EntityInfo> entities) {
+    final keys = {
+      for (final entity in entities)
+        if (entity.effectiveCacheKey != null) entity.effectiveCacheKey!,
+    }.toList();
+    final buffer = StringBuffer();
+    buffer.writeln('@available(iOS 17.0, *)');
+    buffer.writeln('extension AppShortcuts {');
+    buffer.writeln(
+      '$_indent/// Lets Dart refresh App Shortcut parameters, and refreshes them now.',
+    );
+    buffer.writeln('$_indent///');
+    buffer.writeln(
+      '$_indent/// A phrase with an entity parameter stays hidden until the system has',
+    );
+    buffer.writeln(
+      '$_indent/// fetched the entities once. Call this from AppDelegate after',
+    );
+    buffer.writeln(
+      '$_indent/// `AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge',
+    );
+    buffer.writeln(
+      '$_indent/// executors, so a fetch the cache cannot answer reaches Dart.',
+    );
+    buffer.writeln('${_indent}static func registerParameterUpdater() {');
+    if (keys.isEmpty) {
+      buffer.writeln(
+        '$_indent${_indent}AppIntentsPlugin.registerShortcutParameterUpdater(entityCacheKeys: []) {',
+      );
+    } else {
+      buffer.writeln(
+        '$_indent${_indent}AppIntentsPlugin.registerShortcutParameterUpdater(',
+      );
+      buffer.writeln('$_indent$_indent${_indent}entityCacheKeys: [');
+      for (final key in keys) {
+        buffer.writeln(
+          '$_indent$_indent$_indent$_indent"${_swiftLiteral(key)}",',
+        );
+      }
+      buffer.writeln('$_indent$_indent$_indent]');
+      buffer.writeln('$_indent$_indent) {');
+    }
+    buffer.writeln(
+      '$_indent$_indent${_indent}AppShortcuts.updateAppShortcutParameters()',
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.write('}');
     return buffer.toString();
   }
 

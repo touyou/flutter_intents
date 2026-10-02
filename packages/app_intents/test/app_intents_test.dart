@@ -111,6 +111,13 @@ class MockAppIntentsPlatform
     donatedIntents.add({'identifier': identifier, 'params': params});
   }
 
+  int shortcutParameterUpdates = 0;
+
+  @override
+  Future<void> updateAppShortcutParameters() async {
+    shortcutParameterUpdates++;
+  }
+
   final List<Map<String, dynamic>> onscreenCalls = [];
 
   @override
@@ -319,6 +326,11 @@ void main() {
     test('donateRelevantIntents accepts an empty set to clear', () async {
       await appIntentsPlugin.donateRelevantIntents([]);
       expect(fakePlatform.donatedRelevantIntents.last, isEmpty);
+    });
+
+    test('updateAppShortcutParameters delegates to platform (#149)', () async {
+      await appIntentsPlugin.updateAppShortcutParameters();
+      expect(fakePlatform.shortcutParameterUpdates, 1);
     });
 
     test('donateIntent delegates to platform (#55)', () async {

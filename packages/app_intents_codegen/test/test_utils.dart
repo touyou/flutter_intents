@@ -169,6 +169,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final bool importable;
           final bool syncable;
           final bool relevantEntities;
+          final int? suggestedLimit;
 
           const EntitySpec({
             required this.identifier,
@@ -186,6 +187,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.importable = false,
             this.syncable = false,
             this.relevantEntities = false,
+            this.suggestedLimit,
           });
         }
 

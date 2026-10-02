@@ -234,6 +234,13 @@ if #available(iOS 17.0, *) {
       }
       return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
+
+    // @AppShortcutsProvider を宣言している場合のみ。ショートカットのパラメータを
+    // 今すぐ、そしてエンティティキャッシュへの書き込みのたびに取得させる。これがないと
+    // エンティティパラメータを含むフレーズは表示されない（後述「エンティティパラメータを
+    // 含むショートカット」参照）。キャッシュで答えられない取得が Dart に届くよう、
+    // executor の設定後に登録する。
+    AppShortcuts.registerParameterUpdater()
   }
 }
 ```
@@ -475,6 +482,7 @@ class MyAppShortcuts {
 ```swift
 // Generated: AppShortcuts.swift
 import AppIntents
+import app_intents
 
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
@@ -499,7 +507,60 @@ struct AppShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+@available(iOS 17.0, *)
+extension AppShortcuts {
+    static func registerParameterUpdater() {
+        AppIntentsPlugin.registerShortcutParameterUpdater(
+            entityCacheKeys: ["app_intents.entities.TaskEntity"]
+        ) {
+            AppShortcuts.updateAppShortcutParameters()
+        }
+    }
+}
 ```
+
+### エンティティパラメータを含むショートカット
+
+フレーズにはエンティティパラメータを含められます（`'Complete {task} in
+{applicationName}'`）。その場合、アプリ側で対応が必要なことが2つあります。
+
+**`updateAppShortcutParameters()` は任意ではなく必須です。** こうしたフレーズは、
+システムがエンティティを一度取得するまでまったく表示されず、再取得するまで内容も
+変わりません。Apple は初回起動時と、エンティティの追加・削除・名前変更のたびに
+呼ぶよう説明しています（WWDC23 10102）。生成される
+`AppShortcuts.registerParameterUpdater()` を AppDelegate で
+`AppIntentsPlugin.configure(appGroupIdentifier:)` と FlutterBridge の executor 設定の後に呼べば、これらを
+すべてまかなえます:
+
+- 呼んだ時点でパラメータを更新する（初回起動）
+- Dart からエンティティキャッシュキーへの `setCachedValue` / `clearCachedValue` が
+  書き込みを終えたあとに更新する。順序が重要です。生成される `suggestedEntities()` は
+  App Group キャッシュを先に読むため、書き込みより前に更新すると、システムは古い
+  リストを読みます
+- Dart から `AppIntents().updateAppShortcutParameters()` で更新できる。キャッシュ
+  ではなく Dart の suggested-entities ハンドラーがデータ源のエンティティ向けです
+
+**提案されたエンティティの数だけ App Shortcut が作られます。** 「その型の値ごとに
+App Shortcut が作られる」（WWDC25 244）ため、チームが100件あるアプリでは
+ショートカットとSpotlightの一覧に100件並びます。HIG の目安（10件以内）に収めるには
+`suggestedLimit` を使います:
+
+```dart
+@EntitySpec(
+  identifier: 'TeamEntity',
+  title: 'Team',
+  pluralTitle: 'Teams',
+  enumerable: true,
+  suggestedLimit: 10,
+)
+class TeamEntitySpec extends EntitySpecBase<Team> { ... }
+```
+
+上限を指定すると `suggestedEntities()` は先頭10件だけを返します。
+`allEntities()`（ショートカットエディタのピッカー）、`entities(for:)`、再インデックスは
+引き続き全件を扱います。上限はクエリが本来返すもの（キャッシュでも Dart
+ハンドラーでも）に適用されるので、**リストは優先度順に書いてください**。
 
 ## コード生成
 
@@ -1012,24 +1073,72 @@ Future<void> main() async {
 
 > **警告**: Cacheモードを使用する場合、ウィジェットの `initState()` やその他のライフサイクルコールバック内でIntentハンドラーを登録しないでください。コールドスタート時、`processPendingActions()` はウィジェットツリーが構築される前に実行されるため、ウィジェットレベルのハンドラーはまだ登録されていません。常に `main()` で `processPendingActions()` を呼ぶ前にハンドラーを登録してください。
 
-> **バッファリング**: `pendingActionsStream` はネイティブ側で `FlutterEventChannel` のバッファードプッシュを使用するため、Dartリスナーがアタッチされる前に到着したイベントは失われません。ただし、`registerIntentHandler` で登録された `onIntentExecution` コールバックはバッファリングされません — `processPendingActions()` がディスパッチした時点でハンドラーが未登録の場合、イベントはサイレントにドロップされます。
+> **バッファリング**: `pendingActionsStream` はネイティブ側で `FlutterEventChannel` のバッファードプッシュを使用するため、Dartリスナーがアタッチされる前に到着したイベントは失われません。一方、`registerIntentHandler` で登録するハンドラーはバッファリング**されません**。`processPendingActions()` がディスパッチした時点でハンドラーが未登録なら、そのハンドラーは実行されません。その時点でネイティブ側はアクションを消費済みなので、ハンドラーは `main()` で登録してください。
 
-### App Shortcutsパラメータの更新
+### コールドスタートでの Intent からの画面遷移
 
-他のApp Intentsライブラリ（例: `intelligence`）から移行する場合、`AppShortcuts.updateAppShortcutParameters()` の明示的な呼び出しが必要だったかもしれません。本ライブラリではエンティティ更新を異なる方法で処理します:
+コールドスタートでは `registerIntentHandler` と `onIntentExecution` の振る舞いが
+異なり、Intent への反応が画面遷移のときにこの違いが効いてきます:
 
-- **エンティティクエリ**（`suggestedEntities()` / `entities(for:)`）は、ショートカットエディタやSiriがエンティティデータを必要とする際にシステムによってオンデマンドで呼び出されます。明示的に更新をプッシュする必要はありません。
-- `@AppShortcutsProvider` で定義された **App Shortcuts** はアプリインストール時に自動的に登録されます。システムは最新データが必要な場合に `suggestedEntities()` を呼び出します。
-- ショートカットパラメータの**強制リフレッシュ**が必要な場合（例: ユーザーが新しいチームに参加した後）、SwiftコードでAPIを直接呼び出せます:
+| | 設定する場所 | コールドスタート |
+|---|---|---|
+| `registerIntentHandler` | `main()`（`processPendingActions()` より前） | 間に合えば実行される |
+| `onIntentExecution` | どこでも（ウィジェット内も可） | 最初の購読者にリプレイされる |
 
-```swift
-// AppDelegateまたはエンティティデータが変更される場所で:
-if #available(iOS 17.0, *) {
-    AppShortcuts.updateAppShortcutParameters()
+画面遷移にはルーターか `BuildContext` が必要で、どちらも `main()` にはありません。
+そこで、処理（タスク作成やデータ保存）はハンドラーで行い、画面遷移はルーターを
+持つウィジェットの `onIntentExecution` リスナーで行います。`onIntentExecution` は、
+**一度も**リスナーが付いていない間に発行されたリクエストを最大16件保持し、最初の
+購読者に順番どおりリプレイします:
+
+```dart
+class _AppShellState extends State<AppShell> {
+  StreamSubscription<IntentExecutionRequest>? _intents;
+
+  @override
+  void initState() {
+    super.initState();
+    // コールドスタートでは、このウィジェットができる前に main() の
+    // processPendingActions() がディスパッチした Intent もここで受け取れる。
+    _intents = AppIntents().onIntentExecution.listen((request) {
+      if (request.identifier == 'com.example.openTask') {
+        router.go('/tasks/${request.params['taskId']}');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _intents?.cancel();
+    super.dispose();
+  }
 }
 ```
 
-これはコードジェネレータでは自動生成されません — エンティティデータが変更される場所でSwiftコードに手動で追加してください。
+リプレイを受け取るのは最初の購読者だけです。`main()` のロガーなど別の箇所が先に
+`onIntentExecution` を購読していると、リプレイはそちらに流れ、ウィジェットには以降の
+リクエストしか届きません。その場合は先に付けたリスナーから自前で転送してください。
+一度でもリスナーが付いたあとは、通常の broadcast stream と同じく誰も聞いていない
+リクエストは破棄されます。数分後に開いた画面が古い Intent で遷移することはありません。
+バッファはメモリ上だけにあり、再起動をまたいでは残りません。
+
+### App Shortcutsパラメータの更新
+
+AppDelegate から `AppShortcuts.registerParameterUpdater()` を呼んでください
+（[エンティティパラメータを含むショートカット](#エンティティパラメータを含むショートカット)
+参照）。エンティティパラメータを含むフレーズには必須です。起動時と、エンティティ
+キャッシュへの書き込みのたびにパラメータを更新します。キャッシュへの書き込みなしに
+エンティティが変わる場合は、Dart から更新します:
+
+```dart
+// Dart の suggested-entities ハンドラーが返すデータが変わったあとで。
+await AppIntents().updateAppShortcutParameters();
+```
+
+iOS では、AppDelegate で updater を登録していないと、コード
+`SHORTCUT_UPDATER_NOT_CONFIGURED` の `PlatformException` を投げます。配線漏れが
+「ショートカットが黙って表示されない」ように見えるのを防ぐためです。Android では
+何もしません。
 
 ## IntentValueQuery (#51) — 構造化検索
 

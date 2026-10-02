@@ -76,6 +76,57 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
     /// The currently-active onscreen user activity (#56).
     private static var currentOnscreenActivity: NSUserActivity?
 
+    // MARK: - App Shortcut parameters (#149)
+
+    /// Calls the app's `AppShortcuts.updateAppShortcutParameters()`.
+    ///
+    /// That method is a static on the concrete `AppShortcutsProvider`, which
+    /// only exists in the app target, so the plugin holds a closure for it.
+    private static var shortcutParameterUpdater: (() -> Void)?
+
+    /// Cache keys whose entities back App Shortcut parameters. A Dart
+    /// `setCachedValue` / `clearCachedValue` on one of them refreshes the
+    /// parameters once the write has landed.
+    private static var shortcutParameterCacheKeys: Set<String> = []
+
+    /// Registers the app's App Shortcut parameter refresh, and runs it once.
+    ///
+    /// The generated `AppShortcuts.registerParameterUpdater()` calls this, so
+    /// AppDelegate only has to call that after `configure(appGroupIdentifier:)`
+    /// and the FlutterBridge executors — the immediate refresh may reach the
+    /// suggested-entities executor when the cache is empty.
+    ///
+    /// The immediate call matters: an App Shortcut phrase that references an
+    /// entity parameter does not appear until the system has fetched the
+    /// entities at least once (WWDC23 10102). After that, the parameters are
+    /// refreshed after every Dart write to `entityCacheKeys` — the refresh has
+    /// to come after the write, or the system re-reads the stale list — and on
+    /// `AppIntents().updateAppShortcutParameters()`.
+    public static func registerShortcutParameterUpdater(
+        entityCacheKeys: [String],
+        _ updater: @escaping () -> Void
+    ) {
+        shortcutParameterUpdater = updater
+        shortcutParameterCacheKeys = Set(entityCacheKeys)
+        updater()
+    }
+
+    /// Refreshes the App Shortcut parameters. Returns `false` when no updater
+    /// has been registered.
+    @discardableResult
+    static func updateAppShortcutParameters() -> Bool {
+        guard let updater = shortcutParameterUpdater else { return false }
+        updater()
+        return true
+    }
+
+    /// Refreshes the App Shortcut parameters if [key] holds their entities.
+    private static func refreshShortcutParameters(afterWritingKey key: String) {
+        if shortcutParameterCacheKeys.contains(key) {
+            updateAppShortcutParameters()
+        }
+    }
+
     /// Binds the on-screen entity to a current `NSUserActivity` (#56).
     ///
     /// Uses stable APIs (`becomeCurrent`, `targetContentIdentifier`). The
@@ -212,10 +263,26 @@ public class AppIntentsPlugin: NSObject, FlutterPlugin {
             guard let key = Self.extractKey(from: call, result: result) else { return }
             let value = (call.arguments as? [String: Any])?["value"]
             AppIntentsPlugin.setCached(value, forKey: key)
+            Self.refreshShortcutParameters(afterWritingKey: key)
             result(nil)
         case "clearCachedValue":
             guard let key = Self.extractKey(from: call, result: result) else { return }
             AppIntentsPlugin.setCached(nil, forKey: key)
+            Self.refreshShortcutParameters(afterWritingKey: key)
+            result(nil)
+        case "updateAppShortcutParameters":
+            // #149: AppDelegate registers the updater through the generated
+            // AppShortcuts.registerParameterUpdater(). Without it there is
+            // nothing to call, and silently succeeding would hide the missing
+            // wiring behind shortcuts that never appear.
+            guard Self.updateAppShortcutParameters() else {
+                result(FlutterError(
+                    code: "SHORTCUT_UPDATER_NOT_CONFIGURED",
+                    message: "No App Shortcut parameter updater registered. Call "
+                        + "AppShortcuts.registerParameterUpdater() in AppDelegate.",
+                    details: nil))
+                return
+            }
             result(nil)
         case "processPendingActions":
             result(Self.consumePendingAction())

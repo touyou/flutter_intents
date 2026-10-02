@@ -186,6 +186,128 @@ void main() {
 
       await subscription.cancel();
     });
+
+    Future<void> emit(String identifier) => simulateIncomingMethodCall(
+      channel,
+      'executeIntent',
+      {'identifier': identifier, 'params': <String, dynamic>{}},
+    );
+
+    test(
+      'replays requests emitted before the first listener, in order (#150)',
+      () async {
+        // Cold start: processPendingActions() dispatches before any widget
+        // has subscribed.
+        await emit('com.example.first');
+        await emit('com.example.second');
+
+        final events = <IntentExecutionRequest>[];
+        final subscription = platform.onIntentExecution.listen(events.add);
+        await Future.delayed(Duration.zero);
+        await emit('com.example.live');
+        await Future.delayed(Duration.zero);
+
+        expect(events.map((e) => e.identifier), [
+          'com.example.first',
+          'com.example.second',
+          'com.example.live',
+        ]);
+        await subscription.cancel();
+      },
+    );
+
+    test('replays only to the first subscriber (#150)', () async {
+      await emit('com.example.cold');
+
+      final first = <IntentExecutionRequest>[];
+      final second = <IntentExecutionRequest>[];
+      final a = platform.onIntentExecution.listen(first.add);
+      final b = platform.onIntentExecution.listen(second.add);
+      await Future.delayed(Duration.zero);
+
+      expect(first.map((e) => e.identifier), ['com.example.cold']);
+      expect(second, isEmpty);
+      await a.cancel();
+      await b.cancel();
+    });
+
+    test('stops buffering once anyone has listened (#150)', () async {
+      final early = platform.onIntentExecution.listen((_) {});
+      await Future.delayed(Duration.zero);
+      await early.cancel();
+
+      // Nobody listens now. Replaying this to a screen opened later would
+      // navigate on a stale intent, so it is dropped.
+      await emit('com.example.unheard');
+
+      final events = <IntentExecutionRequest>[];
+      final late = platform.onIntentExecution.listen(events.add);
+      await Future.delayed(Duration.zero);
+
+      expect(events, isEmpty);
+      await late.cancel();
+    });
+
+    test('keeps only the newest unheard requests (#150)', () async {
+      const limit = MethodChannelAppIntents.unheardIntentExecutionLimit;
+      for (var i = 0; i < limit + 3; i++) {
+        await emit('com.example.intent$i');
+      }
+
+      final events = <IntentExecutionRequest>[];
+      final subscription = platform.onIntentExecution.listen(events.add);
+      await Future.delayed(Duration.zero);
+
+      expect(events, hasLength(limit));
+      expect(events.first.identifier, 'com.example.intent3');
+      expect(events.last.identifier, 'com.example.intent${limit + 2}');
+      await subscription.cancel();
+    });
+
+    test('still runs the registered handler while buffering (#150)', () async {
+      var handled = 0;
+      platform.registerIntentHandler('com.example.cold', (params) async {
+        handled++;
+        return <String, dynamic>{};
+      });
+
+      await emit('com.example.cold');
+
+      expect(handled, 1);
+    });
+  });
+
+  group('MethodChannelAppIntents - updateAppShortcutParameters (#149)', () {
+    test('invokes the native method', () async {
+      await platform.updateAppShortcutParameters();
+
+      expect(methodCalls.single.method, 'updateAppShortcutParameters');
+    });
+
+    test('is a no-op when the platform has no implementation', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+
+      await expectLater(platform.updateAppShortcutParameters(), completes);
+    });
+
+    test('surfaces a missing updater as a PlatformException', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            throw PlatformException(code: 'SHORTCUT_UPDATER_NOT_CONFIGURED');
+          });
+
+      await expectLater(
+        platform.updateAppShortcutParameters(),
+        throwsA(
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            'SHORTCUT_UPDATER_NOT_CONFIGURED',
+          ),
+        ),
+      );
+    });
   });
 
   group('MethodChannelAppIntents - Method Channel Calls', () {

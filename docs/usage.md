@@ -241,6 +241,13 @@ if #available(iOS 17.0, *) {
       }
       return try await plugin.getSuggestedEntitiesAsync(entityIdentifier: entityIdentifier)
     }
+
+    // Only when you declare @AppShortcutsProvider: lets the system fetch the
+    // shortcut parameters now and after every entity cache write. Without it,
+    // a phrase with an entity parameter never appears. See "Shortcuts with an
+    // entity parameter" below. Register it after the executors, so that a
+    // fetch the cache cannot answer reaches Dart.
+    AppShortcuts.registerParameterUpdater()
   }
 }
 ```
@@ -482,6 +489,7 @@ class MyAppShortcuts {
 ```swift
 // Generated: AppShortcuts.swift
 import AppIntents
+import app_intents
 
 @available(iOS 17.0, *)
 struct AppShortcuts: AppShortcutsProvider {
@@ -506,7 +514,63 @@ struct AppShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+@available(iOS 17.0, *)
+extension AppShortcuts {
+    static func registerParameterUpdater() {
+        AppIntentsPlugin.registerShortcutParameterUpdater(
+            entityCacheKeys: ["app_intents.entities.TaskEntity"]
+        ) {
+            AppShortcuts.updateAppShortcutParameters()
+        }
+    }
+}
 ```
+
+### Shortcuts with an entity parameter
+
+A phrase can reference an entity parameter (`'Complete {task} in
+{applicationName}'`). Two things follow from that, and both need action on
+your side.
+
+**`updateAppShortcutParameters()` is required, not optional.** Such a phrase
+does not appear at all until the system has fetched the entities once, and it
+does not change until the system fetches them again. Apple says to call it on
+first launch and after every entity addition, deletion, and rename (WWDC23
+10102). The generated `AppShortcuts.registerParameterUpdater()` does all of
+that once you call it from AppDelegate, after
+`AppIntentsPlugin.configure(appGroupIdentifier:)` and the FlutterBridge
+executors:
+
+- it refreshes the parameters immediately (first launch),
+- it refreshes them after every Dart `setCachedValue` / `clearCachedValue` on an
+  entity cache key, once the write has landed. Order matters here: the
+  generated `suggestedEntities()` reads the App Group cache first, so a refresh
+  that runs before the write would make the system read the stale list,
+- `AppIntents().updateAppShortcutParameters()` triggers it from Dart, for
+  entities whose source is the Dart suggested-entities handler, not the cache.
+
+**Every suggested entity becomes its own App Shortcut.** "An App Shortcut for
+each value of that type will be created" (WWDC25 244), so an app with 100 teams
+gets 100 shortcuts in the Shortcuts and Spotlight lists. Keep the set small —
+the HIG suggests no more than ten — with `suggestedLimit`:
+
+```dart
+@EntitySpec(
+  identifier: 'TeamEntity',
+  title: 'Team',
+  pluralTitle: 'Teams',
+  enumerable: true,
+  suggestedLimit: 10,
+)
+class TeamEntitySpec extends EntitySpecBase<Team> { ... }
+```
+
+With a limit, `suggestedEntities()` returns the first ten entities, while
+`allEntities()` (the Shortcuts editor's picker), `entities(for:)`, and
+re-indexing still see all of them. The limit applies to whatever the query
+would otherwise return, the cache or the Dart handler, so **write the list in
+priority order**.
 
 ## Code Generation
 
@@ -1021,24 +1085,73 @@ Future<void> main() async {
 
 > **Warning**: Do NOT register intent handlers inside widget `initState()` or other lifecycle callbacks when using Cache mode. During cold start, `processPendingActions()` fires before the widget tree is built, so widget-level handlers will not yet be registered. Always register handlers in `main()` before calling `processPendingActions()`.
 
-> **Buffering**: `pendingActionsStream` uses `FlutterEventChannel` with buffered push on the native side, so events arriving before the Dart listener is attached are not lost. However, `onIntentExecution` callbacks registered via `registerIntentHandler` are NOT buffered — if no handler is registered at the time `processPendingActions()` dispatches, the event is dropped silently.
+> **Buffering**: `pendingActionsStream` uses `FlutterEventChannel` with buffered push on the native side, so events arriving before the Dart listener is attached are not lost. Handlers registered with `registerIntentHandler` are **not** buffered: if no handler is registered when `processPendingActions()` dispatches, the handler never runs. The native side has already consumed the action by then, so register handlers in `main()`.
 
-### Updating App Shortcuts Parameters
+### Navigating from an intent on a cold start
 
-If you are migrating from another App Intents library (e.g., `intelligence`) that required explicit calls to `AppShortcuts.updateAppShortcutParameters()`, note that this library handles entity updates differently:
+`registerIntentHandler` and `onIntentExecution` behave differently on a cold
+start, and the difference matters when the reaction to an intent is navigation:
 
-- **Entity queries** (`suggestedEntities()` / `entities(for:)`) are called on-demand by the system when the Shortcuts editor or Siri needs entity data. There is no need to explicitly push updates.
-- **App Shortcuts** defined via `@AppShortcutsProvider` are registered automatically at app install. The system calls `suggestedEntities()` when it needs fresh data.
-- If you need to **force a refresh** of shortcut parameters (e.g., after a user joins a new team), you can call `AppShortcuts.updateAppShortcutParameters()` directly in your Swift code:
+| | Where to set it up | Cold start |
+|---|---|---|
+| `registerIntentHandler` | `main()`, before `processPendingActions()` | Runs, if registered in time |
+| `onIntentExecution` | Anywhere, including a widget | The first subscriber gets the requests replayed |
 
-```swift
-// In your AppDelegate or wherever entity data changes:
-if #available(iOS 17.0, *) {
-    AppShortcuts.updateAppShortcutParameters()
+Navigation needs a router or a `BuildContext`, and neither exists in `main()`.
+So do the work (create the task, save the data) in the handler, and navigate
+from an `onIntentExecution` listener in the widget that owns the router.
+`onIntentExecution` keeps requests emitted before it has **ever** had a
+listener, up to 16, and replays them in order to the first subscriber:
+
+```dart
+class _AppShellState extends State<AppShell> {
+  StreamSubscription<IntentExecutionRequest>? _intents;
+
+  @override
+  void initState() {
+    super.initState();
+    // On a cold start this receives the intent processPendingActions()
+    // dispatched from main() before this widget existed.
+    _intents = AppIntents().onIntentExecution.listen((request) {
+      if (request.identifier == 'com.example.openTask') {
+        router.go('/tasks/${request.params['taskId']}');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _intents?.cancel();
+    super.dispose();
+  }
 }
 ```
 
-This is not auto-generated by the codegen — add it manually in your Swift code where entity data changes occur.
+Only the first subscriber gets the replay. If something else subscribes to
+`onIntentExecution` earlier, for example a logger in `main()`, that listener
+takes the replay and the widget sees only later requests. In that case, forward
+from the early listener yourself. Once anyone has listened, unheard requests
+are dropped as on any broadcast stream, so a screen opened minutes later never
+navigates on a stale intent. The buffer is in memory only and does not survive
+a relaunch.
+
+### Updating App Shortcuts Parameters
+
+Call `AppShortcuts.registerParameterUpdater()` from AppDelegate (see
+[Shortcuts with an entity parameter](#shortcuts-with-an-entity-parameter)). It
+is required for any phrase with an entity parameter. It refreshes the
+parameters at launch and after each entity cache write. When entities change
+without a cache write, refresh them from Dart:
+
+```dart
+// After the data behind the Dart suggested-entities handler changed.
+await AppIntents().updateAppShortcutParameters();
+```
+
+On iOS this throws a `PlatformException` with code
+`SHORTCUT_UPDATER_NOT_CONFIGURED` if AppDelegate never registered the updater.
+That keeps the missing wiring from looking like shortcuts that silently fail to
+appear. On Android it does nothing.
 
 ## IntentValueQuery (#51) — structured search
 
