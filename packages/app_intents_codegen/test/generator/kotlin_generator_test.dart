@@ -71,8 +71,14 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('import androidx.appfunctions.AppFunctionDeclaration\n'));
-        expect(result, contains('@AppFunctionDeclaration(isDescribedByKDoc = true)'));
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionDeclaration\n'),
+        );
+        expect(
+          result,
+          contains('@AppFunctionDeclaration(isDescribedByKDoc = true)'),
+        );
         expect(result, contains('suspend fun greet(): String {'));
       });
 
@@ -794,7 +800,10 @@ void main() {
           ],
         );
 
-        expect(result, contains('import androidx.appfunctions.AppFunctionDeclaration\n'));
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionDeclaration\n'),
+        );
         expect(
           result,
           contains('import androidx.appfunctions.AppFunctionService\n'),
@@ -1025,7 +1034,9 @@ void main() {
         expect(result, isNot(contains('AppFunctionServiceEntryPoint')));
         expect(
           result,
-          isNot(contains('import androidx.appfunctions.AppFunctionDeclaration\n')),
+          isNot(
+            contains('import androidx.appfunctions.AppFunctionDeclaration\n'),
+          ),
         );
       });
     });
