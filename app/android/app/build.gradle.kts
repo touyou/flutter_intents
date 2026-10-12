@@ -42,11 +42,12 @@ kotlin {
 }
 
 dependencies {
-    // @AppFunction / AppFunctionService / @AppFunctionServiceEntryPoint all live in
+    // @AppFunctionDeclaration / AppFunctionService / @AppFunctionServiceEntryPoint all live in
     // `appfunctions` since alpha10; the old `appfunctions-service` artifact (last
     // published at alpha09) is no longer needed.
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
+    // alpha13: @AppFunction renamed to @AppFunctionDeclaration.
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha13")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha13")
 }
 
 flutter {

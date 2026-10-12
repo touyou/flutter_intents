@@ -60,7 +60,7 @@ void main() {
     });
 
     group('generateIntent', () {
-      test('generates basic @AppFunction method', () {
+      test('generates basic @AppFunctionDeclaration method', () {
         final intentInfo = IntentInfo(
           className: 'GreetIntent',
           identifier: 'com.example.greet',
@@ -71,14 +71,15 @@ void main() {
 
         final result = generator.generateIntent(intentInfo);
 
-        expect(result, contains('import androidx.appfunctions.AppFunction\n'));
-        expect(result, contains('@AppFunction(isDescribedByKDoc = true)'));
+        expect(result, contains('import androidx.appfunctions.AppFunctionDeclaration\n'));
+        expect(result, contains('@AppFunctionDeclaration(isDescribedByKDoc = true)'));
         expect(result, contains('suspend fun greet(): String {'));
       });
 
       // appfunctions alpha10 moved @AppFunction out of appfunctions-service,
-      // and alpha12 made AppFunctionContext @RestrictTo(LIBRARY_GROUP) (the
-      // release notes call it removed). Functions declared inside an
+      // alpha12 made AppFunctionContext @RestrictTo(LIBRARY_GROUP) (the
+      // release notes call it removed), and alpha13 renamed @AppFunction to
+      // @AppFunctionDeclaration. Functions declared inside an
       // @AppFunctionServiceEntryPoint take no context parameter.
       test('does not emit the removed AppFunctionContext parameter', () {
         final intentInfo = IntentInfo(
@@ -793,7 +794,7 @@ void main() {
           ],
         );
 
-        expect(result, contains('import androidx.appfunctions.AppFunction\n'));
+        expect(result, contains('import androidx.appfunctions.AppFunctionDeclaration\n'));
         expect(
           result,
           contains('import androidx.appfunctions.AppFunctionService\n'),
@@ -1024,7 +1025,7 @@ void main() {
         expect(result, isNot(contains('AppFunctionServiceEntryPoint')));
         expect(
           result,
-          isNot(contains('import androidx.appfunctions.AppFunction\n')),
+          isNot(contains('import androidx.appfunctions.AppFunctionDeclaration\n')),
         );
       });
     });

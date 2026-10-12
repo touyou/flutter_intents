@@ -60,11 +60,11 @@ class KotlinGenerator {
         .toUpperCase();
   }
 
-  /// Generates a Kotlin @AppFunction method from an [IntentInfo].
+  /// Generates a Kotlin @AppFunctionDeclaration method from an [IntentInfo].
   String generateIntent(IntentInfo info) {
     final buffer = StringBuffer();
 
-    buffer.writeln('import androidx.appfunctions.AppFunction');
+    buffer.writeln('import androidx.appfunctions.AppFunctionDeclaration');
     buffer.writeln();
 
     _generateIntentMethod(buffer, info);
@@ -115,7 +115,7 @@ class KotlinGenerator {
     // Imports
     final imports = <String>{};
     if (intents.isNotEmpty) {
-      imports.add('import androidx.appfunctions.AppFunction');
+      imports.add('import androidx.appfunctions.AppFunctionDeclaration');
       imports.add('import androidx.appfunctions.AppFunctionService');
       imports.add('import androidx.appfunctions.AppFunctionServiceEntryPoint');
     }
@@ -163,7 +163,7 @@ class KotlinGenerator {
 
   /// Generates the AppFunctions class containing all intent methods.
   ///
-  /// Since appfunctions 1.0.0-alpha10 every `@AppFunction` must live in an
+  /// Since appfunctions 1.0.0-alpha10 every `@AppFunctionDeclaration` must live in an
   /// abstract `AppFunctionService` annotated with
   /// `@AppFunctionServiceEntryPoint`; KSP generates the concrete [serviceName]
   /// subclass (with `onExecuteFunction`) and the [appFunctionXmlFileName] XML.
@@ -199,7 +199,7 @@ class KotlinGenerator {
     buffer.writeln('}');
   }
 
-  /// Generates a single @AppFunction method.
+  /// Generates a single @AppFunctionDeclaration method.
   void _generateIntentMethod(
     StringBuffer buffer,
     IntentInfo info, {
@@ -227,8 +227,8 @@ class KotlinGenerator {
     }
     buffer.writeln('$prefix */');
 
-    // @AppFunction annotation
-    buffer.writeln('$prefix@AppFunction(isDescribedByKDoc = true)');
+    // @AppFunctionDeclaration annotation (renamed from @AppFunction in alpha13)
+    buffer.writeln('$prefix@AppFunctionDeclaration(isDescribedByKDoc = true)');
 
     // Function signature
     // No AppFunctionContext parameter: it became @RestrictTo(LIBRARY_GROUP) in

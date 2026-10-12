@@ -4,7 +4,7 @@
 
 package com.example.app.generated
 
-import androidx.appfunctions.AppFunction
+import androidx.appfunctions.AppFunctionDeclaration
 import androidx.appfunctions.AppFunctionSerializable
 import androidx.appfunctions.AppFunctionService
 import androidx.appfunctions.AppFunctionServiceEntryPoint
@@ -93,7 +93,7 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
      *
      * @param task The task to complete
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun completeTask(
         task: String
     ): String {
@@ -105,7 +105,7 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
     /**
      * Summarize how many tasks are left
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun taskSummary(): String {
         val params = mutableMapOf<String, Any?>()
         return bridge.executeIntent("com.example.taskapp.taskSummary", params)
@@ -118,7 +118,7 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
      * @param description Optional description for the task (optional)
      * @param dueDate When the task is due (optional)
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun createTask(
         title: String,
         description: String? = null,
@@ -137,7 +137,7 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
      * @param title The title of the task
      * @param image An image to attach to the task (optional)
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun createTaskWithImage(
         title: String,
         image: String? = null

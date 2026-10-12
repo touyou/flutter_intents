@@ -34,7 +34,7 @@ docs/
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
 | Android Minimum | **API 36** (Android 16, for AppFunctions) |
-| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha12**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha13**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 | App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
@@ -194,7 +194,7 @@ docs/
 
 - Android AppFunctions Integration:
   - `KotlinGenerator`: Generates Android 16+ AppFunctions Kotlin code
-    - `@AppFunction(isDescribedByKDoc = true)` annotated methods
+    - `@AppFunctionDeclaration(isDescribedByKDoc = true)` annotated methods
     - `@AppFunctionSerializable` data classes for entities
     - `AppFunctionsBridge` singleton for MethodChannel communication
     - `GeneratedAppFunctions`: abstract `AppFunctionService` with `@AppFunctionServiceEntryPoint`; KSP generates the concrete `GeneratedAppFunctionService` + `assets/generated_app_functions.xml`
@@ -344,17 +344,18 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
-- **alpha12 model: `@AppFunctionServiceEntryPoint`** (migrated 2026-09-28). Every `@AppFunction` must sit in an **abstract** class extending `androidx.appfunctions.AppFunctionService`, annotated `@AppFunctionServiceEntryPoint(serviceName = ..., appFunctionXmlFileName = ...)`. KSP generates the concrete `serviceName` subclass (implements `onExecuteFunction`, exposes `FUNCTION_ID_*`) and `assets/<appFunctionXmlFileName>.xml`. The manifest declares the **generated** class with `BIND_APP_FUNCTION_SERVICE`, action `android.app.appfunctions.AppFunctionService`, and `<property>`s `android.app.appfunctions.schema` = `app_functions_schema.xsd` (shipped in the AAR's assets) and `android.app.appfunctions.v2` = `<appFunctionXmlFileName>.xml`. Function ids are `<package>.GeneratedAppFunctions#<fn>`. Ground truth: the KDoc of `AppFunctionServiceEntryPoint.kt` in `appfunctions-1.0.0-alpha12-sources.jar` (GitHub `androidx-main` is ahead — it renames `@AppFunction` to `@AppFunctionDeclaration`, so don't copy from there).
-- `@AppFunction` is **`androidx.appfunctions.AppFunction`** (core artifact) since alpha10. The alpha11+/alpha12 compiler matches only that FQN — the string `androidx.appfunctions.service` does not occur in the compiler jar. **Code still annotated with `androidx.appfunctions.service.AppFunction` compiles, and KSP silently registers nothing**: before this migration the example app built green with an empty `<appfunctions/>` XML, and the `GeneratedAppFunctionsAppFunctionService` its manifest named was never generated. A green `flutter build apk` proves nothing — check `build/app/generated/ksp/debug/resources/assets/*.xml` for `<id>`s.
+- **alpha12 model: `@AppFunctionServiceEntryPoint`** (migrated 2026-09-28). Every `@AppFunctionDeclaration` must sit in an **abstract** class extending `androidx.appfunctions.AppFunctionService`, annotated `@AppFunctionServiceEntryPoint(serviceName = ..., appFunctionXmlFileName = ...)`. KSP generates the concrete `serviceName` subclass (implements `onExecuteFunction`, exposes `FUNCTION_ID_*`) and `assets/<appFunctionXmlFileName>.xml`. The manifest declares the **generated** class with `BIND_APP_FUNCTION_SERVICE`, action `android.app.appfunctions.AppFunctionService`, and `<property>`s `android.app.appfunctions.schema` = `app_functions_schema.xsd` (shipped in the AAR's assets) and `android.app.appfunctions.v2` = `<appFunctionXmlFileName>.xml`. Function ids are `<package>.GeneratedAppFunctions#<fn>`. Ground truth: the KDoc of `AppFunctionServiceEntryPoint.kt` in `appfunctions-1.0.0-alpha13-sources.jar`.
+- **alpha13: `@AppFunction` renamed to `@AppFunctionDeclaration`** (2026-10-07). The annotation is now `androidx.appfunctions.AppFunctionDeclaration`. The companion rename `ObserveAppFunctionsEvent` → `AppFunctionsChangeEvent` is not used in this codebase. `@AppFunctionAccessLevel` was also added.
+- `@AppFunctionDeclaration` is **`androidx.appfunctions.AppFunctionDeclaration`** (core artifact) since alpha13 (previously `androidx.appfunctions.AppFunction` in alpha10–alpha12). The alpha13+ compiler matches only that FQN. **Code still annotated with the old `androidx.appfunctions.AppFunction` compiles against alpha13+, and KSP silently registers nothing**: check `build/app/generated/ksp/debug/resources/assets/*.xml` for `<id>`s. A green `flutter build apk` proves nothing.
 - **No `AppFunctionContext` parameter.** alpha12 made `AppFunctionContext` / `AppFunctionConfiguration` `@RestrictTo(LIBRARY_GROUP)` (release notes: "removed", I9dd8f; the classes are still in the AAR). The compiler's `validateFirstParameter` only runs on the legacy non-entry-point path; entry-point functions are validated with it skipped, and a context parameter anywhere is ignored when building metadata.
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
-- KSP compiler cannot handle `Map<String, Any?>` as `@AppFunction` return type — use `String` (JSON)
+- KSP compiler cannot handle `Map<String, Any?>` as `@AppFunctionDeclaration` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
-- Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha12 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
+- Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha13 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28 on alpha12: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
 - **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
   Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.12`,
-  `appfunctions:1.0.0-alpha12`, AGP `9.4.1`,
+  `appfunctions:1.0.0-alpha13`, AGP `9.4.1`,
   Gradle `9.7.1`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
   `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
   `Can't escape identifier `$Android:appDebug_FunctionComponentRegistry` because it
@@ -850,7 +851,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  GeneratedAppFunctions.createTask()                             │
-│  └── @AppFunction annotated suspend method                      │
+│  └── @AppFunctionDeclaration annotated suspend method           │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ delegates to
                            ▼
@@ -1147,7 +1148,7 @@ The Kotlin codegen produces AppFunctions code for Android 16+:
 ```kotlin
 package com.example.app.generated
 
-import androidx.appfunctions.AppFunction
+import androidx.appfunctions.AppFunctionDeclaration
 import androidx.appfunctions.AppFunctionSerializable
 import androidx.appfunctions.AppFunctionService
 import androidx.appfunctions.AppFunctionServiceEntryPoint
@@ -1173,7 +1174,7 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
      *
      * @param title The title of the task
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun createTask(
         title: String
     ): String {
