@@ -157,14 +157,47 @@ public actor FlutterBridge {
         valueQueryExecutor = executor
     }
 
-    /// Maximum time to wait for executor to be set (in seconds)
-    private let executorWaitTimeout: Double = 5.0
+    /// The initial value of ``executorWaitTimeout``: 5 seconds.
+    public static let defaultExecutorWaitTimeout: TimeInterval = 5.0
+
+    /// How long `invoke`, `queryEntities`, `suggestedEntities` and `queryValues`
+    /// wait for their executor to be set before failing, in seconds.
+    ///
+    /// Lower it to fail fast in a process that never gets executors, such as
+    /// an App Intents extension; raise it for an app that wires its executors
+    /// only after asynchronous startup work. Change it with
+    /// ``setExecutorWaitTimeout(_:)`` anywhere before the executors are wired,
+    /// typically in AppDelegate: every wait re-reads the value on each 100 ms
+    /// poll, so a change made while a wait is already running still applies.
+    /// The value is rounded to the 100 ms poll resolution.
+    /// `clearExecutors()` does not reset it: it is configuration, not state
+    /// the Flutter engine owns.
+    public private(set) var executorWaitTimeout: TimeInterval = FlutterBridge.defaultExecutorWaitTimeout
+
+    /// Sets ``executorWaitTimeout``.
+    ///
+    /// - Parameter seconds: The new maximum wait. Negative values are treated
+    ///   as zero, which makes every wait fail immediately while no executor is
+    ///   set. `.infinity` (or any value past `Int.max` polls) waits until an
+    ///   executor appears.
+    public func setExecutorWaitTimeout(_ seconds: TimeInterval) {
+        executorWaitTimeout = max(0, seconds)
+    }
+
+    /// Number of 100 ms polls that fit in ``executorWaitTimeout``.
+    ///
+    /// Clamped to `Int.max`: `Int(_:)` traps on `.infinity` and on anything
+    /// past `Int.max`, and both simply mean "keep polling" here.
+    private var executorWaitRetries: Int {
+        let polls = (executorWaitTimeout * 10).rounded()
+        return polls < Double(Int.max) ? Int(polls) : Int.max
+    }
 
     /// Invokes a registered intent handler with the given parameters.
     ///
     /// The method first checks for a locally registered handler. If none is found,
     /// it falls back to the intent executor (which communicates with Flutter).
-    /// If the executor is not yet set, waits up to `executorWaitTimeout` seconds.
+    /// If the executor is not yet set, waits up to ``executorWaitTimeout`` seconds.
     ///
     /// - Parameters:
     ///   - intent: The identifier of the intent to invoke
@@ -190,9 +223,12 @@ public actor FlutterBridge {
             return executor
         }
 
-        // Wait with retries (50 x 100ms = 5 seconds max)
-        let maxRetries = Int(executorWaitTimeout * 10)
-        for _ in 0..<maxRetries {
+        // Wait in 100 ms steps, `executorWaitTimeout` in total. The limit is
+        // re-read on every poll so a `setExecutorWaitTimeout` that lands while
+        // this wait is already running still applies.
+        var polls = 0
+        while polls < executorWaitRetries {
+            polls += 1
             try await Task.sleep(nanoseconds: 100_000_000)  // 100ms
             if let executor = intentExecutor {
                 return executor
@@ -268,8 +304,9 @@ public actor FlutterBridge {
             return executor
         }
 
-        let maxRetries = Int(executorWaitTimeout * 10)
-        for _ in 0..<maxRetries {
+        var polls = 0
+        while polls < executorWaitRetries {
+            polls += 1
             try await Task.sleep(nanoseconds: 100_000_000)
             if let executor = entityQueryExecutor {
                 return executor
@@ -285,8 +322,9 @@ public actor FlutterBridge {
             return executor
         }
 
-        let maxRetries = Int(executorWaitTimeout * 10)
-        for _ in 0..<maxRetries {
+        var polls = 0
+        while polls < executorWaitRetries {
+            polls += 1
             try await Task.sleep(nanoseconds: 100_000_000)
             if let executor = suggestedEntitiesExecutor {
                 return executor
@@ -319,8 +357,9 @@ public actor FlutterBridge {
             return executor
         }
 
-        let maxRetries = Int(executorWaitTimeout * 10)
-        for _ in 0..<maxRetries {
+        var polls = 0
+        while polls < executorWaitRetries {
+            polls += 1
             try await Task.sleep(nanoseconds: 100_000_000)
             if let executor = valueQueryExecutor {
                 return executor

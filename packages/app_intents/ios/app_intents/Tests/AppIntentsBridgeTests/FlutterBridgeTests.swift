@@ -41,13 +41,18 @@ struct FlutterBridgeTests {
     @Test("Invoke unregistered intent without executor times out")
     func invokeUnregisteredIntentThrowsError() async {
         // With no local handler and no Flutter executor set, `invoke` waits
-        // up to `executorWaitTimeout` (5s) for an executor to appear and then
+        // up to `executorWaitTimeout` for an executor to appear and then
         // surfaces an EXECUTOR_NOT_SET custom error. This documents that
         // contract — it's important for callers (and the iOS App Intent
         // extension process) to know that "not yet ready" is distinguishable
-        // from a permanent "intent doesn't exist".
+        // from a permanent "intent doesn't exist". The wait is shortened here
+        // so the suite does not sit through the 5-second default; the elapsed
+        // time proves the configured value is the one being honoured.
         let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(0.3)
 
+        let start = ContinuousClock.now
         do {
             _ = try await bridge.invoke(intent: "NonExistentIntent", params: [:])
             Issue.record("Expected EXECUTOR_NOT_SET error")
@@ -60,6 +65,82 @@ struct FlutterBridgeTests {
         } catch {
             Issue.record("Expected AppIntentError, got: \(error)")
         }
+        let elapsed = ContinuousClock.now - start
+        #expect(elapsed >= .milliseconds(250))
+        #expect(elapsed < .seconds(2))
+
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
+    }
+
+    @Test("executorWaitTimeout defaults to 5 seconds and is configurable")
+    func executorWaitTimeoutIsConfigurable() async {
+        let bridge = FlutterBridge.shared
+
+        #expect(FlutterBridge.defaultExecutorWaitTimeout == 5.0)
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
+        #expect(await bridge.executorWaitTimeout == 5.0)
+
+        await bridge.setExecutorWaitTimeout(12)
+        #expect(await bridge.executorWaitTimeout == 12)
+
+        // It is configuration, not an executor: tearing the engine down (hot
+        // restart) must not silently put the default back.
+        await bridge.clearExecutors()
+        #expect(await bridge.executorWaitTimeout == 12)
+
+        // Negative values collapse to zero rather than producing a negative
+        // retry count.
+        await bridge.setExecutorWaitTimeout(-1)
+        #expect(await bridge.executorWaitTimeout == 0)
+
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
+    }
+
+    @Test("Entity query without executor fails after the configured timeout")
+    func entityQueryHonoursConfiguredTimeout() async {
+        // The same knob governs every executor wait, not just `invoke`.
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(0)
+
+        let start = ContinuousClock.now
+        await #expect(throws: AppIntentError.self) {
+            _ = try await bridge.queryEntities(
+                entityIdentifier: "com.example.none",
+                identifiers: ["1"]
+            )
+        }
+        // Zero means "do not wait at all": no 100 ms poll should have run.
+        #expect(ContinuousClock.now - start < .seconds(1))
+
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
+    }
+
+    @Test("An infinite executorWaitTimeout polls until the executor appears")
+    func infiniteTimeoutDoesNotTrap() async throws {
+        // `Int(Double.infinity)` traps, so the poll count has to be clamped.
+        // Start a wait with no executor so it enters the retry loop (where
+        // that conversion happens), then wire the executor: the wait must
+        // return with its result instead of crashing or running forever.
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(.infinity)
+        #expect(await bridge.executorWaitTimeout == .infinity)
+
+        let waiter = Task {
+            try await bridge.invoke(intent: "LateExecutorIntent", params: [:]) as? String
+        }
+        // Well past the first 100 ms poll, so the loop has computed its limit.
+        try await Task.sleep(nanoseconds: 250_000_000)
+        await bridge.setIntentExecutor { identifier, _ in identifier }
+
+        let start = ContinuousClock.now
+        let result = try await waiter.value
+        #expect(result == "LateExecutorIntent")
+        #expect(ContinuousClock.now - start < .seconds(2))
+
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
     }
 
     @Test("Handler failure propagates error")
