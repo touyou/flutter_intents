@@ -781,6 +781,32 @@ Shortcutsエディタでの表示を制御：
 
 `{paramName}` プレースホルダーは生成Swiftの `ParameterSummary` で `\(\.$paramName)` に変換されます。
 
+#### 認証ポリシー
+
+デバイスがロックされたままでも Intent を実行してよいか（Siri、Shortcuts、Spotlight など）を
+指定します:
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.taskapp.taskSummary',
+  title: 'Task Summary',
+  authenticationPolicy: IntentAuthentication.requiresAuthentication,
+)
+```
+
+生成される Intent に `static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication`
+が追加されます。3 つの値は Swift の case と 1 対 1 で対応します:
+
+| Dart | 挙動 |
+|------|------|
+| `IntentAuthentication.alwaysAllowed` | ロック中も含め、いつでも実行できます。 |
+| `IntentAuthentication.requiresAuthentication` | 実行前にユーザーの認証が必要です。 |
+| `IntentAuthentication.requiresLocalDeviceAuthentication` | 認証済みの Apple Watch など別のデバイスからのリクエストでも、Intent を実行するデバイス自体のロック解除を求めます。ロック中は暗号化されるデータをハンドラが読む場合に使います。 |
+
+省略すると何も生成されず、システムのデフォルト（Apple のドキュメントでは `alwaysAllowed`）が
+そのまま適用されます。`IntentAuthenticationPolicy` は iOS 16+ の API なので availability ガードは
+生成されず、Intent は iOS 17.0 のままです。iOS 専用の設定で、Kotlin 生成器は無視します。
+
 #### AppEnum サポート
 
 選択式パラメータ用の列挙型定義：

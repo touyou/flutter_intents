@@ -193,6 +193,9 @@ void main(List<String> args) {
     schema: 'messages.sendMessage', // #49
     longRunning: true, // #52
     cancellable: true, // #52
+    // iOS 16 API emitted in both branches of a dual-branch intent.
+    authenticationPolicy:
+        IntentAuthenticationType.requiresLocalDeviceAuthentication,
     // A `{result.…}` template on a long-running intent: the invoke runs inside
     // the wrapper closure, so the payload must be bound outside it or the
     // interpolation locals are out of scope at the return statement.
@@ -239,6 +242,8 @@ void main(List<String> args) {
     resultDialogTemplate: 'I created the task {title}',
     resultDialogSupportingTemplate: 'Task created',
     resultDialogSystemImageName: 'checkmark.circle',
+    // Plain-iOS-17 struct carrying an authenticationPolicy.
+    authenticationPolicy: IntentAuthenticationType.alwaysAllowed,
     // ADR 0007: the declarative snippet card, reading both an intent parameter
     // and a key of the Dart handler's result.
     snippet: SnippetInfo(

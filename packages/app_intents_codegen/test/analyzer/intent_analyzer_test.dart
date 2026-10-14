@@ -907,6 +907,40 @@ void main() {
         expect(result!.parameterSummary, equals('Create "{title}"'));
       });
 
+      test('extracts authenticationPolicy when provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(
+            identifier: 'com.example.locked',
+            title: 'Locked',
+            authenticationPolicy:
+                IntentAuthentication.requiresLocalDeviceAuthentication,
+          )
+          class LockedIntent extends IntentSpecBase {}
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'LockedIntent'));
+
+        expect(
+          result!.authenticationPolicy,
+          equals(IntentAuthenticationType.requiresLocalDeviceAuthentication),
+        );
+      });
+
+      test('authenticationPolicy is null when not provided', () async {
+        final library = await resolveSource('''
+          import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+          @IntentSpec(identifier: 'com.example.open', title: 'Open')
+          class OpenIntent extends IntentSpecBase {}
+        ''');
+
+        final result = analyzer.analyze(findClass(library, 'OpenIntent'));
+
+        expect(result!.authenticationPolicy, isNull);
+      });
+
       test('extracts enumType from @IntentParam annotation', () async {
         final library = await resolveSource('''
           import 'package:app_intents_annotations/app_intents_annotations.dart';

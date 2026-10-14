@@ -11,6 +11,9 @@ part 'complete_task_intent.intent.dart';
   identifier: 'com.example.taskapp.completeTask',
   title: 'Complete Task',
   description: 'Mark a task as completed',
+  // Completing a task changes the user's data, so ask for the device to be
+  // unlocked first; the system default lets an intent run while locked.
+  authenticationPolicy: IntentAuthentication.requiresAuthentication,
   urlScheme: 'taskapp',
   urlAction: 'complete',
   // Siri speaks the full line; when it also shows the result it puts the

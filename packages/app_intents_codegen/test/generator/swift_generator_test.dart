@@ -713,6 +713,77 @@ void main() {
       );
     });
 
+    group('generateIntent with authenticationPolicy', () {
+      IntentInfo lockedIntent(IntentAuthenticationType? policy) => IntentInfo(
+        className: 'LockedIntent',
+        identifier: 'com.example.locked',
+        title: 'Locked',
+        implementation: IntentImplementationType.dart,
+        parameters: [],
+        authenticationPolicy: policy,
+      );
+
+      test('emits nothing when not set', () {
+        final result = generator.generateIntent(lockedIntent(null));
+
+        expect(result, isNot(contains('authenticationPolicy')));
+        expect(result, isNot(contains('IntentAuthenticationPolicy')));
+      });
+
+      for (final (policy, swiftCase) in [
+        (IntentAuthenticationType.alwaysAllowed, '.alwaysAllowed'),
+        (
+          IntentAuthenticationType.requiresAuthentication,
+          '.requiresAuthentication',
+        ),
+        (
+          IntentAuthenticationType.requiresLocalDeviceAuthentication,
+          '.requiresLocalDeviceAuthentication',
+        ),
+      ]) {
+        test('emits static let authenticationPolicy for ${policy.name}', () {
+          final result = generator.generateIntent(lockedIntent(policy));
+
+          expect(
+            result,
+            contains(
+              '    static let authenticationPolicy: '
+              'IntentAuthenticationPolicy = $swiftCase',
+            ),
+          );
+          // iOS 16 API: must not drag the intent above the iOS 17 floor.
+          expect(result, contains('@available(iOS 17.0, *)'));
+        });
+      }
+
+      test('is emitted in both branches of a dual-branch intent', () {
+        final experimental = SwiftGenerator(
+          experimental: ExperimentalFeatures(masterEnabled: true),
+        );
+        final result = experimental.generateIntent(
+          IntentInfo(
+            className: 'LongLockedIntent',
+            identifier: 'com.example.longLocked',
+            title: 'Long Locked',
+            implementation: IntentImplementationType.dart,
+            parameters: [],
+            longRunning: true,
+            authenticationPolicy:
+                IntentAuthenticationType.requiresLocalDeviceAuthentication,
+          ),
+        );
+
+        expect(result, contains('#if APP_INTENTS_WWDC26'));
+        expect(result, contains('#else'));
+        expect(
+          'static let authenticationPolicy: IntentAuthenticationPolicy = '
+                  '.requiresLocalDeviceAuthentication'
+              .allMatches(result),
+          hasLength(2),
+        );
+      });
+    });
+
     group('generateIntent with enum parameter', () {
       test('generates enum type for parameter with enumType', () {
         final intentInfo = IntentInfo(

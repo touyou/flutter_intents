@@ -53,6 +53,10 @@ class IntentInfo {
   /// When foreground, both `supportedModes` (iOS 26+) and `openAppWhenRun` are generated.
   final IntentModeType? supportedModes;
 
+  /// The authentication iOS demands before the intent runs. When non-null,
+  /// generates `static let authenticationPolicy: IntentAuthenticationPolicy`.
+  final IntentAuthenticationType? authenticationPolicy;
+
   /// Experimental (WWDC26): whether the intent conforms to `LongRunningIntent`.
   /// Only emitted when the long-running experimental feature is enabled.
   final bool longRunning;
@@ -90,6 +94,7 @@ class IntentInfo {
     this.snippet,
     this.parameterSummary,
     this.supportedModes,
+    this.authenticationPolicy,
     this.longRunning = false,
     this.cancellable = false,
     this.executionTargets,
@@ -116,6 +121,7 @@ class IntentInfo {
         snippet == other.snippet &&
         parameterSummary == other.parameterSummary &&
         supportedModes == other.supportedModes &&
+        authenticationPolicy == other.authenticationPolicy &&
         longRunning == other.longRunning &&
         cancellable == other.cancellable &&
         schema == other.schema &&
@@ -139,6 +145,7 @@ class IntentInfo {
     snippet,
     parameterSummary,
     supportedModes,
+    authenticationPolicy,
     longRunning,
     cancellable,
     schema,
@@ -157,7 +164,8 @@ class IntentInfo {
       'resultDialogSystemImageName: $resultDialogSystemImageName, '
       'snippet: $snippet, '
       'parameterSummary: $parameterSummary, '
-      'supportedModes: $supportedModes, longRunning: $longRunning, '
+      'supportedModes: $supportedModes, '
+      'authenticationPolicy: $authenticationPolicy, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '
       'schema: $schema, donatable: $donatable)';
 }
@@ -167,6 +175,16 @@ enum IntentImplementationType { dart, swift, kotlin }
 
 /// The execution mode for the intent.
 enum IntentModeType { background, foreground }
+
+/// The authentication iOS demands before an intent runs.
+///
+/// Maps one to one onto the cases of the Swift `IntentAuthenticationPolicy`
+/// enum (iOS 16+).
+enum IntentAuthenticationType {
+  alwaysAllowed,
+  requiresAuthentication,
+  requiresLocalDeviceAuthentication,
+}
 
 /// Experimental (WWDC26): a process target an intent may execute against.
 ///

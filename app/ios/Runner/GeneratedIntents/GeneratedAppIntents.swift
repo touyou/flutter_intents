@@ -15,6 +15,8 @@ struct CompleteTaskIntentSpec: AppIntent {
     static var description: IntentDescription =
         IntentDescription("Mark a task as completed")
 
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+
     @available(iOS 26.0, *)
     static var supportedModes: IntentModes { .foreground }
 

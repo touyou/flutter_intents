@@ -77,6 +77,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final SnippetTemplate? snippet;
           final String? parameterSummary;
           final IntentMode? supportedModes;
+          final IntentAuthentication? authenticationPolicy;
           final bool longRunning;
           final bool cancellable;
           final List<IntentExecutionTarget>? executionTargets;
@@ -96,6 +97,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.snippet,
             this.parameterSummary,
             this.supportedModes,
+            this.authenticationPolicy,
             this.longRunning = false,
             this.cancellable = false,
             this.executionTargets,
@@ -118,6 +120,12 @@ Future<LibraryElement> resolveSource(String source) async {
           main,
           appIntentsExtension,
           widgetKitExtension,
+        }
+
+        enum IntentAuthentication {
+          alwaysAllowed,
+          requiresAuthentication,
+          requiresLocalDeviceAuthentication,
         }
       ''',
       'app_intents_annotations|lib/src/annotations/intent_param.dart': '''

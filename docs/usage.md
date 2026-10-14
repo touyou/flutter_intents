@@ -796,6 +796,33 @@ Control how the intent appears in the Shortcuts editor:
 
 The `{paramName}` placeholders become `\(\.$paramName)` in the generated Swift `ParameterSummary`.
 
+#### Authentication Policy
+
+Decide whether the intent may run while the device is locked (Siri, Shortcuts,
+Spotlight, ...):
+
+```dart
+@IntentSpec(
+  identifier: 'com.example.taskapp.taskSummary',
+  title: 'Task Summary',
+  authenticationPolicy: IntentAuthentication.requiresAuthentication,
+)
+```
+
+This emits `static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication`
+on the generated intent. The three values map one to one onto the Swift cases:
+
+| Dart | Behavior |
+|------|----------|
+| `IntentAuthentication.alwaysAllowed` | Runs at any time, including from the lock screen. |
+| `IntentAuthentication.requiresAuthentication` | The person must authenticate before the intent runs. |
+| `IntentAuthentication.requiresLocalDeviceAuthentication` | The device running the intent must be unlocked, even when the request came from an already authenticated Apple Watch or other remote device. Use it when the handler reads data that is encrypted while the device is locked. |
+
+Leave the field out to emit nothing and keep the system default, which Apple
+documents as `alwaysAllowed`. `IntentAuthenticationPolicy` is iOS 16+, so no
+availability guard is generated and the intent stays at iOS 17.0. The setting is
+iOS only; the Kotlin generator ignores it.
+
 #### AppEnum Support
 
 Define enum parameters for selection-based inputs:

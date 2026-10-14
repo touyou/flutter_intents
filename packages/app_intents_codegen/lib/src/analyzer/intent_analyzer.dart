@@ -79,6 +79,9 @@ class IntentAnalyzer {
     final supportedModes = _parseSupportedModes(
       annotation.getField('supportedModes'),
     );
+    final authenticationPolicy = _parseAuthenticationPolicy(
+      annotation.getField('authenticationPolicy'),
+    );
     final longRunning =
         annotation.getField('longRunning')?.toBoolValue() ?? false;
     final cancellable =
@@ -170,6 +173,7 @@ class IntentAnalyzer {
       snippet: snippet,
       parameterSummary: parameterSummary,
       supportedModes: supportedModes,
+      authenticationPolicy: authenticationPolicy,
       longRunning: longRunning,
       cancellable: cancellable,
       executionTargets: executionTargets,
@@ -225,6 +229,23 @@ class IntentAnalyzer {
         ? dartType.substring(0, dartType.length - 1)
         : dartType;
     return _donatablePrimitiveBases.contains(base);
+  }
+
+  /// Parses the `authenticationPolicy` `IntentAuthentication` enum value.
+  IntentAuthenticationType? _parseAuthenticationPolicy(DartObject? field) {
+    if (field == null || field.isNull) {
+      return null;
+    }
+    switch (field.getField('index')?.toIntValue()) {
+      case 0:
+        return IntentAuthenticationType.alwaysAllowed;
+      case 1:
+        return IntentAuthenticationType.requiresAuthentication;
+      case 2:
+        return IntentAuthenticationType.requiresLocalDeviceAuthentication;
+      default:
+        return null;
+    }
   }
 
   /// Parses the `executionTargets` list of `IntentExecutionTarget` enum values.

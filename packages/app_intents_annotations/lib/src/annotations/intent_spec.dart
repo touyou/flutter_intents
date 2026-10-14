@@ -1,3 +1,4 @@
+import 'intent_authentication.dart';
 import 'intent_execution_target.dart';
 import 'intent_mode.dart';
 import 'snippet_template.dart';
@@ -82,6 +83,16 @@ class IntentSpec {
   /// When [urlScheme] is set, foreground mode is implied automatically.
   final IntentMode? supportedModes;
 
+  /// How much authentication iOS demands before this intent runs.
+  ///
+  /// Emits `static let authenticationPolicy: IntentAuthenticationPolicy` on
+  /// the generated Swift intent. The type is iOS 16+, so it compiles at the
+  /// plugin's iOS 17 floor without an availability guard. Leave it `null` to
+  /// emit nothing and keep the system default, which Apple documents as
+  /// [IntentAuthentication.alwaysAllowed]. iOS only; the Kotlin generator
+  /// ignores it.
+  final IntentAuthentication? authenticationPolicy;
+
   /// **Experimental (WWDC26, iOS 27+).** Marks the intent as long-running so it
   /// can exceed the standard 30-second background limit.
   ///
@@ -154,6 +165,7 @@ class IntentSpec {
     this.snippet,
     this.parameterSummary,
     this.supportedModes,
+    this.authenticationPolicy,
     this.longRunning = false,
     this.cancellable = false,
     this.executionTargets,

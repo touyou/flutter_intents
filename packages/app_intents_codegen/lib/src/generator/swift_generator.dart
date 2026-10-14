@@ -3469,6 +3469,7 @@ class SwiftGenerator {
 
     _writeIntentTitle(buffer, info);
     _writeIntentDescription(buffer, info);
+    _writeIntentAuthenticationPolicy(buffer, info);
 
     // supportedModes / openAppWhenRun
     if (_needsForeground(info)) {
@@ -3533,6 +3534,7 @@ class SwiftGenerator {
 
     _writeIntentTitle(buffer, info);
     _writeIntentDescription(buffer, info);
+    _writeIntentAuthenticationPolicy(buffer, info);
 
     if (hasExecutionTargets) {
       final members = info.executionTargets!
@@ -3573,6 +3575,31 @@ class SwiftGenerator {
       '$_indent$_indent'
       'IntentDescription("$escapedDesc")',
     );
+  }
+
+  /// Writes the `authenticationPolicy` declaration when present.
+  ///
+  /// `IntentAuthenticationPolicy` is iOS 16, below the plugin's iOS 17 floor,
+  /// so neither branch needs an availability guard.
+  void _writeIntentAuthenticationPolicy(StringBuffer buffer, IntentInfo info) {
+    final policy = info.authenticationPolicy;
+    if (policy == null) return;
+    buffer.writeln();
+    buffer.writeln(
+      '${_indent}static let authenticationPolicy: IntentAuthenticationPolicy = '
+      '${_authenticationPolicyToSwift(policy)}',
+    );
+  }
+
+  String _authenticationPolicyToSwift(IntentAuthenticationType policy) {
+    switch (policy) {
+      case IntentAuthenticationType.alwaysAllowed:
+        return '.alwaysAllowed';
+      case IntentAuthenticationType.requiresAuthentication:
+        return '.requiresAuthentication';
+      case IntentAuthenticationType.requiresLocalDeviceAuthentication:
+        return '.requiresLocalDeviceAuthentication';
+    }
   }
 
   /// Writes the `parameterSummary` declaration when present.

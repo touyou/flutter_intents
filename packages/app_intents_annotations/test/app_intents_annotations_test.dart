@@ -23,6 +23,45 @@ void main() {
     });
   });
 
+  group('IntentAuthentication', () {
+    test('mirrors the three IntentAuthenticationPolicy cases', () {
+      expect(IntentAuthentication.values, hasLength(3));
+      expect(
+        IntentAuthentication.values,
+        containsAll([
+          IntentAuthentication.alwaysAllowed,
+          IntentAuthentication.requiresAuthentication,
+          IntentAuthentication.requiresLocalDeviceAuthentication,
+        ]),
+      );
+    });
+
+    test('keeps the index order the codegen analyzer maps by', () {
+      // IntentAnalyzer reads `index` off the annotation, so reordering these
+      // cases would silently emit the wrong Swift policy.
+      expect(IntentAuthentication.alwaysAllowed.index, 0);
+      expect(IntentAuthentication.requiresAuthentication.index, 1);
+      expect(IntentAuthentication.requiresLocalDeviceAuthentication.index, 2);
+    });
+
+    test('IntentSpec leaves authenticationPolicy unset by default', () {
+      const spec = IntentSpec(identifier: 'com.example.open', title: 'Open');
+      expect(spec.authenticationPolicy, isNull);
+    });
+
+    test('IntentSpec carries authenticationPolicy', () {
+      const spec = IntentSpec(
+        identifier: 'com.example.locked',
+        title: 'Locked',
+        authenticationPolicy: IntentAuthentication.requiresAuthentication,
+      );
+      expect(
+        spec.authenticationPolicy,
+        equals(IntentAuthentication.requiresAuthentication),
+      );
+    });
+  });
+
   group('AppShortcut', () {
     test('can be created with required parameters', () {
       const shortcut = AppShortcut(
