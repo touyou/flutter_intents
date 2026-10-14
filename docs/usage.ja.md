@@ -124,32 +124,6 @@ KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同�
 > どちらも不要になりました。alpha12 の compiler は `androidx.appfunctions.service.AppFunction` を認識しないため、
 > 旧構成はビルドこそ通るものの関数が **1 件も** 登録されません。
 
-#### minSdk を上げずに済む仕組み
-
-AppFunctions は Android 16（API 36）の機能ですが、導入のために公開済みアプリが Android 8〜15 を
-切り捨てる必要はありません。ホストアプリの `minSdk` をそのままにできる理由は次の 3 点です:
-
-1. **ライブラリ自体が minSdk を引き上げない。** `androidx.appfunctions` の AAR は `minSdkVersion 24`
-   （Flutter のデフォルトと同じ）を宣言しているため、`tools:overrideLibrary` なしでマニフェストの
-   マージが通ります（24 未満にすると `uses-sdk:minSdkVersion … cannot be smaller than version 24
-   declared in library [androidx.appfunctions:appfunctions]` で失敗しますが、これはライブラリ側の
-   下限であり、本プラグインの要件ではありません）。
-2. **生成コードが API レベルでガードされている。** `androidx.appfunctions.AppFunctionService` は
-   `@RequiresApi(36)` であり、それを継承する生成クラス `GeneratedAppFunctions` にも `@RequiresApi(36)`
-   が付きます。そのため Android lint（`NewApi`）はクリーンなままで、アプリ側のコードがこのクラスを
-   参照することもありません（システムは KSP が生成する `GeneratedAppFunctionService` を直接バインドします）。
-3. **API 36 未満ではサービスが無効化される。** `app_intents` は
-   `@bool/app_intents_app_functions_service_enabled`（`values/` では `false`、`values-v36/` では `true`）を
-   同梱しています。`android:enabled` でこれを参照すると、古い端末ではコンポーネントが無効化され、バインドも
-   起動もされません。そのため、スーパークラス（`android.app.appfunctions.AppFunctionService`）が無い環境で
-   クラスが読み込まれることはありません。この属性は**必須**です。サービスはエクスポートされており、API 36 未満では
-   バインド用のパーミッションがプラットフォームに定義されていないため、属性が無いと他のアプリがバインドして
-   クラス読み込み時にクラッシュさせ得ます。
-
-それ以外の `app_intents` はバージョンに依存しません。プラグインの Android 側は単なる `MethodChannel` で、
-`MainActivity` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
-`minSdk = flutter.minSdkVersion` でビルドされ、CI が APK の minSdk を確認します。
-
 生成されたブリッジを `MainActivity` でプラグインの MethodChannel に接続します:
 
 ```kotlin
@@ -179,6 +153,32 @@ AppFunction の呼び出しは 1 回ごとにタイムアウト（既定 30 秒�
 ```kotlin
 AppFunctionsBridge.initialize(plugin.getChannel(), executionTimeoutMillis = 60_000L)
 ```
+
+#### minSdk を上げずに済む仕組み
+
+AppFunctions は Android 16（API 36）の機能ですが、導入のために公開済みアプリが Android 8〜15 を
+切り捨てる必要はありません。ホストアプリの `minSdk` をそのままにできる理由は次の 3 点です:
+
+1. **ライブラリ自体が minSdk を引き上げない。** `androidx.appfunctions` の AAR は `minSdkVersion 24`
+   （Flutter のデフォルトと同じ）を宣言しているため、`tools:overrideLibrary` なしでマニフェストの
+   マージが通ります（24 未満にすると `uses-sdk:minSdkVersion … cannot be smaller than version 24
+   declared in library [androidx.appfunctions:appfunctions]` で失敗しますが、これはライブラリ側の
+   下限であり、本プラグインの要件ではありません）。
+2. **生成コードが API レベルでガードされている。** `androidx.appfunctions.AppFunctionService` は
+   `@RequiresApi(36)` であり、それを継承する生成クラス `GeneratedAppFunctions` にも `@RequiresApi(36)`
+   が付きます。そのため Android lint（`NewApi`）はクリーンなままで、アプリ側のコードがこのクラスを
+   参照することもありません（システムは KSP が生成する `GeneratedAppFunctionService` を直接バインドします）。
+3. **API 36 未満ではサービスが無効化される。** `app_intents` は
+   `@bool/app_intents_app_functions_service_enabled`（`values/` では `false`、`values-v36/` では `true`）を
+   同梱しています。`android:enabled` でこれを参照すると、古い端末ではコンポーネントが無効化され、バインドも
+   起動もされません。そのため、スーパークラス（`android.app.appfunctions.AppFunctionService`）が無い環境で
+   クラスが読み込まれることはありません。この属性は**必須**です。サービスはエクスポートされており、API 36 未満では
+   バインド用のパーミッションがプラットフォームに定義されていないため、属性が無いと他のアプリがバインドして
+   クラス読み込み時にクラッシュさせ得ます。
+
+それ以外の `app_intents` はバージョンに依存しません。プラグインの Android 側は単なる `MethodChannel` で、
+`MainActivity` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
+`minSdk = flutter.minSdkVersion` でビルドされ、CI が APK の minSdk を確認します。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 

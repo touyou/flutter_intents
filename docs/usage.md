@@ -125,34 +125,6 @@ Declare the service in `android/app/src/main/AndroidManifest.xml` inside `<appli
 > does not recognise `androidx.appfunctions.service.AppFunction`, so that setup builds
 > but registers **no** functions.
 
-#### Keeping your minSdk
-
-AppFunctions are an Android 16 (API 36) feature, but adding them must not force a
-published app to drop Android 8–15. Three things keep the host's `minSdk` untouched:
-
-1. **The library itself does not raise it.** The `androidx.appfunctions` AAR declares
-   `minSdkVersion 24`, the same as Flutter's default, so the manifest merge succeeds
-   without `tools:overrideLibrary`. (A `minSdk` below 24 fails with
-   `uses-sdk:minSdkVersion … cannot be smaller than version 24 declared in library
-   [androidx.appfunctions:appfunctions]` — that is the library's floor, not this plugin's.)
-2. **The generated code is gated.** `androidx.appfunctions.AppFunctionService` is
-   `@RequiresApi(36)`, and so is the generated `GeneratedAppFunctions` that extends it.
-   Android lint (`NewApi`) therefore stays clean, and your own code never references the
-   class: the system binds the KSP-generated `GeneratedAppFunctionService` directly.
-3. **The service is disabled below API 36.** `app_intents` ships
-   `@bool/app_intents_app_functions_service_enabled` (`false` in `values/`, `true` in
-   `values-v36/`). With `android:enabled` pointing at it, the component is disabled on
-   older devices, so it cannot be bound or started, and a class whose superclass
-   (`android.app.appfunctions.AppFunctionService`) is missing there is never loaded.
-   The attribute is **required**: the service is exported, and below API 36 its bind
-   permission is not platform-defined, so without the attribute another app could bind
-   the service and crash yours on class load.
-
-Everything else in `app_intents` is version-agnostic: the plugin's Android code is a plain
-`MethodChannel`, and `AppFunctionsBridge.initialize()` in `MainActivity` only stores that
-channel. The example app builds with `minSdk = flutter.minSdkVersion`, and CI checks that
-its APK keeps it.
-
 Wire the generated bridge to the plugin's MethodChannel in `MainActivity`:
 
 ```kotlin
@@ -184,6 +156,34 @@ to `initialize` when a handler needs longer; it must be positive, and
 ```kotlin
 AppFunctionsBridge.initialize(plugin.getChannel(), executionTimeoutMillis = 60_000L)
 ```
+
+#### Keeping your minSdk
+
+AppFunctions are an Android 16 (API 36) feature, but adding them must not force a
+published app to drop Android 8–15. Three things keep the host's `minSdk` untouched:
+
+1. **The library itself does not raise it.** The `androidx.appfunctions` AAR declares
+   `minSdkVersion 24`, the same as Flutter's default, so the manifest merge succeeds
+   without `tools:overrideLibrary`. (A `minSdk` below 24 fails with
+   `uses-sdk:minSdkVersion … cannot be smaller than version 24 declared in library
+   [androidx.appfunctions:appfunctions]` — that is the library's floor, not this plugin's.)
+2. **The generated code is gated.** `androidx.appfunctions.AppFunctionService` is
+   `@RequiresApi(36)`, and so is the generated `GeneratedAppFunctions` that extends it.
+   Android lint (`NewApi`) therefore stays clean, and your own code never references the
+   class: the system binds the KSP-generated `GeneratedAppFunctionService` directly.
+3. **The service is disabled below API 36.** `app_intents` ships
+   `@bool/app_intents_app_functions_service_enabled` (`false` in `values/`, `true` in
+   `values-v36/`). With `android:enabled` pointing at it, the component is disabled on
+   older devices, so it cannot be bound or started, and a class whose superclass
+   (`android.app.appfunctions.AppFunctionService`) is missing there is never loaded.
+   The attribute is **required**: the service is exported, and below API 36 its bind
+   permission is not platform-defined, so without the attribute another app could bind
+   the service and crash yours on class load.
+
+Everything else in `app_intents` is version-agnostic: the plugin's Android code is a plain
+`MethodChannel`, and `AppFunctionsBridge.initialize()` in `MainActivity` only stores that
+channel. The example app builds with `minSdk = flutter.minSdkVersion`, and CI checks that
+its APK keeps it.
 
 ### 3. iOS Native Setup (AppIntentsBridge)
 
