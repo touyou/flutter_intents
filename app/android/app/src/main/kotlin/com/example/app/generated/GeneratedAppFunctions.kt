@@ -4,6 +4,8 @@
 
 package com.example.app.generated
 
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.RequiresApi
 import androidx.appfunctions.AppFunctionAppUnknownException
 import androidx.appfunctions.AppFunctionCancelledException
@@ -21,11 +23,14 @@ import androidx.appfunctions.AppFunctionSerializable
 import androidx.appfunctions.AppFunctionService
 import androidx.appfunctions.AppFunctionServiceEntryPoint
 import io.flutter.plugin.common.MethodChannel
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /**
  * A task in your task list
@@ -45,14 +50,37 @@ data class TaskEntitySpec(
  * Bridge between Android AppFunctions and Flutter MethodChannel.
  * Call [initialize] with the MethodChannel from AppIntentsPlugin
  * before any AppFunction methods are invoked.
+ *
+ * Every call is bounded by the timeout passed to [initialize] (except for
+ * intents declared `longRunning`) and tells Dart when it is abandoned
+ * (timeout or caller cancellation), so a handler can stop early through
+ * `AppIntentExecution.current` (#130).
  */
-class AppFunctionsBridge private constructor(private val channel: MethodChannel) {
+class AppFunctionsBridge private constructor(
+    private val channel: MethodChannel,
+    private val executionTimeoutMillis: Long
+) {
 
     companion object {
+        /** Default upper bound for one AppFunction call, in milliseconds. */
+        const val DEFAULT_EXECUTION_TIMEOUT_MILLIS = 30_000L
+
         private var instance: AppFunctionsBridge? = null
 
-        fun initialize(channel: MethodChannel) {
-            instance = AppFunctionsBridge(channel)
+        /**
+         * [executionTimeoutMillis] bounds each call; a handler that has not
+         * answered by then fails the call and is told to stop. Must be positive;
+         * pass `Long.MAX_VALUE` to lift the bound. Intents declared
+         * `longRunning` are never bounded.
+         */
+        fun initialize(
+            channel: MethodChannel,
+            executionTimeoutMillis: Long = DEFAULT_EXECUTION_TIMEOUT_MILLIS
+        ) {
+            require(executionTimeoutMillis > 0) {
+                "executionTimeoutMillis must be positive; pass Long.MAX_VALUE to lift the bound"
+            }
+            instance = AppFunctionsBridge(channel, executionTimeoutMillis)
         }
 
         fun getInstance(): AppFunctionsBridge =
@@ -61,27 +89,80 @@ class AppFunctionsBridge private constructor(private val channel: MethodChannel)
             )
     }
 
+    /**
+     * Runs the Dart handler for [identifier]. Bounded by the timeout passed
+     * to [initialize] unless [longRunning] is set, which the generated code
+     * does for intents declared `@IntentSpec(longRunning: true)`.
+     */
     suspend fun executeIntent(
         identifier: String,
-        params: Map<String, Any?>
+        params: Map<String, Any?>,
+        longRunning: Boolean = false
     ): String = withContext(Dispatchers.Main) {
-        suspendCancellableCoroutine { cont ->
-            channel.invokeMethod(
-                "executeIntent",
-                mapOf("identifier" to identifier, "params" to params),
-                object : MethodChannel.Result {
-                    override fun success(result: Any?) {
-                        cont.resume(result?.toString() ?: "{}")
-                    }
-
-                    override fun error(code: String, message: String?, details: Any?) {
-                        cont.resumeWithException(toAppFunctionException(code, message))
-                    }
-
-                    override fun notImplemented() {
-                        cont.resumeWithException(AppFunctionAppUnknownException("executeIntent is not implemented on the Dart side"))
-                    }
+        val executionId = UUID.randomUUID().toString()
+        if (longRunning) {
+            awaitDartReply(identifier, params, executionId)
+        } else {
+            try {
+                withTimeout(executionTimeoutMillis) {
+                    awaitDartReply(identifier, params, executionId)
                 }
+            } catch (e: TimeoutCancellationException) {
+                // Not left as a CancellationException: the AppFunctions dispatcher
+                // would report that as a cancellation by the caller, not a failure.
+                throw RuntimeException(
+                    "Intent $identifier timed out after ${executionTimeoutMillis}ms", e
+                )
+            }
+        }
+    }
+
+    /**
+     * One MethodChannel round trip. Opens a Dart execution scope (#130) under
+     * [executionId] so the handler is told when the call is abandoned.
+     */
+    private suspend fun awaitDartReply(
+        identifier: String,
+        params: Map<String, Any?>,
+        executionId: String
+    ): String = suspendCancellableCoroutine { cont ->
+        cont.invokeOnCancellation { cause ->
+            notifyCancellation(executionId, cause)
+        }
+        channel.invokeMethod(
+            "executeIntent",
+            mapOf(
+                "identifier" to identifier,
+                "params" to params + ("_executionId" to executionId)
+            ),
+            object : MethodChannel.Result {
+                override fun success(result: Any?) {
+                    cont.resume(result?.toString() ?: "{}")
+                }
+
+                override fun error(code: String, message: String?, details: Any?) {
+                    cont.resumeWithException(toAppFunctionException(code, message))
+                }
+
+                override fun notImplemented() {
+                    cont.resumeWithException(AppFunctionAppUnknownException("executeIntent is not implemented on the Dart side"))
+                }
+            }
+        )
+    }
+
+    /**
+     * Tells Dart the execution was abandoned so the handler can stop early.
+     * Cancellation handlers may run on any thread; the MethodChannel must be
+     * driven from the main one. A late reply from Dart is ignored by the
+     * already-cancelled continuation.
+     */
+    private fun notifyCancellation(executionId: String, cause: Throwable?) {
+        val reason = if (cause is TimeoutCancellationException) "timeout" else "cancelled"
+        Handler(Looper.getMainLooper()).post {
+            channel.invokeMethod(
+                "intentCancelled",
+                mapOf("executionId" to executionId, "reason" to reason)
             )
         }
     }

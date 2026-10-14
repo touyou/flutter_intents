@@ -371,6 +371,7 @@ struct AppShortcuts: AppShortcutsProvider {
 | コード生成 | KSPベースの`@AppFunction`アノテーション処理 |
 | Entity直列化 | `@AppFunctionSerializable`データクラス |
 | エラー報告 | Dartの`AppIntentErrorCode`を対応する`androidx.appfunctions`例外へ変換（未知のコードは`AppFunctionAppUnknownException`） |
+| 呼び出しタイムアウト / キャンセル | 生成される `AppFunctionsBridge` が呼び出しごとに上限を設ける（既定 30 秒、`initialize` で変更。`longRunning` な Intent は対象外）。タイムアウトと呼び出し側のキャンセルは `intentCancelled` として Dart ハンドラに届く |
 
 ## 今後の拡張ポイント
 

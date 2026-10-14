@@ -187,6 +187,33 @@ void main() {
       await subscription.cancel();
     });
 
+    test('onIntentExecution hides the reserved execution id (#130)', () async {
+      Map<String, dynamic>? handlerParams;
+      String? executionId;
+      platform.registerIntentHandler('com.example.testIntent', (params) async {
+        handlerParams = params;
+        executionId = AppIntentExecution.current?.executionId;
+        return {};
+      });
+      final events = <IntentExecutionRequest>[];
+      final subscription = platform.onIntentExecution.listen(events.add);
+
+      // Every Android AppFunction call (and an iOS long-running intent) carries
+      // the id; listeners should see the intent's own parameters only.
+      await simulateIncomingMethodCall(channel, 'executeIntent', {
+        'identifier': 'com.example.testIntent',
+        'params': {'key': 'value', intentExecutionIdKey: 'exec-1'},
+      });
+
+      await Future.delayed(Duration.zero);
+
+      expect(events.single.params, {'key': 'value'});
+      expect(handlerParams, {'key': 'value'});
+      expect(executionId, 'exec-1');
+
+      await subscription.cancel();
+    });
+
     Future<void> emit(String identifier) => simulateIncomingMethodCall(
       channel,
       'executeIntent',

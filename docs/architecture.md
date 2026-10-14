@@ -372,6 +372,7 @@ struct AppShortcuts: AppShortcutsProvider {
 | Code Generation | KSP-based `@AppFunction` annotation processing |
 | Entity Serialization | `@AppFunctionSerializable` data classes |
 | Error Reporting | Dart `AppIntentErrorCode` → matching `androidx.appfunctions` exception (unknown codes → `AppFunctionAppUnknownException`) |
+| Call Timeout / Cancellation | Per-call bound in the generated `AppFunctionsBridge` (30 s default, set in `initialize`; `longRunning` intents are exempt); timeout and caller cancellation reach the Dart handler as `intentCancelled` |
 
 ## Future Extension Points
 
