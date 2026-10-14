@@ -766,6 +766,43 @@ void main() {
         expect(result, contains('override fun error('));
         expect(result, contains('override fun notImplemented()'));
       });
+
+      test('maps Dart error codes to AppFunctions exceptions', () {
+        final result = generator.generateBridge();
+
+        expect(result, contains('private fun toAppFunctionException('));
+        expect(result, contains('): AppFunctionException = when (code) {'));
+        expect(
+          result,
+          contains(
+            'cont.resumeWithException(toAppFunctionException(code, message))',
+          ),
+        );
+        for (final entry
+            in KotlinGenerator.appFunctionExceptionByErrorCode.entries) {
+          expect(result, contains('"${entry.key}" -> ${entry.value}(message)'));
+        }
+        expect(
+          result,
+          contains(
+            r'else -> AppFunctionAppUnknownException("$code: $message")',
+          ),
+        );
+        // The old untyped envelope is gone; a typed exception carries the code.
+        expect(result, isNot(contains(r'RuntimeException("$code: $message")')));
+      });
+
+      test('reports a missing Dart implementation as an app error', () {
+        final result = generator.generateBridge();
+
+        expect(
+          result,
+          contains(
+            'AppFunctionAppUnknownException('
+            '"executeIntent is not implemented on the Dart side")',
+          ),
+        );
+      });
     });
 
     group('generateAll', () {
@@ -819,6 +856,26 @@ void main() {
           contains('import io.flutter.plugin.common.MethodChannel'),
         );
         expect(result, contains('import kotlinx.coroutines.Dispatchers'));
+      });
+
+      test('imports the AppFunctions exceptions the bridge raises', () {
+        // The bridge is emitted even without intents, so the imports are too.
+        final result = generator.generateAll(packageName: 'com.example.app');
+
+        expect(
+          result,
+          contains('import androidx.appfunctions.AppFunctionException\n'),
+        );
+        expect(
+          result,
+          contains(
+            'import androidx.appfunctions.AppFunctionAppUnknownException\n',
+          ),
+        );
+        for (final exception
+            in KotlinGenerator.appFunctionExceptionByErrorCode.values) {
+          expect(result, contains('import androidx.appfunctions.$exception\n'));
+        }
       });
 
       test('includes AppFunctionSerializable import for entities', () {

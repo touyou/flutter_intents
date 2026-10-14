@@ -2,6 +2,16 @@
 ///
 /// These codes correspond to standard iOS App Intent error types
 /// as well as custom error scenarios.
+///
+/// A handler reports one by throwing `AppIntentError.fromCode(...)`. The code
+/// crosses the MethodChannel unchanged, as the `PlatformException` code, so the
+/// native side can turn it into a typed error. On Android the generated
+/// `AppFunctionsBridge` maps the codes below to the matching
+/// `androidx.appfunctions` exception; any other code becomes
+/// `AppFunctionAppUnknownException` with the code kept in its message. That
+/// table lives in `KotlinGenerator.appFunctionExceptionByErrorCode` in the
+/// codegen package and is keyed by these enum names, so renaming a value here
+/// means renaming it there too.
 enum AppIntentErrorCode {
   /// The intent handler was not found for the given identifier.
   handlerNotFound,
@@ -20,6 +30,27 @@ enum AppIntentErrorCode {
 
   /// An unknown error occurred.
   unknown,
+
+  /// The requested resource or entity does not exist.
+  notFound,
+
+  /// The resource to create already exists, or conflicts with an existing one.
+  alreadyExists,
+
+  /// The caller is not allowed to perform this operation.
+  denied,
+
+  /// The app lacks a permission the user has not granted (e.g. calendar access).
+  permissionRequired,
+
+  /// The requested action is not supported by the app.
+  notSupported,
+
+  /// The requested feature is disabled, e.g. by a user setting.
+  disabled,
+
+  /// The caller exceeded a rate or quota limit.
+  limitExceeded,
 }
 
 /// Represents an error that occurred during App Intent operations.
@@ -34,6 +65,9 @@ class AppIntentError implements Exception {
   final String message;
 
   /// Optional additional details about the error.
+  ///
+  /// Travels to the native side with the error, so it must hold only values
+  /// the `StandardMessageCodec` can encode.
   final Map<String, dynamic>? details;
 
   /// Creates a new [AppIntentError].
@@ -99,6 +133,20 @@ class AppIntentError implements Exception {
         return 'A network error occurred';
       case AppIntentErrorCode.unknown:
         return 'An unknown error occurred';
+      case AppIntentErrorCode.notFound:
+        return 'The requested resource was not found';
+      case AppIntentErrorCode.alreadyExists:
+        return 'The resource already exists';
+      case AppIntentErrorCode.denied:
+        return 'The caller is not allowed to perform this operation';
+      case AppIntentErrorCode.permissionRequired:
+        return 'The app is missing a required permission';
+      case AppIntentErrorCode.notSupported:
+        return 'The requested action is not supported';
+      case AppIntentErrorCode.disabled:
+        return 'The requested feature is disabled';
+      case AppIntentErrorCode.limitExceeded:
+        return 'The request limit was exceeded';
     }
   }
 }
