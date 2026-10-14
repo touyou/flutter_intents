@@ -35,13 +35,15 @@ Android hosts that reference `AppIntentsPlugin` in their own native code
 Generated Kotlin is unaffected.
 
 `appfunctions:1.0.0-alpha12` requires **Android Gradle Plugin 9.1.1+**, **Gradle 9.3.1+**, and **compileSdk 37**.
-Update `android/app/build.gradle.kts` (`minSdk = 36` because AppFunctions requires Android 16):
+Update `android/app/build.gradle.kts`. **Leave `minSdk` as it is** (Flutter's default is 24):
+AppFunctions are served on Android 16 (API 36) and later only, but nothing forces the whole
+app to require Android 16 — see [Keeping your minSdk](#keeping-your-minsdk) below.
 
 ```kotlin
 android {
     compileSdk = 37
     defaultConfig {
-        minSdk = 36
+        minSdk = flutter.minSdkVersion  // or whatever your app already uses
         targetSdk = 37
     }
 }
@@ -83,7 +85,9 @@ Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.pr
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
-> **Note**: AppFunctions requires Android 16 (API 36) or later. The `compileSdk = 37` requirement comes from the `appfunctions:1.0.0-alpha12` AAR metadata.
+> **Note**: AppFunctions are served on Android 16 (API 36) or later only; on older devices the
+> generated service is disabled and the rest of the app runs as usual. The `compileSdk = 37`
+> requirement comes from the `appfunctions:1.0.0-alpha12` AAR metadata.
 
 The generated `GeneratedAppFunctions` is an abstract `AppFunctionService` annotated with
 `@AppFunctionServiceEntryPoint`. KSP generates the concrete `GeneratedAppFunctionService`
@@ -91,10 +95,13 @@ The generated `GeneratedAppFunctions` is an abstract `AppFunctionService` annota
 Declare the service in `android/app/src/main/AndroidManifest.xml` inside `<application>`:
 
 ```xml
+<!-- <manifest> needs xmlns:tools="http://schemas.android.com/tools" -->
 <service
     android:name="<your.kotlin.package>.GeneratedAppFunctionService"
+    android:enabled="@bool/app_intents_app_functions_service_enabled"
     android:exported="true"
-    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE"
+    tools:targetApi="36">
     <property
         android:name="android.app.appfunctions.schema"
         android:value="app_functions_schema.xsd" />
@@ -107,10 +114,44 @@ Declare the service in `android/app/src/main/AndroidManifest.xml` inside `<appli
 </service>
 ```
 
+> **`android:enabled` is required**, not belt-and-braces. Without it the exported service
+> stays enabled below API 36, where `BIND_APP_FUNCTION_SERVICE` is not a platform-defined
+> permission, so another app could bind it and crash yours on class load
+> (`NoClassDefFoundError` for the API 36 superclass). The bool it references is shipped by
+> `app_intents`; see [Keeping your minSdk](#keeping-your-minsdk).
+
 > Earlier versions of this guide used `appfunctions-service` and the
 > `appfunctions:aggregateAppFunctions` KSP arg. Both are gone: the alpha12 compiler
 > does not recognise `androidx.appfunctions.service.AppFunction`, so that setup builds
 > but registers **no** functions.
+
+#### Keeping your minSdk
+
+AppFunctions are an Android 16 (API 36) feature, but adding them must not force a
+published app to drop Android 8–15. Three things keep the host's `minSdk` untouched:
+
+1. **The library itself does not raise it.** The `androidx.appfunctions` AAR declares
+   `minSdkVersion 24`, the same as Flutter's default, so the manifest merge succeeds
+   without `tools:overrideLibrary`. (A `minSdk` below 24 fails with
+   `uses-sdk:minSdkVersion … cannot be smaller than version 24 declared in library
+   [androidx.appfunctions:appfunctions]` — that is the library's floor, not this plugin's.)
+2. **The generated code is gated.** `androidx.appfunctions.AppFunctionService` is
+   `@RequiresApi(36)`, and so is the generated `GeneratedAppFunctions` that extends it.
+   Android lint (`NewApi`) therefore stays clean, and your own code never references the
+   class: the system binds the KSP-generated `GeneratedAppFunctionService` directly.
+3. **The service is disabled below API 36.** `app_intents` ships
+   `@bool/app_intents_app_functions_service_enabled` (`false` in `values/`, `true` in
+   `values-v36/`). With `android:enabled` pointing at it, the component is disabled on
+   older devices, so it cannot be bound or started, and a class whose superclass
+   (`android.app.appfunctions.AppFunctionService`) is missing there is never loaded.
+   The attribute is **required**: the service is exported, and below API 36 its bind
+   permission is not platform-defined, so without the attribute another app could bind
+   the service and crash yours on class load.
+
+Everything else in `app_intents` is version-agnostic: the plugin's Android code is a plain
+`MethodChannel`, and `AppFunctionsBridge.initialize()` in `MainActivity` only stores that
+channel. The example app builds with `minSdk = flutter.minSdkVersion`, and CI checks that
+its APK keeps it.
 
 ### 3. iOS Native Setup (AppIntentsBridge)
 

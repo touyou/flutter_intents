@@ -35,13 +35,15 @@ Android アプリのネイティブコードで `AppIntentsPlugin` を参照し�
 生成される Kotlin コードへの影響はありません。
 
 `appfunctions:1.0.0-alpha12` は **Android Gradle Plugin 9.1.1+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
-`android/app/build.gradle.kts` を更新します（`minSdk = 36` は AppFunctions が Android 16 を必要とするため）:
+`android/app/build.gradle.kts` を更新します。**`minSdk` はそのままにしてください**（Flutter のデフォルトは 24）。
+AppFunctions が提供されるのは Android 16（API 36）以降のみですが、アプリ全体に Android 16 を要求する必要はありません。
+詳しくは後述の [minSdk を上げずに済む仕組み](#minsdk-を上げずに済む仕組み) を参照してください。
 
 ```kotlin
 android {
     compileSdk = 37
     defaultConfig {
-        minSdk = 36
+        minSdk = flutter.minSdkVersion  // もしくはアプリが既に使っている値
         targetSdk = 37
     }
 }
@@ -83,7 +85,8 @@ android.builtInKotlin=false
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
-> **Note**: AppFunctionsは Android 16（API 36）以上が必須です。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha12` の AAR メタデータに由来します。
+> **Note**: AppFunctions が提供されるのは Android 16（API 36）以降のみです。それより古い端末では生成されたサービスが無効化され、
+> アプリの他の部分は通常どおり動作します。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha12` の AAR メタデータに由来します。
 
 生成される `GeneratedAppFunctions` は `@AppFunctionServiceEntryPoint` を付けた抽象 `AppFunctionService` です。
 KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同じ Kotlin パッケージ）と
@@ -91,10 +94,13 @@ KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同�
 `<application>` 内でサービスを宣言します:
 
 ```xml
+<!-- <manifest> needs xmlns:tools="http://schemas.android.com/tools" -->
 <service
     android:name="<your.kotlin.package>.GeneratedAppFunctionService"
+    android:enabled="@bool/app_intents_app_functions_service_enabled"
     android:exported="true"
-    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+    android:permission="android.permission.BIND_APP_FUNCTION_SERVICE"
+    tools:targetApi="36">
     <property
         android:name="android.app.appfunctions.schema"
         android:value="app_functions_schema.xsd" />
@@ -107,9 +113,42 @@ KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同�
 </service>
 ```
 
+> **`android:enabled` は必須です。** 念のための設定ではありません。これが無いと、エクスポートされた
+> サービスは API 36 未満でも有効なままになります。そこでは `BIND_APP_FUNCTION_SERVICE` が
+> プラットフォーム定義のパーミッションではないため、他のアプリがこのサービスにバインドでき、
+> API 36 のスーパークラスを読み込めずに（`NoClassDefFoundError`）アプリがクラッシュし得ます。
+> 参照先の bool は `app_intents` が同梱しています。詳しくは
+> [minSdk を上げずに済む仕組み](#minsdk-を上げずに済む仕組み) を参照してください。
+
 > 以前のこのガイドでは `appfunctions-service` と KSP 引数 `appfunctions:aggregateAppFunctions` を使っていましたが、
 > どちらも不要になりました。alpha12 の compiler は `androidx.appfunctions.service.AppFunction` を認識しないため、
 > 旧構成はビルドこそ通るものの関数が **1 件も** 登録されません。
+
+#### minSdk を上げずに済む仕組み
+
+AppFunctions は Android 16（API 36）の機能ですが、導入のために公開済みアプリが Android 8〜15 を
+切り捨てる必要はありません。ホストアプリの `minSdk` をそのままにできる理由は次の 3 点です:
+
+1. **ライブラリ自体が minSdk を引き上げない。** `androidx.appfunctions` の AAR は `minSdkVersion 24`
+   （Flutter のデフォルトと同じ）を宣言しているため、`tools:overrideLibrary` なしでマニフェストの
+   マージが通ります（24 未満にすると `uses-sdk:minSdkVersion … cannot be smaller than version 24
+   declared in library [androidx.appfunctions:appfunctions]` で失敗しますが、これはライブラリ側の
+   下限であり、本プラグインの要件ではありません）。
+2. **生成コードが API レベルでガードされている。** `androidx.appfunctions.AppFunctionService` は
+   `@RequiresApi(36)` であり、それを継承する生成クラス `GeneratedAppFunctions` にも `@RequiresApi(36)`
+   が付きます。そのため Android lint（`NewApi`）はクリーンなままで、アプリ側のコードがこのクラスを
+   参照することもありません（システムは KSP が生成する `GeneratedAppFunctionService` を直接バインドします）。
+3. **API 36 未満ではサービスが無効化される。** `app_intents` は
+   `@bool/app_intents_app_functions_service_enabled`（`values/` では `false`、`values-v36/` では `true`）を
+   同梱しています。`android:enabled` でこれを参照すると、古い端末ではコンポーネントが無効化され、バインドも
+   起動もされません。そのため、スーパークラス（`android.app.appfunctions.AppFunctionService`）が無い環境で
+   クラスが読み込まれることはありません。この属性は**必須**です。サービスはエクスポートされており、API 36 未満では
+   バインド用のパーミッションがプラットフォームに定義されていないため、属性が無いと他のアプリがバインドして
+   クラス読み込み時にクラッシュさせ得ます。
+
+それ以外の `app_intents` はバージョンに依存しません。プラグインの Android 側は単なる `MethodChannel` で、
+`MainActivity` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
+`minSdk = flutter.minSdkVersion` でビルドされ、CI が APK の minSdk を確認します。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 

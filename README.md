@@ -129,7 +129,7 @@ Generated Kotlin is unaffected.
 - **Dart SDK**: ^3.10.0
 - **Flutter**: 3.3+
 - **iOS**: 17.0+ (App Intents), Swift 5.9+
-- **Android**: API 36+ (Android 16, AppFunctions)
+- **Android**: your app's existing `minSdk` (Flutter default 24); AppFunctions are served on API 36+ (Android 16) only
 
 ## Contributing
 

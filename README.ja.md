@@ -129,7 +129,7 @@ Android アプリのネイティブコードで `AppIntentsPlugin` を参照し�
 - **Dart SDK**: ^3.10.0
 - **Flutter**: 3.3+
 - **iOS**: 17.0+（App Intents）、Swift 5.9+
-- **Android**: API 36+（Android 16、AppFunctions）
+- **Android**: アプリの既存の `minSdk` のまま（Flutter のデフォルトは 24）。AppFunctions が提供されるのは API 36+（Android 16）のみ
 
 ## コントリビュート
 

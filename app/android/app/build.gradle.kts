@@ -20,7 +20,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.app"
-        minSdk = 36
+        // Flutter's default. AppFunctions are served on Android 16 (API 36) and
+        // later only: the generated service is @RequiresApi(36) and disabled below
+        // that in AndroidManifest.xml, so the host app keeps its own minSdk.
+        minSdk = flutter.minSdkVersion
         targetSdk = 37
         versionCode = flutter.versionCode
         versionName = flutter.versionName

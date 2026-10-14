@@ -270,7 +270,7 @@ iOS App IntentsおよびAndroid AppFunctions連携用Flutterプラグイン。
 - Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
 - iOS: 17.0+、Swift 5.9+
-- Android: API 36+（AppFunctions）
+- Android: ホストアプリの minSdk のまま（Flutter のデフォルトは 24）。AppFunctions は API 36+ でのみ提供
 
 ### アーキテクチャ
 

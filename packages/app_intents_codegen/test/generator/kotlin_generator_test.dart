@@ -951,6 +951,51 @@ void main() {
         expect(result, contains('suspend fun completeTask('));
       });
 
+      test('gates GeneratedAppFunctions behind @RequiresApi(36)', () {
+        // androidx.appfunctions.AppFunctionService is @RequiresApi(36). Without
+        // this gate Android lint fails (NewApi) for any host whose minSdk is
+        // below Android 16, which is every published app that did not raise
+        // minSdk just for AppFunctions.
+        final result = generator.generateAll(
+          packageName: 'com.example.app',
+          intents: [
+            IntentInfo(
+              className: 'GreetIntent',
+              identifier: 'com.example.greet',
+              title: 'Greet',
+              implementation: IntentImplementationType.dart,
+              parameters: [],
+            ),
+          ],
+        );
+
+        expect(KotlinGenerator.appFunctionsMinApiLevel, 36);
+        expect(result, contains('import androidx.annotation.RequiresApi\n'));
+        expect(
+          result,
+          contains(
+            '@RequiresApi(36)\n'
+            '@AppFunctionServiceEntryPoint(\n',
+          ),
+        );
+        // The KDoc tells the host which manifest switch keeps the service off
+        // below API 36 and that it is required; the name must match the bool
+        // the plugin ships.
+        expect(
+          KotlinGenerator.serviceEnabledBoolResource,
+          'app_intents_app_functions_service_enabled',
+        );
+        expect(
+          result,
+          contains(
+            ' * must set `android:enabled="@bool/app_intents_app_functions_service_enabled"`.\n'
+            ' * The attribute is required: without it the exported service stays enabled\n'
+            ' * below API 36, where another app could bind it and crash this app\n'
+            ' * on class load.\n',
+          ),
+        );
+      });
+
       test('generates combined output with all types', () {
         final result = generator.generateAll(
           packageName: 'com.example.app',
@@ -1032,6 +1077,7 @@ void main() {
 
         expect(result, isNot(contains('class GeneratedAppFunctions')));
         expect(result, isNot(contains('AppFunctionServiceEntryPoint')));
+        expect(result, isNot(contains('RequiresApi')));
         expect(
           result,
           isNot(

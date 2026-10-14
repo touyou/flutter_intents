@@ -119,6 +119,25 @@ jobs:
       - name: Build debug APK
         working-directory: app
         run: flutter build apk --debug
+      - name: Check the example APK keeps Flutter's default minSdk
+        # AppFunctions must not force the host minSdk up to 36: the generated
+        # service is @RequiresApi(36) and disabled below it instead (docs/usage.md,
+        # "Keeping your minSdk").
+        working-directory: app
+        run: |
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)
+          MIN_SDK=$("$AAPT2" dump badging build/app/outputs/flutter-apk/app-debug.apk \
+            | sed -n "s/^\(min\)\{0,1\}[sS]dkVersion:'\([0-9]*\)'.*/\2/p" | head -1)
+          echo "APK minSdkVersion: ${MIN_SDK:-<not found>}"
+          test -n "$MIN_SDK" && test "$MIN_SDK" -lt 36
+      - name: Check the example manifest keeps the AppFunctions service gated
+        # The exported service must stay disabled below API 36; losing the
+        # android:enabled attribute would let any app bind it there and crash
+        # the host on class load (docs/usage.md, "Keeping your minSdk").
+        working-directory: app
+        run: |
+          sed -n '/<service/,/<\/service>/p' android/app/src/main/AndroidManifest.xml \
+            | grep -Fq 'android:enabled="@bool/app_intents_app_functions_service_enabled"'
 
   swift-package:
     name: Swift package (AppIntentsBridge)

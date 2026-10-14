@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 16 (API 36) and later: enable the generated AppFunctionService. -->
+<resources>
+    <bool name="app_intents_app_functions_service_enabled">true</bool>
+</resources>

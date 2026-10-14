@@ -270,7 +270,7 @@ Flutter plugin for iOS App Intents and Android AppFunctions integration.
 - Flutter SDK: >=3.3.0
 - plugin_platform_interface: ^2.0.2
 - iOS: 17.0+, Swift 5.9+
-- Android: API 36+ (AppFunctions)
+- Android: host app's own minSdk (Flutter default 24); AppFunctions served on API 36+ only
 
 ### Architecture
 

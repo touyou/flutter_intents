@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AppFunctions exist on Android 16 (API 36) and later only. The host app
+  references this bool from the manifest entry of the generated
+  AppFunctionService (android:enabled="@bool/app_intents_app_functions_service_enabled")
+  so the service is disabled on older devices while the app keeps its own minSdk.
+  values-v36/bools.xml flips it to true.
+-->
+<resources>
+    <bool name="app_intents_app_functions_service_enabled">false</bool>
+</resources>

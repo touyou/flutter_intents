@@ -360,7 +360,7 @@ struct AppShortcuts: AppShortcutsProvider {
 
 | Item | Requirement |
 |------|-------------|
-| **Minimum Android** | API 36 (Android 16) |
+| **Minimum Android** | Host app's own `minSdk` (Flutter default 24). AppFunctions are served on API 36 (Android 16)+ only: the generated service is `@RequiresApi(36)` and disabled below it via `@bool/app_intents_app_functions_service_enabled` |
 | **Kotlin** | 2.2+ |
 | **Jetpack AppFunctions** | 1.0.0-alpha12 (`@AppFunctionServiceEntryPoint`; `appfunctions-service` no longer used — see `CLAUDE.md`) |
 

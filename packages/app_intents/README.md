@@ -16,7 +16,7 @@ Flutter plugin for iOS App Intents and Android AppFunctions integration. Enables
 ## Requirements
 
 - **iOS**: 17.0+
-- **Android**: API 36+ (Android 16, for AppFunctions)
+- **Android**: your app's existing `minSdk` (Flutter default 24); AppFunctions are served on API 36+ (Android 16) only
 - **Flutter**: 3.3+
 
 ## Installation
@@ -141,7 +141,7 @@ platform :ios, '17.0'
 
 ## Android Configuration
 
-1. Set `compileSdk`/`targetSdk` to 37 and `minSdk` to 36 in `android/app/build.gradle.kts`
+1. Set `compileSdk`/`targetSdk` to 37 in `android/app/build.gradle.kts` (keep your `minSdk`: the generated service is `@RequiresApi(36)`, and the required `android:enabled="@bool/app_intents_app_functions_service_enabled"` on its manifest entry disables it on older devices)
 2. Add KSP and AppFunctions dependencies
 3. See the [full documentation](https://github.com/touyou/flutter_intents/blob/main/docs/usage.md) for complete Android setup instructions including Kotlin code generation.
 

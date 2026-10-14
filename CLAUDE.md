@@ -33,7 +33,7 @@ docs/
 | Intent Execution (iOS) | **URL Scheme** (due to Flutter engine timing) |
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
-| Android Minimum | **API 36** (Android 16, for AppFunctions) |
+| Android Minimum | **Host minSdk unchanged** (Flutter default 24). AppFunctions are served on **API 36+** only: generated service is `@RequiresApi(36)`, manifest `android:enabled="@bool/app_intents_app_functions_service_enabled"` (**required**; bool shipped by the plugin, `false` / `true` in `values-v36`) |
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-alpha13**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
@@ -344,6 +344,7 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
+- **Host minSdk stays below 36** (2026-10-12). Measured on `appfunctions:1.0.0-alpha13`: the AAR declares `minSdkVersion 24` (same as Flutter's default), so the manifest merge needs **no** `tools:overrideLibrary`; `AppFunctionService` is `@RequiresApi(36)` (BAKLAVA), so `KotlinGenerator` emits `@RequiresApi(36)` on `GeneratedAppFunctions` — without it `:app:lintDebug` fails with `NewApi` at minSdk < 36 (verified red/green). The host's `<service>` **must** carry `android:enabled="@bool/app_intents_app_functions_service_enabled"` (plugin `res/values/bools.xml` = false, `res/values-v36/bools.xml` = true) + `tools:targetApi="36"`, so the KSP-generated subclass is never instantiated where its framework superclass is absent. The attribute is required, not belt-and-braces: the service is exported, and below 36 `BIND_APP_FUNCTION_SERVICE` is not a platform-defined permission, so without it any app could bind the service and crash the host with `NoClassDefFoundError`. Codegen cannot enforce it (the manifest is the host's); the generated KDoc, the docs and a CI grep on the example manifest carry it. The AAR ships its own `enablePlatformAppFunctionService` bool of exactly this shape, which confirms the pattern, but it is **not** in the AAR's `public.txt`, hence our own. Nothing else touches AppFunctions: the plugin's Kotlin is a bare `MethodChannel` and `AppFunctionsBridge.initialize()` only stores it. `KotlinGenerator.appFunctionsMinApiLevel` / `serviceEnabledBoolResource` hold the two literals; the bool name is duplicated in the plugin resources on purpose (codegen cannot import the plugin).
 - **alpha12 model: `@AppFunctionServiceEntryPoint`** (migrated 2026-09-28). Every `@AppFunctionDeclaration` must sit in an **abstract** class extending `androidx.appfunctions.AppFunctionService`, annotated `@AppFunctionServiceEntryPoint(serviceName = ..., appFunctionXmlFileName = ...)`. KSP generates the concrete `serviceName` subclass (implements `onExecuteFunction`, exposes `FUNCTION_ID_*`) and `assets/<appFunctionXmlFileName>.xml`. The manifest declares the **generated** class with `BIND_APP_FUNCTION_SERVICE`, action `android.app.appfunctions.AppFunctionService`, and `<property>`s `android.app.appfunctions.schema` = `app_functions_schema.xsd` (shipped in the AAR's assets) and `android.app.appfunctions.v2` = `<appFunctionXmlFileName>.xml`. Function ids are `<package>.GeneratedAppFunctions#<fn>`. Ground truth: the KDoc of `AppFunctionServiceEntryPoint.kt` in `appfunctions-1.0.0-alpha13-sources.jar`.
 - **alpha13: `@AppFunction` renamed to `@AppFunctionDeclaration`** (2026-10-07). The annotation is now `androidx.appfunctions.AppFunctionDeclaration`. The companion rename `ObserveAppFunctionsEvent` → `AppFunctionsChangeEvent` is not used in this codebase. `@AppFunctionAccessLevel` was also added.
 - `@AppFunctionDeclaration` is **`androidx.appfunctions.AppFunctionDeclaration`** (core artifact) since alpha13 (previously `androidx.appfunctions.AppFunction` in alpha10–alpha12). The alpha13+ compiler matches only that FQN. **Code still annotated with the old `androidx.appfunctions.AppFunction` compiles against alpha13+, and KSP silently registers nothing**: check `build/app/generated/ksp/debug/resources/assets/*.xml` for `<id>`s. A green `flutter build apk` proves nothing.
@@ -935,7 +936,7 @@ if #available(iOS 17.0, *) {
    android.builtInKotlin=false
    ```
 4. Configure `android/app/build.gradle.kts`:
-   - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`, `minSdk = 36`
+   - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`; **leave `minSdk` at Flutter's default** (see the host-minSdk gotcha)
    - Add AppFunctions dependencies: `implementation("androidx.appfunctions:appfunctions:…")` + `ksp("androidx.appfunctions:appfunctions-compiler:…")` (no `appfunctions-service`, no KSP args)
    - **Set the JVM target via the `compilerOptions` DSL, not `kotlinOptions`** — the
      legacy `android { kotlinOptions { jvmTarget = ... } }` accessor is an ERROR-level
@@ -966,7 +967,7 @@ class MainActivity : FlutterActivity() {
     }
 }
 ```
-7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry; see `app/android/app/src/main/AndroidManifest.xml`)
+7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry, plus the **required** `android:enabled="@bool/app_intents_app_functions_service_enabled"` and `tools:targetApi="36"`; see `app/android/app/src/main/AndroidManifest.xml`)
 
 ## Development Commands
 
