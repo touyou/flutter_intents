@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.app_intents"
+    namespace = "dev.touyou.app_intents"
     compileSdk = 35
 
     compileOptions {

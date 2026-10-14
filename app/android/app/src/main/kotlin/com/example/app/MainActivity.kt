@@ -2,7 +2,7 @@ package com.example.app
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import com.example.app_intents.AppIntentsPlugin
+import dev.touyou.app_intents.AppIntentsPlugin
 import com.example.app.generated.AppFunctionsBridge
 
 class MainActivity : FlutterActivity() {

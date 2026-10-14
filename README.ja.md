@@ -113,6 +113,11 @@ dart run app_intents_codegen:generate_swift -i lib -o ios/Runner/GeneratedIntent
 dart run app_intents_codegen:generate_kotlin -i lib -o android/app/src/main/kotlin/com/example/app/generated -p com.example.app.generated
 ```
 
+Android アプリのネイティブコードで `AppIntentsPlugin` を参照している場合
+（例: `MainActivity` での AppFunctions の接続処理）は、import を
+`dev.touyou.app_intents.AppIntentsPlugin` に更新し、`flutter pub get` を実行してください。
+生成される Kotlin コードへの影響はありません。
+
 ## ドキュメント
 
 - [アーキテクチャ](docs/architecture.ja.md) - 設計思想と全体構成

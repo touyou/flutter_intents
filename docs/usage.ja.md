@@ -29,6 +29,11 @@ platform :ios, '17.0'
 
 #### Android
 
+Android アプリのネイティブコードで `AppIntentsPlugin` を参照している場合
+（例: `MainActivity` での AppFunctions の接続処理）は、import を
+`dev.touyou.app_intents.AppIntentsPlugin` に更新し、`flutter pub get` を実行してください。
+生成される Kotlin コードへの影響はありません。
+
 `appfunctions:1.0.0-alpha12` は **Android Gradle Plugin 9.1.1+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
 `android/app/build.gradle.kts` を更新します（`minSdk = 36` は AppFunctions が Android 16 を必要とするため）:
 

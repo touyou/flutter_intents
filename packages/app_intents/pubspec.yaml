@@ -45,7 +45,7 @@ flutter:
       ios:
         pluginClass: AppIntentsPlugin
       android:
-        package: com.example.app_intents
+        package: dev.touyou.app_intents
         pluginClass: AppIntentsPlugin
 
   # To add assets to your plugin package, add an assets section, like this:

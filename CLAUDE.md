@@ -953,7 +953,7 @@ if #available(iOS 17.0, *) {
 5. Run `make kotlin-gen` to generate Kotlin code
 6. Wire AppFunctionsBridge in MainActivity:
 ```kotlin
-import com.example.app_intents.AppIntentsPlugin
+import dev.touyou.app_intents.AppIntentsPlugin
 import com.example.app.generated.AppFunctionsBridge
 
 class MainActivity : FlutterActivity() {

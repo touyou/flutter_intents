@@ -1,4 +1,4 @@
-package com.example.app_intents
+package dev.touyou.app_intents
 
 import android.os.Build
 import io.flutter.embedding.engine.plugins.FlutterPlugin
