@@ -38,27 +38,131 @@ struct FlutterBridgeTests {
         #expect(resultValue == 20)
     }
 
+    /// Clears the executors and sets the wait limit for one test, then puts the
+    /// shared bridge back to its defaults even when `body` throws.
+    private func withExecutorWaitTimeout(
+        _ seconds: TimeInterval,
+        _ body: (FlutterBridge) async throws -> Void
+    ) async rethrows {
+        let bridge = FlutterBridge.shared
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(seconds)
+        do {
+            try await body(bridge)
+        } catch {
+            await resetExecutorWait(bridge)
+            throw error
+        }
+        await resetExecutorWait(bridge)
+    }
+
+    private func resetExecutorWait(_ bridge: FlutterBridge) async {
+        await bridge.clearExecutors()
+        await bridge.setExecutorWaitTimeout(FlutterBridge.defaultExecutorWaitTimeout)
+    }
+
     @Test("Invoke unregistered intent without executor times out")
     func invokeUnregisteredIntentThrowsError() async {
         // With no local handler and no Flutter executor set, `invoke` waits
-        // up to `executorWaitTimeout` (5s) for an executor to appear and then
+        // up to `executorWaitTimeout` for an executor to appear and then
         // surfaces an EXECUTOR_NOT_SET custom error. This documents that
         // contract — it's important for callers (and the iOS App Intent
         // extension process) to know that "not yet ready" is distinguishable
-        // from a permanent "intent doesn't exist".
-        let bridge = FlutterBridge.shared
-
-        do {
-            _ = try await bridge.invoke(intent: "NonExistentIntent", params: [:])
-            Issue.record("Expected EXECUTOR_NOT_SET error")
-        } catch let error as AppIntentError {
-            if case .custom(let code, _) = error {
-                #expect(code == "EXECUTOR_NOT_SET")
-            } else {
-                Issue.record("Expected custom(EXECUTOR_NOT_SET) error, got: \(error)")
+        // from a permanent "intent doesn't exist". The wait is shortened here
+        // so the suite does not sit through the default; the elapsed time
+        // proves the configured value is the one being honoured.
+        await withExecutorWaitTimeout(0.3) { bridge in
+            let start = ContinuousClock.now
+            do {
+                _ = try await bridge.invoke(intent: "NonExistentIntent", params: [:])
+                Issue.record("Expected EXECUTOR_NOT_SET error")
+            } catch let error as AppIntentError {
+                if case .custom(let code, _) = error {
+                    #expect(code == "EXECUTOR_NOT_SET")
+                } else {
+                    Issue.record("Expected custom(EXECUTOR_NOT_SET) error, got: \(error)")
+                }
+            } catch {
+                Issue.record("Expected AppIntentError, got: \(error)")
             }
-        } catch {
-            Issue.record("Expected AppIntentError, got: \(error)")
+            let elapsed = ContinuousClock.now - start
+            #expect(elapsed >= .milliseconds(250))
+            #expect(elapsed < .seconds(2))
+        }
+    }
+
+    @Test("A new bridge starts with the 5-second default")
+    func executorWaitTimeoutDefault() async {
+        // A fresh instance, because `shared` carries whatever earlier tests set.
+        #expect(await FlutterBridge().executorWaitTimeout == 5.0)
+        #expect(FlutterBridge.defaultExecutorWaitTimeout == 5.0)
+    }
+
+    @Test("executorWaitTimeout is configurable and survives clearExecutors")
+    func executorWaitTimeoutIsConfigurable() async {
+        await withExecutorWaitTimeout(12) { bridge in
+            #expect(await bridge.executorWaitTimeout == 12)
+
+            // It is configuration, not an executor: tearing the engine down (hot
+            // restart) must not silently put the default back.
+            await bridge.clearExecutors()
+            #expect(await bridge.executorWaitTimeout == 12)
+
+            // Negative values collapse to zero rather than producing a negative
+            // retry count.
+            await bridge.setExecutorWaitTimeout(-1)
+            #expect(await bridge.executorWaitTimeout == 0)
+        }
+    }
+
+    @Test("Entity query without executor fails after the configured timeout")
+    func entityQueryHonoursConfiguredTimeout() async {
+        // The same knob governs every executor wait, not just `invoke`.
+        await withExecutorWaitTimeout(0) { bridge in
+            let start = ContinuousClock.now
+            await #expect(throws: AppIntentError.self) {
+                _ = try await bridge.queryEntities(
+                    entityIdentifier: "com.example.none",
+                    identifiers: ["1"]
+                )
+            }
+            // Zero means "do not wait at all": no 100 ms poll should have run.
+            #expect(ContinuousClock.now - start < .seconds(1))
+        }
+    }
+
+    @Test(
+        "An infinite executorWaitTimeout polls until the executor appears",
+        .timeLimit(.minutes(1))
+    )
+    func infiniteTimeoutDoesNotTrap() async throws {
+        // `Int(Double.infinity)` traps, so the poll count has to be clamped.
+        // Start a wait with no executor so it enters the retry loop (where
+        // that conversion happens), then wire the executor: the wait must
+        // return with its result instead of crashing or running forever.
+        try await withExecutorWaitTimeout(.infinity) { bridge in
+            #expect(await bridge.executorWaitTimeout == .infinity)
+
+            let waiter = Task {
+                try await bridge.invoke(intent: "LateExecutorIntent", params: [:]) as? String
+            }
+            // An infinite wait outlives the test unless cancelled.
+            defer { waiter.cancel() }
+
+            // Well past the first 100 ms poll, so the loop has computed its limit.
+            try await Task.sleep(nanoseconds: 250_000_000)
+            await bridge.setIntentExecutor { identifier, _ in identifier }
+
+            let start = ContinuousClock.now
+            // `waiter` is unstructured, so the time limit's cancellation must be
+            // forwarded or a hung wait would keep the test from returning.
+            let result = try await withTaskCancellationHandler {
+                try await waiter.value
+            } onCancel: {
+                waiter.cancel()
+            }
+            #expect(result == "LateExecutorIntent")
+            #expect(ContinuousClock.now - start < .seconds(2))
         }
     }
 

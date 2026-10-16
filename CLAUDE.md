@@ -225,7 +225,7 @@ docs/
   - Solution: Call `AppIntentsPlugin.configure(appGroupIdentifier:)` in both AppDelegate and generated Swift code
   - Dart side: Call `AppIntents().configureStorage(appGroupIdentifier:)` before cache operations
 
-- **EntityQuery Cold-Start Fallback (`persistedCacheKey`)**: When the host app is killed by iOS and Siri/Shortcuts triggers an EntityQuery, the Flutter engine may not finish initializing within `FlutterBridge`'s 5-second timeout, causing `entityQueryNotConfigured` errors. To handle this:
+- **EntityQuery Cold-Start Fallback (`persistedCacheKey`)**: When the host app is killed by iOS and Siri/Shortcuts triggers an EntityQuery, the Flutter engine may not finish initializing within `FlutterBridge`'s executor wait (`executorWaitTimeout`, 5 seconds by default, configurable), causing `entityQueryNotConfigured` errors. To handle this:
   - Set `@EntitySpec(persistedCacheKey: 'your.cache.key')` to make the generated `EntityQuery` read the entity list from App Group UserDefaults before waiting on the Flutter executor.
   - When `persistedCacheKey` is not set but `enumerable: true` or `indexed: true`, codegen falls back to the default key `app_intents.entities.<identifier>`. The Dart side must use that exact string with `setCachedValue`.
   - **Key namespacing**: `persistedCacheKey` is the value you pass to `AppIntents().setCachedValue(key, value)` — not the raw `UserDefaults` key. The plugin namespaces it under `app_intents.<bundleId-or-storageId>.cache.` internally.
@@ -829,7 +829,7 @@ they only run when the app is foregrounded via `openAppWhenRun = true`.
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  FlutterBridge.shared.queryEntities/suggestedEntities           │
-│  └── Waits up to 5 seconds for executor to be set               │
+│  └── Waits up to executorWaitTimeout (default 5 s) for executor │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼

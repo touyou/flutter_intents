@@ -289,9 +289,24 @@ if #available(iOS 17.0, *) {
 }
 ```
 
+`FlutterBridge` は Intent やクエリを実行する前に、これらの executor が設定されるのを待ちます。
+待ち時間のデフォルトは 5 秒（`FlutterBridge.defaultExecutorWaitTimeout`）です。App Intents
+拡張のように executor が決して設定されないプロセスでは短くして早く失敗させ、非同期の起動処理の
+あとで executor を設定するアプリでは長くします。executor を設定する前であればどこで呼んでも
+構いません。値は 100 ms のポーリングごとに読み直されるため、すでに始まっている待ちにも反映されます:
+
+```swift
+await FlutterBridge.shared.setExecutorWaitTimeout(8)  // 秒
+```
+
+現在の値は `await FlutterBridge.shared.executorWaitTimeout` で読めます。1 つの値が Intent 実行、
+エンティティクエリ、サジェスト、値クエリのすべてに適用され、`clearExecutors()` ではリセットされません。
+本番では `.infinity` を避けてください。エンジンが起動しないままだと、Siri やショートカットはエラーを
+受け取らずに永遠に待ち続けます。
+
 #### FlutterBridge waitForPlugin パターン
 
-App IntentsがFlutterBridgeモードで実行される場合、Flutterエンジンがまだ初期化されていない可能性があります。生成されたEntityクエリコードは内部的にリトライパターンを使用します（`FlutterBridge`はexecutorが設定されるまで最大5秒待機します）。`AppIntentsPlugin.shared`にアクセスする必要があるカスタムSwiftコードでは、以下のパターンを使用してください:
+App IntentsがFlutterBridgeモードで実行される場合、Flutterエンジンがまだ初期化されていない可能性があります。生成されたEntityクエリコードは内部的にリトライパターンを使用します（`FlutterBridge`はexecutorが設定されるまで `executorWaitTimeout`（デフォルト5秒）まで待機します。前述の設定を参照）。`AppIntentsPlugin.shared`にアクセスする必要があるカスタムSwiftコードでは、以下のパターンを使用してください:
 
 ```swift
 private static func waitForPlugin() async throws -> AppIntentsPlugin {

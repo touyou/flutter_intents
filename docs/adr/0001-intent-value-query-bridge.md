@@ -92,7 +92,7 @@ public func setValueQueryExecutor(
 public func queryValues(
     queryIdentifier: String, input: [String: Any]
 ) async throws -> [[String: Any]] {
-    let executor = try await waitForValueQueryExecutor()   // 既存の5秒ポーリングと同型
+    let executor = try await waitForValueQueryExecutor()   // 既存の executorWaitTimeout ポーリング（デフォルト5秒、設定可能）と同型
     return try await executor(queryIdentifier, input)
 }
 ```
