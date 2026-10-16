@@ -44,6 +44,9 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **Typed AppFunctions errors (2026-10-12)**
+  - `AppIntentErrorCode` gained `notFound`, `alreadyExists`, `denied`, `permissionRequired`, `notSupported`, `disabled`, `limitExceeded`. A handler throws `AppIntentError.fromCode(...)`; the plugin rethrows it as a `PlatformException` so the code survives the channel (it used to arrive as `"error"` on both platforms). `details` is forwarded only if `methodChannel.codec.encodeErrorEnvelope` accepts it; otherwise it is dropped, because an encode failure after the handler returns reaches native as an empty reply and loses the code too.
+  - Generated Kotlin: `AppFunctionsBridge.toAppFunctionException` maps the code to the `androidx.appfunctions` exception subclass; unknown codes (including the plugin's `execution_error`) become `AppFunctionAppUnknownException("<code>: <message>")`. `handlerNotFound` maps to `AppFunctionAppUnknownException` too (the function exists, the app has not wired its handler), not `FunctionNotFound`. iOS only gets the code in `AppIntentsError.flutterError(code:)`; mapping it to an `AppIntentError` case in Swift is a possible follow-up.
 - **Production feedback #149–#151 (2026-10-02)**
   - **#149 `updateAppShortcutParameters()` is required**, not a "force refresh": a phrase with an entity parameter never appears until the system has fetched the entities once (WWDC23 10102). `generateAll` now emits `extension AppShortcuts { static func registerParameterUpdater() }` whenever shortcuts exist (so `import app_intents` is emitted with any shortcut). It hands the plugin a closure plus the **cache keys of every cached entity**; `AppIntentsPlugin.registerShortcutParameterUpdater(entityCacheKeys:_:)` runs it once immediately and again after each Dart `setCachedValue` / `clearCachedValue` on one of those keys — after the write, because the generated `suggestedEntities()` reads the cache first. Dart: `AppIntents().updateAppShortcutParameters()` (iOS throws `SHORTCUT_UPDATER_NOT_CONFIGURED` when unwired; Android no-op). The example AppDelegate calls `AppShortcuts.registerParameterUpdater()`.
   - **#150 `onIntentExecution` replay**: requests emitted before the stream has **ever** had a listener are kept (max 16, oldest dropped) and replayed to the first subscriber via the broadcast controller's `onListen`. Deliberately not "buffer whenever nobody listens" — that would replay stale intents to a screen opened minutes later. Handlers registered with `registerIntentHandler` are unaffected (they still run, from `main()`).
@@ -349,6 +352,7 @@ Options:
 - **alpha13: `@AppFunction` renamed to `@AppFunctionDeclaration`** (2026-10-07). The annotation is now `androidx.appfunctions.AppFunctionDeclaration`. The companion rename `ObserveAppFunctionsEvent` → `AppFunctionsChangeEvent` is not used in this codebase. `@AppFunctionAccessLevel` was also added.
 - `@AppFunctionDeclaration` is **`androidx.appfunctions.AppFunctionDeclaration`** (core artifact) since alpha13 (previously `androidx.appfunctions.AppFunction` in alpha10–alpha12). The alpha13+ compiler matches only that FQN. **Code still annotated with the old `androidx.appfunctions.AppFunction` compiles against alpha13+, and KSP silently registers nothing**: check `build/app/generated/ksp/debug/resources/assets/*.xml` for `<id>`s. A green `flutter build apk` proves nothing.
 - **No `AppFunctionContext` parameter.** alpha12 made `AppFunctionContext` / `AppFunctionConfiguration` `@RestrictTo(LIBRARY_GROUP)` (release notes: "removed", I9dd8f; the classes are still in the AAR). The compiler's `validateFirstParameter` only runs on the legacy non-entry-point path; entry-point functions are validated with it skipped, and a context parameter anywhere is ignored when building metadata.
+- **Errors**: the KSP-generated dispatcher (`AppFunctionExecutionDispatcher`) hands a thrown `AppFunctionException` subclass to the caller unchanged, turns a `CancellationException` into `AppFunctionCancelledException`, and wraps any other exception in `AppFunctionAppUnknownException(e.message)`. The generated bridge's `toAppFunctionException` maps Dart `AppIntentErrorCode`s onto those subclasses (`KotlinGenerator.appFunctionExceptionByErrorCode`, verified against the alpha13 sources jar). This only works because `MethodChannelAppIntents._handleMethodCall` rethrows an `AppIntentError` as a `PlatformException` with the same code: Flutter encodes every other exception under the fixed code `"error"`, so before that change Kotlin never saw a Dart error code at all.
 - `@AppFunctionSerializable` is in `androidx.appfunctions.AppFunctionSerializable`
 - Parameter name is `isDescribedByKDoc` (uppercase 'D'); alpha07 and earlier used the lowercase `isDescribedByKdoc`
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunctionDeclaration` return type — use `String` (JSON)
@@ -460,7 +464,7 @@ does not show up".
 
 ### Reserved wire keys and duplicated literals
 
-Three string literals are deliberately defined twice, because the two sides
+These string literals are deliberately defined twice, because the two sides
 cannot import each other. Changing one means changing the other:
 
 | Literal | Codegen side | Plugin side |
@@ -468,6 +472,7 @@ cannot import each other. Changing one means changing the other:
 | `app_intents.<storageId>.cache.<key>` | — | `AppIntentsPlugin.cachePrefix` / `AppIntentsEntityCache.storageKey` |
 | `#import` (value-query suffix, #129) | `SwiftGenerator._importQuerySuffix` | `valueImportQuerySuffix` |
 | `_executionId` (params key, #130/#131) | `SwiftGenerator._executionIdKey` | `intentExecutionIdKey` |
+| `AppIntentErrorCode.name` (e.g. `notFound`) | `KotlinGenerator.appFunctionExceptionByErrorCode` keys | `AppIntentErrorCode` enum values |
 
 `_executionId` is stripped from the params before the Dart handler sees them, so
 a generated `…Params.fromMap` never has to know about it.

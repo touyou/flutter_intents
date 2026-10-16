@@ -370,6 +370,7 @@ struct AppShortcuts: AppShortcutsProvider {
 | 実行方式 | インプロセスMethodChannel（URL scheme不要） |
 | コード生成 | KSPベースの`@AppFunction`アノテーション処理 |
 | Entity直列化 | `@AppFunctionSerializable`データクラス |
+| エラー報告 | Dartの`AppIntentErrorCode`を対応する`androidx.appfunctions`例外へ変換（明示的な対応がないコードは`AppFunctionAppUnknownException`） |
 
 ## 今後の拡張ポイント
 

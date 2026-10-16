@@ -29,6 +29,35 @@ class KotlinGenerator {
   /// `assets/`. AndroidManifest.xml points `android.app.appfunctions.v2` at it.
   static const appFunctionXmlFileName = 'generated_app_functions';
 
+  /// Dart `AppIntentErrorCode` names and the `androidx.appfunctions` exception
+  /// the generated bridge raises for each (verified against 1.0.0-alpha13).
+  ///
+  /// The KSP-generated service passes an `AppFunctionException` through to the
+  /// caller unchanged and turns any other exception into
+  /// `AppFunctionAppUnknownException`, so this is what gives an AI agent a
+  /// typed error category. The keys duplicate `AppIntentErrorCode.name` in the
+  /// `app_intents` plugin on purpose — this package cannot depend on Flutter —
+  /// so the two lists move together. Codes not listed here fall back to
+  /// [fallbackAppFunctionException] with the code kept in the message.
+  static const appFunctionExceptionByErrorCode = <String, String>{
+    'invalidParameters': 'AppFunctionInvalidArgumentException',
+    'notFound': 'AppFunctionElementNotFoundException',
+    'alreadyExists': 'AppFunctionElementAlreadyExistsException',
+    'denied': 'AppFunctionDeniedException',
+    'permissionRequired': 'AppFunctionPermissionRequiredException',
+    'notSupported': 'AppFunctionNotSupportedException',
+    'disabled': 'AppFunctionDisabledException',
+    'limitExceeded': 'AppFunctionLimitExceededException',
+    // The function exists (KSP registered it); the app has not wired its Dart
+    // handler. An app-side problem, not a function the agent mis-named.
+    'handlerNotFound': 'AppFunctionAppUnknownException',
+    // Same class the dispatcher uses for a cancellation by the caller.
+    'userCancelled': 'AppFunctionCancelledException',
+  };
+
+  /// Exception raised for codes outside [appFunctionExceptionByErrorCode].
+  static const fallbackAppFunctionException = 'AppFunctionAppUnknownException';
+
   /// Lowest Android API level that has AppFunctions (Android 16).
   ///
   /// `androidx.appfunctions.AppFunctionService` is `@RequiresApi(36)`, so the
@@ -139,6 +168,11 @@ class KotlinGenerator {
     }
     if (entities.isNotEmpty) {
       imports.add('import androidx.appfunctions.AppFunctionSerializable');
+    }
+    imports.add('import androidx.appfunctions.AppFunctionException');
+    imports.add('import androidx.appfunctions.$fallbackAppFunctionException');
+    for (final exception in appFunctionExceptionByErrorCode.values) {
+      imports.add('import androidx.appfunctions.$exception');
     }
     imports.add('import io.flutter.plugin.common.MethodChannel');
     imports.add('import kotlinx.coroutines.Dispatchers');
@@ -490,7 +524,7 @@ class KotlinGenerator {
       '$_indent$_indent$_indent$_indent${_indent}override fun error(code: String, message: String?, details: Any?) {',
     );
     buffer.writeln(
-      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("\$code: \$message"))',
+      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(toAppFunctionException(code, message))',
     );
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln();
@@ -498,14 +532,46 @@ class KotlinGenerator {
       '$_indent$_indent$_indent$_indent${_indent}override fun notImplemented() {',
     );
     buffer.writeln(
-      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(RuntimeException("Not implemented"))',
+      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException($fallbackAppFunctionException("executeIntent is not implemented on the Dart side"))',
     );
     buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent)');
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
+    buffer.writeln();
+    _generateErrorMapping(buffer);
     buffer.writeln('}');
+  }
+
+  /// Generates `toAppFunctionException`, which turns a Dart `AppIntentError`
+  /// code into the matching `androidx.appfunctions` exception (see
+  /// [appFunctionExceptionByErrorCode]).
+  void _generateErrorMapping(StringBuffer buffer) {
+    buffer.writeln('$_indent/**');
+    buffer.writeln(
+      '$_indent * Maps a Dart `AppIntentError` code to the matching AppFunctions exception,',
+    );
+    buffer.writeln(
+      '$_indent * so the caller receives a typed error category instead of a generic failure.',
+    );
+    buffer.writeln(
+      '$_indent * Unknown codes become [$fallbackAppFunctionException] with the code kept in the message.',
+    );
+    buffer.writeln('$_indent */');
+    buffer.writeln('${_indent}private fun toAppFunctionException(');
+    buffer.writeln('$_indent${_indent}code: String,');
+    buffer.writeln('$_indent${_indent}message: String?');
+    buffer.writeln('$_indent): AppFunctionException = when (code) {');
+    for (final entry in appFunctionExceptionByErrorCode.entries) {
+      buffer.writeln(
+        '$_indent$_indent"${entry.key}" -> ${entry.value}(message)',
+      );
+    }
+    buffer.writeln(
+      '$_indent${_indent}else -> $fallbackAppFunctionException("\$code: \$message")',
+    );
+    buffer.writeln('$_indent}');
   }
 
   /// Formats text for KDoc comments, handling multiline descriptions.

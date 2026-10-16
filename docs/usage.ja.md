@@ -2020,6 +2020,48 @@ Future<List<Task>> defaultQuery() async {
 }
 ```
 
+失敗を呼び出し元へ伝えたい場合は、代わりに既知の `AppIntentErrorCode` を持つ
+`AppIntentError` を throw します。コードは `PlatformException` のコードとしてそのまま
+MethodChannel を越えるので、ネイティブ側で型付きのエラーに変換できます:
+
+```dart
+Future<Task> completeTaskIntentHandler({required String task}) async {
+  final toggled = await TaskRepository.instance.toggleTaskCompletion(task);
+  if (toggled == null) {
+    throw AppIntentError.fromCode(
+      AppIntentErrorCode.notFound,
+      message: 'No task with id $task',
+    );
+  }
+  return toggled;
+}
+```
+
+`details` も、標準メッセージコーデックでエンコードできる値（Map、List、文字列、数値、真偽値）
+であればそのまま届きます。エンコードできない値が含まれている場合は `details` が捨てられ、
+コードとメッセージだけが届きます。
+
+Android では、生成された `AppFunctionsBridge` がこのコードを対応する
+`androidx.appfunctions` の例外へ変換し、呼び出し元のエージェントはその例外を受け取ります:
+
+| `AppIntentErrorCode` | AppFunctions の例外 |
+|---|---|
+| `invalidParameters` | `AppFunctionInvalidArgumentException` |
+| `notFound` | `AppFunctionElementNotFoundException` |
+| `alreadyExists` | `AppFunctionElementAlreadyExistsException` |
+| `denied` | `AppFunctionDeniedException` |
+| `permissionRequired` | `AppFunctionPermissionRequiredException` |
+| `notSupported` | `AppFunctionNotSupportedException` |
+| `disabled` | `AppFunctionDisabledException` |
+| `limitExceeded` | `AppFunctionLimitExceededException` |
+| `handlerNotFound`（プラグインが送出） | `AppFunctionAppUnknownException`（関数自体は存在し、アプリ側のハンドラが未登録） |
+| `userCancelled` | `AppFunctionCancelledException`（ディスパッチャが呼び出し側のキャンセルにも使うクラス） |
+| 上記以外のコード | `AppFunctionAppUnknownException`（メッセージは `"<code>: <message>"`） |
+
+ハンドラから漏れたその他の例外は `execution_error` として報告され、最後の行に該当します。
+iOS ではコードをシステムのエラー型には対応付けず、Intent が throw するエラーの説明文に
+そのまま現れます（`Flutter error (notFound): …`）。
+
 ## トラブルシューティング
 
 ### ビルドエラー

@@ -35,6 +35,17 @@ class CompleteTaskIntentSpec extends IntentSpecBase {
 }
 
 /// Handler for the CompleteTask intent.
-Future<Task?> completeTaskIntentHandler({required String task}) async {
-  return TaskRepository.instance.toggleTaskCompletion(task);
+///
+/// Reports a missing task with a well-known error code. The code crosses the
+/// MethodChannel unchanged, so on Android the caller receives an
+/// `AppFunctionElementNotFoundException` instead of a generic failure.
+Future<Task> completeTaskIntentHandler({required String task}) async {
+  final toggled = await TaskRepository.instance.toggleTaskCompletion(task);
+  if (toggled == null) {
+    throw AppIntentError.fromCode(
+      AppIntentErrorCode.notFound,
+      message: 'No task with id $task',
+    );
+  }
+  return toggled;
 }

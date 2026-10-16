@@ -5,7 +5,18 @@
 package com.example.app.generated
 
 import androidx.annotation.RequiresApi
+import androidx.appfunctions.AppFunctionAppUnknownException
+import androidx.appfunctions.AppFunctionCancelledException
 import androidx.appfunctions.AppFunctionDeclaration
+import androidx.appfunctions.AppFunctionDeniedException
+import androidx.appfunctions.AppFunctionDisabledException
+import androidx.appfunctions.AppFunctionElementAlreadyExistsException
+import androidx.appfunctions.AppFunctionElementNotFoundException
+import androidx.appfunctions.AppFunctionException
+import androidx.appfunctions.AppFunctionInvalidArgumentException
+import androidx.appfunctions.AppFunctionLimitExceededException
+import androidx.appfunctions.AppFunctionNotSupportedException
+import androidx.appfunctions.AppFunctionPermissionRequiredException
 import androidx.appfunctions.AppFunctionSerializable
 import androidx.appfunctions.AppFunctionService
 import androidx.appfunctions.AppFunctionServiceEntryPoint
@@ -64,15 +75,37 @@ class AppFunctionsBridge private constructor(private val channel: MethodChannel)
                     }
 
                     override fun error(code: String, message: String?, details: Any?) {
-                        cont.resumeWithException(RuntimeException("$code: $message"))
+                        cont.resumeWithException(toAppFunctionException(code, message))
                     }
 
                     override fun notImplemented() {
-                        cont.resumeWithException(RuntimeException("Not implemented"))
+                        cont.resumeWithException(AppFunctionAppUnknownException("executeIntent is not implemented on the Dart side"))
                     }
                 }
             )
         }
+    }
+
+    /**
+     * Maps a Dart `AppIntentError` code to the matching AppFunctions exception,
+     * so the caller receives a typed error category instead of a generic failure.
+     * Unknown codes become [AppFunctionAppUnknownException] with the code kept in the message.
+     */
+    private fun toAppFunctionException(
+        code: String,
+        message: String?
+    ): AppFunctionException = when (code) {
+        "invalidParameters" -> AppFunctionInvalidArgumentException(message)
+        "notFound" -> AppFunctionElementNotFoundException(message)
+        "alreadyExists" -> AppFunctionElementAlreadyExistsException(message)
+        "denied" -> AppFunctionDeniedException(message)
+        "permissionRequired" -> AppFunctionPermissionRequiredException(message)
+        "notSupported" -> AppFunctionNotSupportedException(message)
+        "disabled" -> AppFunctionDisabledException(message)
+        "limitExceeded" -> AppFunctionLimitExceededException(message)
+        "handlerNotFound" -> AppFunctionAppUnknownException(message)
+        "userCancelled" -> AppFunctionCancelledException(message)
+        else -> AppFunctionAppUnknownException("$code: $message")
     }
 }
 
@@ -96,20 +129,6 @@ class AppFunctionsBridge private constructor(private val channel: MethodChannel)
 abstract class GeneratedAppFunctions : AppFunctionService() {
     private val bridge: AppFunctionsBridge
         get() = AppFunctionsBridge.getInstance()
-
-    /**
-     * Mark a task as completed
-     *
-     * @param task The task to complete
-     */
-    @AppFunctionDeclaration(isDescribedByKDoc = true)
-    suspend fun completeTask(
-        task: String
-    ): String {
-        val params = mutableMapOf<String, Any?>()
-        params["task"] = task
-        return bridge.executeIntent("com.example.taskapp.completeTask", params)
-    }
 
     /**
      * Summarize how many tasks are left
@@ -138,6 +157,20 @@ abstract class GeneratedAppFunctions : AppFunctionService() {
         if (description != null) params["description"] = description
         if (dueDate != null) params["dueDate"] = dueDate
         return bridge.executeIntent("com.example.taskapp.createTask", params)
+    }
+
+    /**
+     * Mark a task as completed
+     *
+     * @param task The task to complete
+     */
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
+    suspend fun completeTask(
+        task: String
+    ): String {
+        val params = mutableMapOf<String, Any?>()
+        params["task"] = task
+        return bridge.executeIntent("com.example.taskapp.completeTask", params)
     }
 
     /**

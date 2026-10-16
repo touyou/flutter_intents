@@ -81,6 +81,28 @@ void main() {
         expect(error.message, 'An unknown error occurred');
       });
 
+      test('creates errors with default messages for the typed codes', () {
+        const expected = {
+          AppIntentErrorCode.notFound: 'The requested resource was not found',
+          AppIntentErrorCode.alreadyExists: 'The resource already exists',
+          AppIntentErrorCode.denied:
+              'The caller is not allowed to perform this operation',
+          AppIntentErrorCode.permissionRequired:
+              'The app is missing a required permission',
+          AppIntentErrorCode.notSupported:
+              'The requested action is not supported',
+          AppIntentErrorCode.disabled: 'The requested feature is disabled',
+          AppIntentErrorCode.limitExceeded: 'The request limit was exceeded',
+        };
+
+        for (final entry in expected.entries) {
+          final error = AppIntentError.fromCode(entry.key);
+
+          expect(error.code, entry.key.name);
+          expect(error.message, entry.value);
+        }
+      });
+
       test('allows custom message override', () {
         final error = AppIntentError.fromCode(
           AppIntentErrorCode.handlerNotFound,
