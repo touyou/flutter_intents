@@ -99,8 +99,9 @@ class IntentSpec {
   /// When experimental code generation is enabled, the generated Swift conforms
   /// to `LongRunningIntent` and wraps the work in `performBackgroundTask(...)`.
   /// Long-running intents must run in the background (no [urlScheme], no
-  /// [IntentMode.foreground]). Has no effect unless experimental generation is
-  /// enabled.
+  /// [IntentMode.foreground]). On iOS it has no effect unless experimental
+  /// generation is enabled. On Android it always exempts the intent from the
+  /// opt-in `AppFunctionsBridge` call timeout.
   final bool longRunning;
 
   /// **Experimental (WWDC26, iOS 26.4+).** Marks the intent as cancellable so it

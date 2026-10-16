@@ -37,9 +37,11 @@ const String valueImportQuerySuffix = '#import';
 /// Reserved params key carrying the native execution id (#130, #131).
 ///
 /// The generated `perform()` adds it for intents that open an execution scope
-/// (long-running, cancellable, or with a requestable parameter). It is stripped
-/// before the handler sees the params, so a generated `…Params.fromMap` never
-/// has to know about it.
+/// (long-running, cancellable, or with a requestable parameter), and the
+/// generated Android `AppFunctionsBridge` adds it to every call so its timeout
+/// and the caller's cancellation can reach the handler. It is stripped before
+/// the handler sees the params, so a generated `…Params.fromMap` never has to
+/// know about it.
 const String intentExecutionIdKey = '_executionId';
 
 /// An implementation of [AppIntentsPlatform] that uses method channels.
@@ -199,9 +201,11 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     String identifier,
     Map<String, dynamic> params,
   ) {
+    // Listeners see the intent's own parameters, not the reserved execution
+    // id (#130); the handler path strips it again on its own.
     final request = IntentExecutionRequest(
       identifier: identifier,
-      params: params,
+      params: _withoutExecutionId(params),
     );
     final unheard = _unheardIntentExecutions;
     if (unheard != null && !_intentExecutionController.hasListener) {
@@ -356,7 +360,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     // Deliberately NOT swallowing MissingPluginException the way the
     // fire-and-forget calls do: a value request has a return value the handler
     // is about to use, so failing quietly would hand it a null the user never
-    // chose.
+    // chose. Android answers null itself: AppFunctions has no prompt to show,
+    // and the generated bridge opens an execution scope for every call.
     return methodChannel.invokeMethod<Object?>('requestIntentValue', {
       'executionId': executionId,
       'parameter': parameter,
@@ -536,9 +541,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     // installed in a Zone around the call — the generated handler signature is
     // the intent's own parameters and must stay that way.
     final executionId = params[intentExecutionIdKey] as String?;
-    final handlerParams = executionId == null
-        ? params
-        : (Map<String, dynamic>.of(params)..remove(intentExecutionIdKey));
+    final handlerParams = _withoutExecutionId(params);
 
     try {
       if (executionId == null) return await handler(handlerParams);
@@ -567,6 +570,13 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
         details: {'identifier': identifier},
       );
     }
+  }
+
+  /// [params] without the reserved [intentExecutionIdKey], or [params] itself
+  /// when it carries none.
+  static Map<String, dynamic> _withoutExecutionId(Map<String, dynamic> params) {
+    if (!params.containsKey(intentExecutionIdKey)) return params;
+    return Map<String, dynamic>.of(params)..remove(intentExecutionIdKey);
   }
 
   /// Queries entities using the registered handler.

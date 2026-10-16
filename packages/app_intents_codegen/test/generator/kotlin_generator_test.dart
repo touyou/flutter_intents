@@ -312,6 +312,26 @@ void main() {
         );
       });
 
+      test('exempts a longRunning intent from the per-call timeout', () {
+        final intentInfo = IntentInfo(
+          className: 'ExportTasksIntent',
+          identifier: 'com.example.taskapp.exportTasks',
+          title: 'Export Tasks',
+          implementation: IntentImplementationType.dart,
+          parameters: [],
+          longRunning: true,
+        );
+
+        final result = generator.generateIntent(intentInfo);
+
+        expect(
+          result,
+          contains(
+            'bridge.executeIntent("com.example.taskapp.exportTasks", params, longRunning = true)',
+          ),
+        );
+      });
+
       test('ignores iOS-specific urlScheme field', () {
         final intentInfo = IntentInfo(
           className: 'CreateTaskIntent',
@@ -754,7 +774,8 @@ void main() {
         );
         expect(result, contains('private val channel: MethodChannel'));
         expect(result, contains('companion object {'));
-        expect(result, contains('fun initialize(channel: MethodChannel)'));
+        expect(result, contains('fun initialize('));
+        expect(result, contains('channel: MethodChannel,'));
         expect(result, contains('fun getInstance(): AppFunctionsBridge'));
         expect(result, contains('suspend fun executeIntent('));
         expect(result, contains('identifier: String'));
@@ -803,9 +824,102 @@ void main() {
           ),
         );
       });
+
+      test('leaves calls unbounded unless a timeout is opted into', () {
+        final result = generator.generateBridge();
+
+        // Unbounded by default, like the iOS bridge: a timed-out handler may
+        // still commit its side effect, so the bound must be a deliberate choice.
+        expect(result, contains('executionTimeoutMillis: Long? = null'));
+        expect(result, isNot(contains('DEFAULT_EXECUTION_TIMEOUT_MILLIS')));
+        expect(
+          result,
+          contains(
+            'instance = AppFunctionsBridge(channel, executionTimeoutMillis)',
+          ),
+        );
+        expect(
+          result,
+          contains(
+            'require(executionTimeoutMillis == null || executionTimeoutMillis > 0) {',
+          ),
+        );
+        expect(result, contains('if (longRunning || timeout == null) {'));
+        expect(result, contains('withTimeout(timeout) {'));
+        // A TimeoutCancellationException is a CancellationException, which the
+        // AppFunctions dispatcher would report as "cancelled by the caller".
+        expect(result, contains('} catch (e: TimeoutCancellationException) {'));
+        expect(
+          result,
+          contains('"Intent \$identifier timed out after \${timeout}ms", e'),
+        );
+      });
+
+      test('keeps issue numbers out of the generated KDoc', () {
+        final result = generator.generateBridge();
+
+        expect(result, isNot(matches(RegExp(r'\(#\d+'))));
+      });
+
+      test('skips the timeout when the caller marks the call longRunning', () {
+        final result = generator.generateBridge();
+
+        expect(result, contains('longRunning: Boolean = false'));
+        expect(result, contains('if (longRunning || timeout == null) {'));
+        // Both paths share one MethodChannel round trip.
+        expect(result, contains('private suspend fun awaitDartReply('));
+        expect(
+          result,
+          contains('awaitDartReply(identifier, params, executionId)'),
+        );
+      });
+
+      test('opens a Dart execution scope and forwards cancellation', () {
+        final result = generator.generateBridge();
+
+        expect(
+          result,
+          contains('val executionId = UUID.randomUUID().toString()'),
+        );
+        // Same reserved key the plugin strips (`intentExecutionIdKey`) and the
+        // Swift generator sends.
+        expect(
+          result,
+          contains('"params" to params + ("_executionId" to executionId)'),
+        );
+        expect(result, contains('cont.invokeOnCancellation { cause ->'));
+        expect(result, contains('notifyCancellation(executionId, cause)'));
+        expect(
+          result,
+          contains(
+            'val reason = if (cause is TimeoutCancellationException) "timeout" else "cancelled"',
+          ),
+        );
+        // Cancellation handlers may run on any thread; the MethodChannel must
+        // be driven from the main one.
+        expect(result, contains('Handler(Looper.getMainLooper()).post {'));
+        expect(result, contains('"intentCancelled",'));
+        expect(
+          result,
+          contains('mapOf("executionId" to executionId, "reason" to reason)'),
+        );
+      });
     });
 
     group('generateAll', () {
+      test('imports the timeout and cancellation helpers the bridge uses', () {
+        final result = generator.generateAll(packageName: 'com.example.app');
+
+        expect(result, contains('import android.os.Handler\n'));
+        expect(result, contains('import android.os.Looper\n'));
+        expect(result, contains('import java.util.UUID\n'));
+        expect(
+          result,
+          contains('import kotlinx.coroutines.TimeoutCancellationException\n'),
+        );
+        expect(result, contains('import kotlinx.coroutines.withTimeout\n'));
+      });
+
       test('generates complete Kotlin file with package declaration', () {
         final result = generator.generateAll(
           packageName: 'com.example.app.generated',

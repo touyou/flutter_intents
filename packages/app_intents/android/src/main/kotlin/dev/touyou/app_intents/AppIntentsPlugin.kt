@@ -54,6 +54,11 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
             "processPendingActions",
             // App Shortcuts are iOS-only; AppFunctions has no parameter refresh.
             "updateAppShortcutParameters" -> result.success(null)
+            // The generated AppFunctionsBridge opens an execution scope for every
+            // call, so a handler may ask for a value it would get prompted for on
+            // iOS. AppFunctions cannot prompt: answer null (the Dart side treats it
+            // as "the caller left it out") instead of failing the whole call.
+            "requestIntentValue" -> result.success(null)
             else -> result.notImplemented()
         }
     }

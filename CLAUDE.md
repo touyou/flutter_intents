@@ -44,6 +44,12 @@ docs/
 ## Implementation Status
 
 ### Completed
+- **Android per-call timeout + cancellation forwarding (2026-10-12)**
+  - The generated `AppFunctionsBridge.executeIntent` wraps the MethodChannel call in `withTimeout` **only when the host opted in** (`initialize(channel, executionTimeoutMillis = …)`; `Long?`, `null` by default = unbounded like iOS; must be positive when set, `require`d). Unbounded is the default because Dart cancellation is cooperative: a timed-out handler usually still commits its side effect, and a retrying agent would duplicate it. The bridge sends `_executionId` with **every** call, so `AppIntentExecution.current` is non-null in every Android handler. Intents with `@IntentSpec(longRunning: true)` are exempt: the generated function passes `longRunning = true` and the bridge skips `withTimeout` for them. The Dart side strips `_executionId` before `onIntentExecution` listeners see the params (both platforms). `cont.invokeOnCancellation` posts `intentCancelled` (`reason` = `timeout` / `cancelled`) to Dart through `Handler(Looper.getMainLooper())`, reusing the #130 protocol unchanged: no new Dart plumbing.
+  - `TimeoutCancellationException` **is a `CancellationException`**, and the KSP dispatcher (`AppFunctionServiceDelegate`) turns any `CancellationException` into `AppFunctionCancelledException`, i.e. "the caller cancelled". The generated code catches it and rethrows `RuntimeException("Intent … timed out after …ms")` so a timeout is reported as a failure. A late Dart reply after cancellation is ignored by the cancelled continuation (one `resume` is tolerated).
+  - `longRunning: true` does two jobs: it lifts the Android bound and drives the iOS `LongRunningIntent` generation under the WWDC26 experimental codegen.
+  - Version skew: generated Kotlin from codegen 0.19.0+ opens an execution scope on every call and needs `app_intents` 0.19.0+ on Android (an older plugin does not answer `requestIntentValue`).
+  - On Android `reportProgress` is a no-op (`MissingPluginException` swallowed) and `requestValue` resolves to null: `AppIntentsPlugin.kt` answers `requestIntentValue` with `success(null)` because AppFunctions cannot prompt, and the documented `note ?? await …requestValue(...)` pattern would otherwise fail every call that omits the optional param.
 - **Typed AppFunctions errors (2026-10-12)**
   - `AppIntentErrorCode` gained `notFound`, `alreadyExists`, `denied`, `permissionRequired`, `notSupported`, `disabled`, `limitExceeded`. A handler throws `AppIntentError.fromCode(...)`; the plugin rethrows it as a `PlatformException` so the code survives the channel (it used to arrive as `"error"` on both platforms). `details` is forwarded only if `methodChannel.codec.encodeErrorEnvelope` accepts it; otherwise it is dropped, because an encode failure after the handler returns reaches native as an empty reply and loses the code too.
   - Generated Kotlin: `AppFunctionsBridge.toAppFunctionException` maps the code to the `androidx.appfunctions` exception subclass; unknown codes (including the plugin's `execution_error`) become `AppFunctionAppUnknownException("<code>: <message>")`. `handlerNotFound` maps to `AppFunctionAppUnknownException` too (the function exists, the app has not wired its handler), not `FunctionNotFound`. iOS only gets the code in `AppIntentsError.flutterError(code:)`; mapping it to an `AppIntentError` case in Swift is a possible follow-up.
@@ -347,6 +353,7 @@ Options:
 - `-f, --file`: Output filename (default: `GeneratedAppFunctions.kt`)
 
 ### Android AppFunctions API Gotchas
+- **Cancellation reaches the generated suspend function.** `PlatformAppFunctionService.onExecuteFunction` does `cancellationSignal.setOnCancelListener { job.cancel() }`, so a caller cancel cancels the coroutine running `GeneratedAppFunctions.<fn>` and `AppFunctionsBridge.executeIntent`; `suspendCancellableCoroutine`'s `invokeOnCancellation` is what sees it (and it may run on a binder thread, so MethodChannel calls are posted to the main looper). `TimeoutCancellationException` must be caught before the dispatcher sees it, or a timeout is reported as `AppFunctionCancelledException`.
 - **Host minSdk stays below 36** (2026-10-12). Measured on `appfunctions:1.0.0-alpha13`: the AAR declares `minSdkVersion 24` (same as Flutter's default), so the manifest merge needs **no** `tools:overrideLibrary`; `AppFunctionService` is `@RequiresApi(36)` (BAKLAVA), so `KotlinGenerator` emits `@RequiresApi(36)` on `GeneratedAppFunctions` — without it `:app:lintDebug` fails with `NewApi` at minSdk < 36 (verified red/green). The host's `<service>` **must** carry `android:enabled="@bool/app_intents_app_functions_service_enabled"` (plugin `res/values/bools.xml` = false, `res/values-v36/bools.xml` = true) + `tools:targetApi="36"`, so the KSP-generated subclass is never instantiated where its framework superclass is absent. The attribute is required, not belt-and-braces: the service is exported, and below 36 `BIND_APP_FUNCTION_SERVICE` is not a platform-defined permission, so without it any app could bind the service and crash the host with `NoClassDefFoundError`. Codegen cannot enforce it (the manifest is the host's); the generated KDoc, the docs and a CI grep on the example manifest carry it. The AAR ships its own `enablePlatformAppFunctionService` bool of exactly this shape, which confirms the pattern, but it is **not** in the AAR's `public.txt`, hence our own. Nothing else touches AppFunctions: the plugin's Kotlin is a bare `MethodChannel` and `AppFunctionsBridge.initialize()` only stores it. `KotlinGenerator.appFunctionsMinApiLevel` / `serviceEnabledBoolResource` hold the two literals; the bool name is duplicated in the plugin resources on purpose (codegen cannot import the plugin).
 - **alpha12 model: `@AppFunctionServiceEntryPoint`** (migrated 2026-09-28). Every `@AppFunctionDeclaration` must sit in an **abstract** class extending `androidx.appfunctions.AppFunctionService`, annotated `@AppFunctionServiceEntryPoint(serviceName = ..., appFunctionXmlFileName = ...)`. KSP generates the concrete `serviceName` subclass (implements `onExecuteFunction`, exposes `FUNCTION_ID_*`) and `assets/<appFunctionXmlFileName>.xml`. The manifest declares the **generated** class with `BIND_APP_FUNCTION_SERVICE`, action `android.app.appfunctions.AppFunctionService`, and `<property>`s `android.app.appfunctions.schema` = `app_functions_schema.xsd` (shipped in the AAR's assets) and `android.app.appfunctions.v2` = `<appFunctionXmlFileName>.xml`. Function ids are `<package>.GeneratedAppFunctions#<fn>`. Ground truth: the KDoc of `AppFunctionServiceEntryPoint.kt` in `appfunctions-1.0.0-alpha13-sources.jar`.
 - **alpha13: `@AppFunction` renamed to `@AppFunctionDeclaration`** (2026-10-07). The annotation is now `androidx.appfunctions.AppFunctionDeclaration`. The companion rename `ObserveAppFunctionsEvent` → `AppFunctionsChangeEvent` is not used in this codebase. `@AppFunctionAccessLevel` was also added.
@@ -471,7 +478,7 @@ cannot import each other. Changing one means changing the other:
 |---|---|---|
 | `app_intents.<storageId>.cache.<key>` | — | `AppIntentsPlugin.cachePrefix` / `AppIntentsEntityCache.storageKey` |
 | `#import` (value-query suffix, #129) | `SwiftGenerator._importQuerySuffix` | `valueImportQuerySuffix` |
-| `_executionId` (params key, #130/#131) | `SwiftGenerator._executionIdKey` | `intentExecutionIdKey` |
+| `_executionId` (params key, #130/#131) | `SwiftGenerator._executionIdKey` / `KotlinGenerator._executionIdKey` | `intentExecutionIdKey` |
 | `AppIntentErrorCode.name` (e.g. `notFound`) | `KotlinGenerator.appFunctionExceptionByErrorCode` keys | `AppIntentErrorCode` enum values |
 
 `_executionId` is stripped from the params before the Dart handler sees them, so
@@ -880,9 +887,9 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 
 ### Key Integration Points
 - **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()`, `setEntityQueryExecutor()`, and `setSuggestedEntitiesExecutor()` in AppDelegate
-- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel)` in MainActivity
+- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel, executionTimeoutMillis = …)` in MainActivity (the timeout is optional; unbounded by default)
 - **MethodChannel name**: `"app_intents"`
-- **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`
+- **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`; native → Dart: `intentCancelled`
 
 ### iOS App Integration Steps
 1. Add AppIntentsBridge — three equivalent routes, see `docs/usage.md` → "Consuming AppIntentsBridge": local Swift package at `ios/Flutter/ephemeral/Packages/.packages/app_intents` → `AppIntentsBridge` product (recommended; no Podfile needed), the `app_intents_bridge` pod (`:path => '.symlinks/plugins/app_intents/ios'`), or the remote package `https://github.com/touyou/flutter_intents` → `AppIntentsBridge` product
@@ -972,6 +979,7 @@ class MainActivity : FlutterActivity() {
     }
 }
 ```
+   `initialize` takes an optional `executionTimeoutMillis` (`null` by default: unbounded) bounding each AppFunction call; set it only for idempotent handlers.
 7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry, plus the **required** `android:enabled="@bool/app_intents_app_functions_service_enabled"` and `tools:targetApi="36"`; see `app/android/app/src/main/AndroidManifest.xml`)
 
 ## Development Commands

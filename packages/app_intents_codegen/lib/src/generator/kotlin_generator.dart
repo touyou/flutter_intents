@@ -29,6 +29,14 @@ class KotlinGenerator {
   /// `assets/`. AndroidManifest.xml points `android.app.appfunctions.v2` at it.
   static const appFunctionXmlFileName = 'generated_app_functions';
 
+  /// Reserved params key carrying the execution id (#130/#131).
+  ///
+  /// Duplicated on purpose from the plugin's `intentExecutionIdKey` and
+  /// `SwiftGenerator._executionIdKey`: this package cannot depend on the
+  /// Flutter plugin. The Dart side strips it before the handler sees the
+  /// params and uses it to route an `intentCancelled` notice.
+  static const _executionIdKey = '_executionId';
+
   /// Dart `AppIntentErrorCode` names and the `androidx.appfunctions` exception
   /// the generated bridge raises for each (verified against 1.0.0-alpha13).
   ///
@@ -169,15 +177,20 @@ class KotlinGenerator {
     if (entities.isNotEmpty) {
       imports.add('import androidx.appfunctions.AppFunctionSerializable');
     }
+    imports.add('import android.os.Handler');
+    imports.add('import android.os.Looper');
     imports.add('import androidx.appfunctions.AppFunctionException');
     imports.add('import androidx.appfunctions.$fallbackAppFunctionException');
     for (final exception in appFunctionExceptionByErrorCode.values) {
       imports.add('import androidx.appfunctions.$exception');
     }
     imports.add('import io.flutter.plugin.common.MethodChannel');
+    imports.add('import java.util.UUID');
     imports.add('import kotlinx.coroutines.Dispatchers');
+    imports.add('import kotlinx.coroutines.TimeoutCancellationException');
     imports.add('import kotlinx.coroutines.suspendCancellableCoroutine');
     imports.add('import kotlinx.coroutines.withContext');
+    imports.add('import kotlinx.coroutines.withTimeout');
     imports.add('import kotlin.coroutines.resume');
     imports.add('import kotlin.coroutines.resumeWithException');
 
@@ -341,8 +354,11 @@ class KotlinGenerator {
         );
       }
     }
+    // A long-running intent (`@IntentSpec(longRunning: true)`) is exempt from
+    // the bridge's opt-in per-call timeout: it declared that it needs the time.
+    final longRunningArg = info.longRunning ? ', longRunning = true' : '';
     buffer.writeln(
-      '$prefix${_indent}return bridge.executeIntent("${info.identifier}", params)',
+      '$prefix${_indent}return bridge.executeIntent("${info.identifier}", params$longRunningArg)',
     );
     buffer.writeln('$prefix}');
   }
@@ -471,21 +487,60 @@ class KotlinGenerator {
       ' * Call [initialize] with the MethodChannel from AppIntentsPlugin',
     );
     buffer.writeln(' * before any AppFunction methods are invoked.');
-    buffer.writeln(' */');
+    buffer.writeln(' *');
     buffer.writeln(
-      'class AppFunctionsBridge private constructor(private val channel: MethodChannel) {',
+      ' * Calls are unbounded unless [initialize] is given a timeout. Either way the',
     );
+    buffer.writeln(
+      ' * bridge tells Dart when a call is abandoned (timeout or caller cancellation),',
+    );
+    buffer.writeln(
+      ' * so a handler can stop early through `AppIntentExecution.current`.',
+    );
+    buffer.writeln(' */');
+    buffer.writeln('class AppFunctionsBridge private constructor(');
+    buffer.writeln('${_indent}private val channel: MethodChannel,');
+    buffer.writeln('${_indent}private val executionTimeoutMillis: Long?');
+    buffer.writeln(') {');
     buffer.writeln();
     buffer.writeln('${_indent}companion object {');
     buffer.writeln(
       '$_indent${_indent}private var instance: AppFunctionsBridge? = null',
     );
     buffer.writeln();
+    buffer.writeln('$_indent$_indent/**');
     buffer.writeln(
-      '$_indent${_indent}fun initialize(channel: MethodChannel) {',
+      '$_indent$_indent * [executionTimeoutMillis] optionally bounds each call (null, the default,',
     );
     buffer.writeln(
-      '$_indent$_indent${_indent}instance = AppFunctionsBridge(channel)',
+      '$_indent$_indent * means no bound). A handler that has not answered in time fails the call',
+    );
+    buffer.writeln(
+      '$_indent$_indent * and is told to stop, but stopping is cooperative: it may still finish',
+    );
+    buffer.writeln(
+      '$_indent$_indent * and commit its side effect, and the caller may retry. Make bounded',
+    );
+    buffer.writeln(
+      '$_indent$_indent * handlers idempotent. Must be positive when set. Intents declared',
+    );
+    buffer.writeln('$_indent$_indent * `longRunning` are never bounded.');
+    buffer.writeln('$_indent$_indent */');
+    buffer.writeln('$_indent${_indent}fun initialize(');
+    buffer.writeln('$_indent$_indent${_indent}channel: MethodChannel,');
+    buffer.writeln(
+      '$_indent$_indent${_indent}executionTimeoutMillis: Long? = null',
+    );
+    buffer.writeln('$_indent$_indent) {');
+    buffer.writeln(
+      '$_indent$_indent${_indent}require(executionTimeoutMillis == null || executionTimeoutMillis > 0) {',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent"executionTimeoutMillis must be positive, or null for no bound"',
+    );
+    buffer.writeln('$_indent$_indent$_indent}');
+    buffer.writeln(
+      '$_indent$_indent${_indent}instance = AppFunctionsBridge(channel, executionTimeoutMillis)',
     );
     buffer.writeln('$_indent$_indent}');
     buffer.writeln();
@@ -499,43 +554,135 @@ class KotlinGenerator {
     buffer.writeln('$_indent$_indent$_indent)');
     buffer.writeln('$_indent}');
     buffer.writeln();
+    buffer.writeln('$_indent/**');
+    buffer.writeln(
+      '$_indent * Runs the Dart handler for [identifier]. Bounded only when [initialize]',
+    );
+    buffer.writeln(
+      '$_indent * was given a timeout and [longRunning] is not set; the generated code sets',
+    );
+    buffer.writeln(
+      '$_indent * it for intents declared `@IntentSpec(longRunning: true)`.',
+    );
+    buffer.writeln('$_indent */');
     buffer.writeln('${_indent}suspend fun executeIntent(');
     buffer.writeln('$_indent${_indent}identifier: String,');
-    buffer.writeln('$_indent${_indent}params: Map<String, Any?>');
+    buffer.writeln('$_indent${_indent}params: Map<String, Any?>,');
+    buffer.writeln('$_indent${_indent}longRunning: Boolean = false');
     buffer.writeln('$_indent): String = withContext(Dispatchers.Main) {');
-    buffer.writeln('$_indent${_indent}suspendCancellableCoroutine { cont ->');
-    buffer.writeln('$_indent$_indent${_indent}channel.invokeMethod(');
-    buffer.writeln('$_indent$_indent$_indent$_indent"executeIntent",');
     buffer.writeln(
-      '$_indent$_indent$_indent${_indent}mapOf("identifier" to identifier, "params" to params),',
+      '$_indent${_indent}val executionId = UUID.randomUUID().toString()',
     );
+    buffer.writeln('$_indent${_indent}val timeout = executionTimeoutMillis');
+    buffer.writeln('$_indent${_indent}if (longRunning || timeout == null) {');
     buffer.writeln(
-      '$_indent$_indent$_indent${_indent}object : MethodChannel.Result {',
+      '$_indent$_indent${_indent}awaitDartReply(identifier, params, executionId)',
     );
+    buffer.writeln('$_indent$_indent} else {');
+    buffer.writeln('$_indent$_indent${_indent}try {');
+    buffer.writeln('$_indent$_indent$_indent${_indent}withTimeout(timeout) {');
     buffer.writeln(
-      '$_indent$_indent$_indent$_indent${_indent}override fun success(result: Any?) {',
+      '$_indent$_indent$_indent$_indent${_indent}awaitDartReply(identifier, params, executionId)',
     );
-    buffer.writeln(
-      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")',
-    );
-    buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
-    buffer.writeln();
-    buffer.writeln(
-      '$_indent$_indent$_indent$_indent${_indent}override fun error(code: String, message: String?, details: Any?) {',
-    );
-    buffer.writeln(
-      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(toAppFunctionException(code, message))',
-    );
-    buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
-    buffer.writeln();
-    buffer.writeln(
-      '$_indent$_indent$_indent$_indent${_indent}override fun notImplemented() {',
-    );
-    buffer.writeln(
-      '$_indent$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException($fallbackAppFunctionException("executeIntent is not implemented on the Dart side"))',
-    );
-    buffer.writeln('$_indent$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent$_indent}');
+    buffer.writeln(
+      '$_indent$_indent$_indent} catch (e: TimeoutCancellationException) {',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent// Not left as a CancellationException: the AppFunctions dispatcher',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent// would report that as a cancellation by the caller, not a failure.',
+    );
+    buffer.writeln('$_indent$_indent$_indent${_indent}throw RuntimeException(');
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent$_indent"Intent \$identifier timed out after \${timeout}ms", e',
+    );
+    buffer.writeln('$_indent$_indent$_indent$_indent)');
+    buffer.writeln('$_indent$_indent$_indent}');
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent}');
+    buffer.writeln();
+    buffer.writeln('$_indent/**');
+    buffer.writeln(
+      '$_indent * One MethodChannel round trip. Opens a Dart execution scope under',
+    );
+    buffer.writeln(
+      '$_indent * [executionId] so the handler is told when the call is abandoned.',
+    );
+    buffer.writeln('$_indent */');
+    buffer.writeln('${_indent}private suspend fun awaitDartReply(');
+    buffer.writeln('$_indent${_indent}identifier: String,');
+    buffer.writeln('$_indent${_indent}params: Map<String, Any?>,');
+    buffer.writeln('$_indent${_indent}executionId: String');
+    buffer.writeln('$_indent): String = suspendCancellableCoroutine { cont ->');
+    buffer.writeln('$_indent${_indent}cont.invokeOnCancellation { cause ->');
+    buffer.writeln(
+      '$_indent$_indent${_indent}notifyCancellation(executionId, cause)',
+    );
+    buffer.writeln('$_indent$_indent}');
+    buffer.writeln('$_indent${_indent}channel.invokeMethod(');
+    buffer.writeln('$_indent$_indent$_indent"executeIntent",');
+    buffer.writeln('$_indent$_indent${_indent}mapOf(');
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent"identifier" to identifier,',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent"params" to params + ("$_executionIdKey" to executionId)',
+    );
+    buffer.writeln('$_indent$_indent$_indent),');
+    buffer.writeln('$_indent$_indent${_indent}object : MethodChannel.Result {');
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}override fun success(result: Any?) {',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")',
+    );
+    buffer.writeln('$_indent$_indent$_indent$_indent}');
+    buffer.writeln();
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}override fun error(code: String, message: String?, details: Any?) {',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException(toAppFunctionException(code, message))',
+    );
+    buffer.writeln('$_indent$_indent$_indent$_indent}');
+    buffer.writeln();
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}override fun notImplemented() {',
+    );
+    buffer.writeln(
+      '$_indent$_indent$_indent$_indent${_indent}cont.resumeWithException($fallbackAppFunctionException("executeIntent is not implemented on the Dart side"))',
+    );
+    buffer.writeln('$_indent$_indent$_indent$_indent}');
+    buffer.writeln('$_indent$_indent$_indent}');
+    buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent}');
+    buffer.writeln();
+    buffer.writeln('$_indent/**');
+    buffer.writeln(
+      '$_indent * Tells Dart the execution was abandoned so the handler can stop early.',
+    );
+    buffer.writeln(
+      '$_indent * Cancellation handlers may run on any thread; the MethodChannel must be',
+    );
+    buffer.writeln(
+      '$_indent * driven from the main one. A late reply from Dart is ignored by the',
+    );
+    buffer.writeln('$_indent * already-cancelled continuation.');
+    buffer.writeln('$_indent */');
+    buffer.writeln(
+      '${_indent}private fun notifyCancellation(executionId: String, cause: Throwable?) {',
+    );
+    buffer.writeln(
+      '$_indent${_indent}val reason = if (cause is TimeoutCancellationException) "timeout" else "cancelled"',
+    );
+    buffer.writeln('$_indent${_indent}Handler(Looper.getMainLooper()).post {');
+    buffer.writeln('$_indent$_indent${_indent}channel.invokeMethod(');
+    buffer.writeln('$_indent$_indent$_indent$_indent"intentCancelled",');
+    buffer.writeln(
+      '$_indent$_indent$_indent${_indent}mapOf("executionId" to executionId, "reason" to reason)',
+    );
     buffer.writeln('$_indent$_indent$_indent)');
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');

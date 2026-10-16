@@ -4,7 +4,9 @@ import 'dart:async';
 ///
 /// [reason] is the Swift `IntentCancellationReason` rendered as a string; it is
 /// informational — the system does not promise a fixed vocabulary, and new
-/// reasons can appear in a future OS.
+/// reasons can appear in a future OS. On Android the generated
+/// `AppFunctionsBridge` sends `timeout` when its per-call bound elapsed and
+/// `cancelled` when the caller cancelled the AppFunction.
 class IntentCancellation {
   /// Creates a cancellation notice.
   const IntentCancellation({required this.executionId, required this.reason});
@@ -43,6 +45,11 @@ class IntentCancellation {
 /// `current` is null when the intent did not open an execution scope — which
 /// is every intent that is neither `longRunning`/`cancellable` nor declares a
 /// `requestValue` parameter. Handlers should treat it as optional.
+///
+/// On Android every AppFunction call opens a scope: [isCancelled] and
+/// [cancelled] report the bridge's per-call timeout and the caller's
+/// cancellation, [reportProgress] is a no-op, and [requestValue] resolves to
+/// null because AppFunctions has no prompt to show.
 class AppIntentExecution {
   /// Creates an execution context. The plugin constructs these; the closures
   /// are how it reaches the platform channel without this model depending on
@@ -111,6 +118,9 @@ class AppIntentExecution {
   /// This exists for **optional** parameters: the system already prompts on its
   /// own for a missing non-optional one, which is why a request is the only way
   /// to ask for a value the caller legitimately omitted.
+  ///
+  /// On Android there is no prompt to show, so this resolves to null: treat it
+  /// as "the caller left the parameter out".
   Future<T?> requestValue<T>(String parameterName) async {
     final value = await _requestParameterValue(parameterName);
     // A Date cannot cross the MethodChannel, so the generated Swift answers
