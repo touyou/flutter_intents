@@ -20,6 +20,7 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
           NOTES: ${{ github.event.release.body }}
           URL: ${{ github.event.release.html_url }}
+          HAS_KEY: ${{ secrets.DEVNULL_SSH_KEY != '' }}
         shell: python3 {0}
         run: |
           import os, re, uuid
@@ -51,10 +52,14 @@ jobs:
           ]
           body = "\n".join(lines)
           print(body)
+          if os.environ.get("HAS_KEY") != "true":
+              print("::notice::DEVNULL_SSH_KEY is not set; not posting")
+              body = ""
           delimiter = uuid.uuid4().hex
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"body<<{delimiter}\n{body}\n{delimiter}\n")
-      - uses: nunomaduro/dev-null.sh/.github/actions/commit@8bec9b18939ae627b256eec89f83fbb368b0f228 # production
+      - if: steps.body.outputs.body != ''
+        uses: nunomaduro/dev-null.sh/.github/actions/commit@8bec9b18939ae627b256eec89f83fbb368b0f228 # production
         with:
           body: ${{ steps.body.outputs.body }}
           ssh-key: ${{ secrets.DEVNULL_SSH_KEY }}
