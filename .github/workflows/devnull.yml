@@ -33,7 +33,8 @@ jobs:
           summary = re.sub(r"\*\*(.+?)\*\*", r"\1", summary)
           if len(summary) > 600:
               cut = summary[:600]
-              summary = cut[: cut.rfind(". ") + 1] if ". " in cut else cut.rstrip() + "…"
+              end = max(cut.rfind(". "), cut.rfind("。"))
+              summary = cut[: end + 1] if end >= 100 else cut.rstrip() + "…"
 
           fence = "`" * 3
           lines = [f"flutter_intents {tag} をリリースしました", ""]
