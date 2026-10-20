@@ -116,6 +116,11 @@ guessing ADR filenames, which do not match their titles.
 If you are backfilling an **older** release, pass `--latest=false`, or GitHub
 moves the "Latest" badge off the current version.
 
+Publishing the release also posts it to the maintainer's dev-null.sh profile
+(`.github/workflows/devnull.yml`, once `DEVNULL_ENABLED` is set): the notes'
+first paragraph plus a pubspec snippet. Make that paragraph read on its own.
+A backfill is posted too.
+
 ### 9. Report
 
 Print a summary:

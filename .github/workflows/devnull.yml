@@ -1,0 +1,66 @@
+name: /dev/null
+
+# Posts each published (non-prerelease) GitHub Release to the maintainer's dev-null.sh profile.
+# Does nothing until the repository variable DEVNULL_ENABLED is "true" and the
+# DEVNULL_SSH_KEY secret holds the private half of a signing key on the maintainer's GitHub account.
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  commit:
+    if: vars.DEVNULL_ENABLED == 'true' && !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    steps:
+      - id: body
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          NOTES: ${{ github.event.release.body }}
+          URL: ${{ github.event.release.html_url }}
+          HAS_KEY: ${{ secrets.DEVNULL_SSH_KEY != '' }}
+        shell: python3 {0}
+        run: |
+          import os, re, uuid
+
+          tag = os.environ["TAG"]
+          version = tag.removeprefix("v")
+          # The first paragraph of the notes is the summary; the rest is headings and detail.
+          notes = os.environ.get("NOTES", "").replace("\r\n", "\n")
+          summary = notes.split("\n## ", 1)[0].strip().split("\n\n", 1)[0]
+          summary = re.sub(r"\*\*(.+?)\*\*", r"\1", summary)
+          if len(summary) > 600:
+              cut = summary[:600]
+              end = max(cut.rfind(". "), cut.rfind("。"))
+              summary = cut[: end + 1] if end >= 100 else cut.rstrip() + "…"
+
+          fence = "`" * 3
+          lines = [f"flutter_intents {tag} をリリースしました", ""]
+          if summary:
+              lines += [summary, ""]
+          lines += [
+              fence + "yaml",
+              "dependencies:",
+              f"  app_intents: ^{version}",
+              f"  app_intents_annotations: ^{version}",
+              "dev_dependencies:",
+              f"  app_intents_codegen: ^{version}",
+              fence,
+              "",
+              os.environ["URL"],
+          ]
+          body = "\n".join(lines)
+          print(body)
+          if os.environ.get("HAS_KEY") != "true":
+              print("::notice::DEVNULL_SSH_KEY is not set; not posting")
+              body = ""
+          delimiter = uuid.uuid4().hex
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"body<<{delimiter}\n{body}\n{delimiter}\n")
+      - if: steps.body.outputs.body != ''
+        uses: nunomaduro/dev-null.sh/.github/actions/commit@8bec9b18939ae627b256eec89f83fbb368b0f228 # production
+        with:
+          body: ${{ steps.body.outputs.body }}
+          ssh-key: ${{ secrets.DEVNULL_SSH_KEY }}
