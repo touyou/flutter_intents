@@ -119,7 +119,7 @@ moves the "Latest" badge off the current version.
 Publishing the release also posts it to the maintainer's dev-null.sh profile
 (`.github/workflows/devnull.yml`, once `DEVNULL_ENABLED` is set): the notes'
 first paragraph plus a pubspec snippet. Make that paragraph read on its own.
-A backfill is posted too; mark it `--prerelease` if it should not be.
+A backfill is posted too.
 
 ### 9. Report
 
