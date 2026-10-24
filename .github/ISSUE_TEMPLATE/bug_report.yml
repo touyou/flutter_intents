@@ -78,8 +78,8 @@ body:
       label: Flutter / Dart versions
       description: Paste the relevant lines from `flutter --version` (or `dart --version` if codegen-only).
       placeholder: |
-        Flutter 3.41.2 • channel stable
-        Dart 3.10.x
+        Flutter 3.47.8 • channel stable
+        Dart 3.13.7
     validations:
       required: true
 
