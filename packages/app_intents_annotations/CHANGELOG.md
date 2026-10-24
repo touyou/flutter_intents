@@ -1,3 +1,8 @@
+## 0.19.0
+
+- `@IntentSpec(authenticationPolicy:)` with the new `IntentAuthentication` enum (`alwaysAllowed` / `requiresAuthentication` / `requiresLocalDeviceAuthentication`). Leaving it unset keeps the system default. iOS only (#159).
+- `@IntentSpec(longRunning: true)` now also exempts the intent from the opt-in Android call timeout (#158).
+
 ## 0.18.0
 
 - `@EntitySpec(suggestedLimit:)` caps how many entities `suggestedEntities()` returns, while `allEntities()`, `entities(for:)` and re-indexing keep the full set (#151). Each suggested entity becomes its own App Shortcut when a phrase references the entity, so keep this small (the HIG suggests no more than ten). The list order is the priority.
