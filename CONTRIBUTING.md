@@ -82,8 +82,8 @@ When a release renames, moves or removes a public Dart API (a class, an
 annotation field, a method or a named parameter), ship a
 [data-driven fix](https://dart.dev/tools/pub/data-driven-fixes) with it so users
 can migrate with `dart fix --apply`. Prefer deprecating first (keep the old name
-with `@Deprecated(...)` for one minor release) — the fix then also shows up as a
-quick fix in the IDE.
+with `@Deprecated(...)` for one minor release) so nothing breaks during the
+transition; the fix works the same way once the old API is removed.
 
 1. Add a transform to `lib/fix_data.yaml` of the package that owns the API
    (create the file if it does not exist yet):
@@ -104,7 +104,8 @@ quick fix in the IDE.
    `replacedBy`. Removing type arguments is **not** expressible, so that kind of
    change still needs a manual migration note in `CHANGELOG.md`.
 2. Add a test under `test_fixes/` in the same package: a `.dart` file using the
-   old API and a `.dart.expect` file with the expected result.
+   old API and a `.dart.expect` file with the expected result. Keep the `.dart`
+   files `dart format`ted — CI's format check covers the whole package directory.
 3. The first time a package gets `test_fixes/`, also:
    - exclude it from the package analysis (the files intentionally use removed
      API) in the package `analysis_options.yaml`:
@@ -113,9 +114,17 @@ quick fix in the IDE.
        exclude:
          - test_fixes/**
      ```
-   - add an empty `test_fixes/analysis_options.yaml`. Without it the exclude
-     above also applies to `dart fix`, which then silently computes no fixes
-     and every test fails with "original code was unchanged".
+   - add `test_fixes/analysis_options.yaml` that enables the same-package
+     deprecation lint:
+     ```yaml
+     linter:
+       rules:
+         - deprecated_member_use_from_same_package
+     ```
+     Without this file the exclude above also applies to `dart fix`, which then
+     computes no fixes and every test fails with "original code was unchanged".
+     The lint is what makes a still-`@Deprecated` API fixable inside its own
+     package (users' packages get `deprecated_member_use` without it).
 4. Verify locally:
    ```bash
    cd packages/<package>
