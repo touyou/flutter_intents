@@ -49,8 +49,8 @@ dependencies {
     // `appfunctions` since alpha10; the old `appfunctions-service` artifact (last
     // published at alpha09) is no longer needed.
     // alpha13: @AppFunction renamed to @AppFunctionDeclaration.
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha13")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha13")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-beta01")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-beta01")
 }
 
 flutter {
