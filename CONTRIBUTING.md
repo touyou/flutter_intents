@@ -81,7 +81,9 @@ feat: Add support for custom entity images
 When a release renames, moves or removes a public Dart API (a class, an
 annotation field, a method or a named parameter), ship a
 [data-driven fix](https://dart.dev/tools/pub/data-driven-fixes) with it so users
-can migrate with `dart fix --apply`. Prefer deprecating first (keep the old name
+can migrate with `dart fix --apply`. If the change is not expressible (see the
+change kinds in step 1), write a manual migration note in `CHANGELOG.md`
+instead. Prefer deprecating first (keep the old name
 with `@Deprecated(...)` for one minor release) so nothing breaks during the
 transition; the fix works the same way once the old API is removed.
 
