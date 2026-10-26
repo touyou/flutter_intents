@@ -291,6 +291,9 @@ const _intentSpecChecker = TypeChecker.fromUrl(
 ### Deprecation Warnings
 Add `// ignore_for_file: deprecated_member_use` for `ClassElement` deprecation warnings in analyzer files.
 
+### Data-driven fixes for public API changes
+Renaming / moving / removing a public Dart API ships with a transform in that package's `lib/fix_data.yaml` and a golden test in `test_fixes/` (`dart fix --compare-to-golden test_fixes`, run by CI when the directory exists). Steps, the YAML template and the `analysis_options` gotcha (an exclude without `test_fixes/analysis_options.yaml` makes every fix test fail): `CONTRIBUTING.md` → "Renaming or removing public API". No package has a `fix_data.yaml` yet: as of v0.19.0 the only past Dart API break (`IntentSpecBase<I, O>` losing its type parameters, 0.6.0) is a type-argument removal, which the format cannot express.
+
 ### Part File Pattern (DartGenerator)
 Generated Dart code uses the `part`/`part of` directive pattern:
 1. User adds `part 'filename.intent.dart';` to their spec file

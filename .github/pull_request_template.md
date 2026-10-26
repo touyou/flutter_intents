@@ -49,6 +49,7 @@
 - [ ] `make test` passes locally
 - [ ] `dart analyze` / `flutter analyze` is clean for touched packages
 - [ ] Public API changes are reflected in the relevant `CHANGELOG.md`
+- [ ] Renamed / removed public Dart API has a `lib/fix_data.yaml` transform and a `test_fixes/` case (see CONTRIBUTING.md)
 - [ ] User-visible doc changes are mirrored in **both** `README.md` **and** `README.ja.md` (and the matching `docs/*.md` / `docs/*.ja.md` pairs)
 - [ ] `CLAUDE.md` updated if architecture or non-obvious conventions changed
 - [ ] Generated code (Swift / Kotlin / Dart `part` files) regenerated if generators changed
