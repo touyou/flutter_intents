@@ -43,6 +43,12 @@ jobs:
       - name: Run tests
         working-directory: packages/${{ matrix.package }}
         run: dart test
+      - name: Verify data-driven fixes
+        # Runs only once a package ships lib/fix_data.yaml with test_fixes/
+        # (CONTRIBUTING.md, "Renaming or removing public API").
+        if: hashFiles(format('packages/{0}/test_fixes/**', matrix.package)) != ''
+        working-directory: packages/${{ matrix.package }}
+        run: dart fix --compare-to-golden test_fixes
 
   flutter-plugin:
     name: Flutter plugin (app_intents)
@@ -66,6 +72,10 @@ jobs:
       - name: Run tests
         working-directory: packages/app_intents
         run: flutter test
+      - name: Verify data-driven fixes
+        if: hashFiles('packages/app_intents/test_fixes/**') != ''
+        working-directory: packages/app_intents
+        run: dart fix --compare-to-golden test_fixes
 
   example-app:
     name: Example app analyze
