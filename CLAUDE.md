@@ -946,13 +946,14 @@ if #available(iOS 17.0, *) {
    id("com.google.devtools.ksp") version "2.3.12" apply false
    ```
    Do **not** raise Kotlin past 2.2.20 — see the Kotlin bump decision rule in Gotchas.
-3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
+3. Add the following to `android/gradle.properties`:
    ```properties
    android.newDsl=false
-   android.builtInKotlin=false
+   android.builtInKotlin=true
    ```
+   Built-in Kotlin needs Flutter 3.47+ and works with KSP 2.3.12 (verified 2026-10-29: `flutter build apk --debug` runs KSP and packs all 4 example functions). The `org.jetbrains.kotlin.android` entry in `settings.gradle.kts` stays: it pins the Kotlin version built-in Kotlin uses. The plugin's own `build.gradle.kts` no longer applies `kotlin-android` either, so `app_intents` requires Flutter 3.44+ (Dart 3.12+). On Flutter 3.44–3.46 a host sets `android.builtInKotlin=false` and applies `kotlin-android` itself.
 4. Configure `android/app/build.gradle.kts`:
-   - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`; **leave `minSdk` at Flutter's default** (see the host-minSdk gotcha)
+   - Apply the KSP plugin (not `kotlin-android`: built-in Kotlin replaces it), set `compileSdk = 37`, `targetSdk = 37`; **leave `minSdk` at Flutter's default** (see the host-minSdk gotcha)
    - Add AppFunctions dependencies: `implementation("androidx.appfunctions:appfunctions:…")` + `ksp("androidx.appfunctions:appfunctions-compiler:…")` (no `appfunctions-service`, no KSP args)
    - **Set the JVM target via the `compilerOptions` DSL, not `kotlinOptions`** — the
      legacy `android { kotlinOptions { jvmTarget = ... } }` accessor is an ERROR-level

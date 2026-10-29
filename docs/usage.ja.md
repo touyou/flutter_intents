@@ -54,13 +54,12 @@ KSPとAppFunctionsの依存関係を追加:
 ```kotlin
 // android/settings.gradle.kts
 id("com.android.application") version "9.2.1" apply false
-id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+id("org.jetbrains.kotlin.android") version "2.2.20" apply false  // built-in Kotlin が使う Kotlin のバージョンを固定する
 id("com.google.devtools.ksp") version "2.3.9" apply false
 
 // android/app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("com.google.devtools.ksp")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -75,9 +74,12 @@ dependencies {
 ```properties
 # Flutter Gradle plugin はまだ AGP 9 の new DSL をサポートしていないため legacy DSL を使う
 android.newDsl=false
-# KSP は AGP 9 の built-in Kotlin と非互換のため kotlin-android プラグインを維持する
-android.builtInKotlin=false
+# built-in Kotlin を使う（Flutter 3.47 以降が必要）。KSP 2.3.12 はこれで動く
+android.builtInKotlin=true
 ```
+
+> Flutter 3.44〜3.46 では `android.builtInKotlin=false` にして、上の `plugins {}` に `id("kotlin-android")`
+> を残してください。`app_intents` は Flutter 3.44 以上が必要です。
 
 `android/gradle/wrapper/gradle-wrapper.properties` の Gradle wrapper を 9.3.1+ に更新します:
 

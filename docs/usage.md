@@ -54,13 +54,12 @@ Add KSP and AppFunctions dependencies:
 ```kotlin
 // android/settings.gradle.kts
 id("com.android.application") version "9.2.1" apply false
-id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+id("org.jetbrains.kotlin.android") version "2.2.20" apply false  // pins the Kotlin version built-in Kotlin uses
 id("com.google.devtools.ksp") version "2.3.11" apply false
 
 // android/app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("com.google.devtools.ksp")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -75,9 +74,12 @@ Add the following AGP 9 compatibility shims to `android/gradle.properties`:
 ```properties
 # Flutter Gradle plugin does not yet support the new AGP 9 DSL — keep legacy DSL.
 android.newDsl=false
-# KSP is incompatible with AGP 9's built-in Kotlin — keep the kotlin-android plugin.
-android.builtInKotlin=false
+# Built-in Kotlin (needs Flutter 3.47+). KSP 2.3.12 works with it.
+android.builtInKotlin=true
 ```
+
+> On Flutter 3.44–3.46, set `android.builtInKotlin=false` instead and keep `id("kotlin-android")`
+> in the `plugins {}` block above. `app_intents` now requires Flutter 3.44 or later.
 
 Update the Gradle wrapper to 9.3.1+ in `android/gradle/wrapper/gradle-wrapper.properties`:
 
