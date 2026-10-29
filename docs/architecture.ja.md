@@ -361,7 +361,7 @@ struct AppShortcuts: AppShortcutsProvider {
 |------|------|
 | **Android最小バージョン** | ホストアプリの `minSdk` のまま（Flutter のデフォルトは 24）。AppFunctions は API 36 (Android 16) 以降でのみ提供: 生成サービスは `@RequiresApi(36)` で、`@bool/app_intents_app_functions_service_enabled` により API 36 未満では無効 |
 | **Kotlin** | 2.2+ |
-| **Jetpack AppFunctions** | 1.0.0-alpha12（`@AppFunctionServiceEntryPoint` 方式。`appfunctions-service` は不使用 — 詳細は `CLAUDE.md` 参照） |
+| **Jetpack AppFunctions** | 1.0.0-beta01（`@AppFunctionServiceEntryPoint` 方式。`appfunctions-service` は不使用 — 詳細は `CLAUDE.md` 参照） |
 
 ### 設計決定事項
 

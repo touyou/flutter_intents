@@ -34,7 +34,7 @@ Android アプリのネイティブコードで `AppIntentsPlugin` を参照し�
 `dev.touyou.app_intents.AppIntentsPlugin` に更新し、`flutter pub get` を実行してください。
 生成される Kotlin コードへの影響はありません。
 
-`appfunctions:1.0.0-alpha12` は **Android Gradle Plugin 9.1.1+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
+`appfunctions:1.0.0-beta01` は **Android Gradle Plugin 9.1.1+**、**Gradle 9.3.1+**、**compileSdk 37** を必要とします。
 `android/app/build.gradle.kts` を更新します。**`minSdk` はそのままにしてください**（Flutter のデフォルトは 24）。
 AppFunctions が提供されるのは Android 16（API 36）以降のみですが、アプリ全体に Android 16 を要求する必要はありません。
 詳しくは後述の [minSdk を上げずに済む仕組み](#minsdk-を上げずに済む仕組み) を参照してください。
@@ -65,8 +65,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-beta01")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-beta01")
 }
 ```
 
@@ -86,7 +86,7 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 ```
 
 > **Note**: AppFunctions が提供されるのは Android 16（API 36）以降のみです。それより古い端末では生成されたサービスが無効化され、
-> アプリの他の部分は通常どおり動作します。`compileSdk 37` の要求は `appfunctions:1.0.0-alpha12` の AAR メタデータに由来します。
+> アプリの他の部分は通常どおり動作します。`compileSdk 37` の要求は `appfunctions:1.0.0-beta01` の AAR メタデータに由来します。
 
 生成される `GeneratedAppFunctions` は `@AppFunctionServiceEntryPoint` を付けた抽象 `AppFunctionService` です。
 KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同じ Kotlin パッケージ）と

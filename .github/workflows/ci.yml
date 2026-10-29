@@ -129,6 +129,15 @@ jobs:
       - name: Build debug APK
         working-directory: app
         run: flutter build apk --debug
+      - name: Check KSP registered every example AppFunction
+        # A green build proves nothing on its own: annotations the compiler does
+        # not recognise compile fine and KSP silently registers no functions.
+        working-directory: app
+        run: |
+          COUNT=$(cat build/app/generated/ksp/debug/resources/assets/*.xml \
+            | grep -o 'GeneratedAppFunctions#[A-Za-z0-9_]*' | sort -u | wc -l)
+          echo "registered functions: $COUNT"
+          test "$COUNT" -ge 4
       - name: Check the example APK keeps Flutter's default minSdk
         # AppFunctions must not force the host minSdk up to 36: the generated
         # service is @RequiresApi(36) and disabled below it instead (docs/usage.md,

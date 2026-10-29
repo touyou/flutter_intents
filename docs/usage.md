@@ -34,7 +34,7 @@ Android hosts that reference `AppIntentsPlugin` in their own native code
 `dev.touyou.app_intents.AppIntentsPlugin` and run `flutter pub get`.
 Generated Kotlin is unaffected.
 
-`appfunctions:1.0.0-alpha12` requires **Android Gradle Plugin 9.1.1+**, **Gradle 9.3.1+**, and **compileSdk 37**.
+`appfunctions:1.0.0-beta01` requires **Android Gradle Plugin 9.1.1+**, **Gradle 9.3.1+**, and **compileSdk 37**.
 Update `android/app/build.gradle.kts`. **Leave `minSdk` as it is** (Flutter's default is 24):
 AppFunctions are served on Android 16 (API 36) and later only, but nothing forces the whole
 app to require Android 16 — see [Keeping your minSdk](#keeping-your-minsdk) below.
@@ -65,8 +65,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha12")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha12")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-beta01")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-beta01")
 }
 ```
 
@@ -87,7 +87,7 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-all.zip
 
 > **Note**: AppFunctions are served on Android 16 (API 36) or later only; on older devices the
 > generated service is disabled and the rest of the app runs as usual. The `compileSdk = 37`
-> requirement comes from the `appfunctions:1.0.0-alpha12` AAR metadata.
+> requirement comes from the `appfunctions:1.0.0-beta01` AAR metadata.
 
 The generated `GeneratedAppFunctions` is an abstract `AppFunctionService` annotated with
 `@AppFunctionServiceEntryPoint`. KSP generates the concrete `GeneratedAppFunctionService`
