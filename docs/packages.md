@@ -416,7 +416,7 @@ Tool for generating code from Dart annotations.
 - glob: ^2.1.0
 - path: ^1.9.0
 - yaml: ^3.1.0
-- app_intents_annotations: ^0.19.1
+- app_intents_annotations: ^0.20.0
 
 ### Implemented Features
 
@@ -467,7 +467,7 @@ Tool for generating code from Dart annotations.
 # pubspec.yaml
 dev_dependencies:
   build_runner: ^2.4.0
-  app_intents_codegen: ^0.19.1
+  app_intents_codegen: ^0.20.0
 ```
 
 ```bash
