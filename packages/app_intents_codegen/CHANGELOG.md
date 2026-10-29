@@ -1,4 +1,4 @@
-## Unreleased
+## 0.19.1
 
 - Android: the example app and docs now target `androidx.appfunctions` **1.0.0-beta01** (first beta).
   Generated Kotlin is unchanged: it already sets `isDescribedByKDoc` explicitly, which beta01 makes mandatory.
