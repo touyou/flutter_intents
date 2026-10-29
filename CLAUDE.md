@@ -210,7 +210,7 @@ docs/
   - Android `AppIntentsPlugin.kt`: MethodChannel bridge (`"app_intents"`)
   - CLI command: `dart run app_intents_codegen:generate_kotlin` for Kotlin file output
   - Example app Gradle configured with KSP and AppFunctions dependencies
-  - `MainActivity` wires `AppFunctionsBridge` to plugin's MethodChannel
+  - `MainApplication` starts a cached FlutterEngine and wires `AppFunctionsBridge` to the plugin's MethodChannel (`MainActivity` reuses the engine)
   - Android APK build verified successful
 
 ### Known Limitations
@@ -896,7 +896,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 
 ### Key Integration Points
 - **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()`, `setEntityQueryExecutor()`, and `setSuggestedEntitiesExecutor()` in AppDelegate
-- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel, executionTimeoutMillis = …)` in MainActivity (the timeout is optional; unbounded by default)
+- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel, executionTimeoutMillis = …)` in MainApplication (process start; AppFunctions calls launch no activity) (the timeout is optional; unbounded by default)
 - **MethodChannel name**: `"app_intents"`
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`; native → Dart: `intentCancelled`
 
@@ -973,21 +973,7 @@ if #available(iOS 17.0, *) {
      }
      ```
 5. Run `make kotlin-gen` to generate Kotlin code
-6. Wire AppFunctionsBridge in MainActivity:
-```kotlin
-import dev.touyou.app_intents.AppIntentsPlugin
-import com.example.app.generated.AppFunctionsBridge
-
-class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        val plugin = AppIntentsPlugin.shared
-        if (plugin != null) {
-            AppFunctionsBridge.initialize(plugin.getChannel())
-        }
-    }
-}
-```
+6. Wire AppFunctionsBridge in a custom `Application`, not in `MainActivity`: an AppFunctions call starts the process and binds the generated service **without any activity**, so wiring in `MainActivity.configureFlutterEngine` left the bridge uninitialized and cold calls failed with `AppFunctionsBridge not initialized` (verified 2026-10-29 on an Android 17 emulator). `MainApplication.onCreate` creates a `FlutterEngine`, runs the default Dart entrypoint, caches it in `FlutterEngineCache` under `"main"` and calls `AppFunctionsBridge.initialize(AppIntentsPlugin.shared!!.getChannel())`; `MainActivity` only overrides `getCachedEngineId()`; the manifest's `android:name` is `.MainApplication`. A call that arrives before Dart has registered its handlers is held by Dart's channel buffers, so cold calls succeed (taskSummary / createTask verified after `am force-stop`). See `app/android/app/src/main/kotlin/com/example/app/MainApplication.kt`.
    `initialize` takes an optional `executionTimeoutMillis` (`null` by default: unbounded) bounding each AppFunction call; set it only for idempotent handlers.
 7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry, plus the **required** `android:enabled="@bool/app_intents_app_functions_service_enabled"` and `tools:targetApi="36"`; see `app/android/app/src/main/AndroidManifest.xml`)
 

@@ -125,23 +125,48 @@ Declare the service in `android/app/src/main/AndroidManifest.xml` inside `<appli
 > does not recognise `androidx.appfunctions.service.AppFunction`, so that setup builds
 > but registers **no** functions.
 
-Wire the generated bridge to the plugin's MethodChannel in `MainActivity`:
+Wire the generated bridge to the plugin's MethodChannel **when the process starts**, not in
+`MainActivity`. An AppFunctions call starts your app's process and binds the generated service
+without launching any activity, so a bridge wired in `MainActivity` is not ready yet and the call
+fails with `AppFunctionsBridge not initialized. Call initialize() first.` Start the Flutter engine
+in your `Application` and let `MainActivity` reuse it:
 
 ```kotlin
+// MainApplication.kt
+import android.app.Application
 import dev.touyou.app_intents.AppIntentsPlugin
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.embedding.engine.dart.DartExecutor
 import <your.kotlin.package>.AppFunctionsBridge
 
-class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        val plugin = AppIntentsPlugin.shared
-        if (plugin != null) {
-            AppFunctionsBridge.initialize(plugin.getChannel())
-        }
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // AppFunctions calls start the process without an activity, so the engine and the bridge start here.
+        val engine = FlutterEngine(this)
+        engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
+        FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
+        AppIntentsPlugin.shared?.let { AppFunctionsBridge.initialize(it.getChannel()) }
+    }
+
+    companion object {
+        const val ENGINE_ID = "main"
     }
 }
+
+// MainActivity.kt
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity() {
+    // Reuses the engine MainApplication started.
+    override fun getCachedEngineId(): String = MainApplication.ENGINE_ID
+}
+```
+
+```xml
+<!-- AndroidManifest.xml: replace android:name="${applicationName}" -->
+<application android:name=".MainApplication" ...>
 ```
 
 AppFunction calls have no time limit by default, as on iOS. To bound them, pass
@@ -195,7 +220,7 @@ published app to drop Android 8–15. Three things keep the host's `minSdk` unto
    the service and crash yours on class load.
 
 Everything else in `app_intents` is version-agnostic: the plugin's Android code is a plain
-`MethodChannel`, and `AppFunctionsBridge.initialize()` in `MainActivity` only stores that
+`MethodChannel`, and `AppFunctionsBridge.initialize()` in `MainApplication` only stores that
 channel. The example app builds with `minSdk = flutter.minSdkVersion`, and CI checks that
 its APK keeps it.
 

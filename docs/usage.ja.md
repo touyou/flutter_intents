@@ -124,23 +124,48 @@ KSP が具象クラス `GeneratedAppFunctionService`（生成ファイルと同�
 > どちらも不要になりました。alpha12 の compiler は `androidx.appfunctions.service.AppFunction` を認識しないため、
 > 旧構成はビルドこそ通るものの関数が **1 件も** 登録されません。
 
-生成されたブリッジを `MainActivity` でプラグインの MethodChannel に接続します:
+生成されたブリッジは、`MainActivity` ではなく**プロセスの起動時に**プラグインの MethodChannel へ接続します。
+AppFunctions の呼び出しはアプリのプロセスを起動して生成されたサービスにバインドするだけで、Activity は起動しません。
+そのため `MainActivity` で接続していると、呼び出しの時点でブリッジが準備できておらず
+`AppFunctionsBridge not initialized. Call initialize() first.` で失敗します。`Application` で Flutter エンジンを起動し、
+`MainActivity` にはそれを使い回させます:
 
 ```kotlin
+// MainApplication.kt
+import android.app.Application
 import dev.touyou.app_intents.AppIntentsPlugin
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.embedding.engine.dart.DartExecutor
 import <your.kotlin.package>.AppFunctionsBridge
 
-class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        val plugin = AppIntentsPlugin.shared
-        if (plugin != null) {
-            AppFunctionsBridge.initialize(plugin.getChannel())
-        }
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // AppFunctions の呼び出しは Activity なしでプロセスを起動するので、エンジンとブリッジはここで起動する
+        val engine = FlutterEngine(this)
+        engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
+        FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
+        AppIntentsPlugin.shared?.let { AppFunctionsBridge.initialize(it.getChannel()) }
+    }
+
+    companion object {
+        const val ENGINE_ID = "main"
     }
 }
+
+// MainActivity.kt
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity() {
+    // MainApplication が起動したエンジンを使い回す
+    override fun getCachedEngineId(): String = MainApplication.ENGINE_ID
+}
+```
+
+```xml
+<!-- AndroidManifest.xml: replace android:name="${applicationName}" -->
+<application android:name=".MainApplication" ...>
 ```
 
 AppFunction の呼び出しには、iOS と同じく既定では時間制限がありません。上限を設けるには
@@ -189,7 +214,7 @@ AppFunctions は Android 16（API 36）の機能ですが、導入のために�
    クラス読み込み時にクラッシュさせ得ます。
 
 それ以外の `app_intents` はバージョンに依存しません。プラグインの Android 側は単なる `MethodChannel` で、
-`MainActivity` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
+`MainApplication` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
 `minSdk = flutter.minSdkVersion` でビルドされ、CI が APK の minSdk を確認します。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
