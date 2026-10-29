@@ -185,6 +185,7 @@ class KotlinGenerator {
       imports.add('import androidx.appfunctions.$exception');
     }
     imports.add('import io.flutter.plugin.common.MethodChannel');
+    imports.add('import org.json.JSONObject');
     imports.add('import java.util.UUID');
     imports.add('import kotlinx.coroutines.Dispatchers');
     imports.add('import kotlinx.coroutines.TimeoutCancellationException');
@@ -636,7 +637,7 @@ class KotlinGenerator {
       '$_indent$_indent$_indent${_indent}override fun success(result: Any?) {',
     );
     buffer.writeln(
-      '$_indent$_indent$_indent$_indent${_indent}cont.resume(result?.toString() ?: "{}")',
+      '$_indent$_indent$_indent$_indent${_indent}cont.resume(encodeReply(result))',
     );
     buffer.writeln('$_indent$_indent$_indent$_indent}');
     buffer.writeln();
@@ -657,6 +658,24 @@ class KotlinGenerator {
     buffer.writeln('$_indent$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent$_indent}');
     buffer.writeln('$_indent$_indent)');
+    buffer.writeln('$_indent}');
+    buffer.writeln();
+    buffer.writeln('$_indent/**');
+    buffer.writeln(
+      '$_indent * Encodes the Dart handler reply as JSON. A map or list from Dart arrives',
+    );
+    buffer.writeln(
+      '$_indent * as a Kotlin Map / List, whose toString() is not JSON (`{a=1}`).',
+    );
+    buffer.writeln('$_indent */');
+    buffer.writeln(
+      '${_indent}private fun encodeReply(result: Any?): String = when (result) {',
+    );
+    buffer.writeln('$_indent${_indent}null -> "{}"');
+    buffer.writeln('$_indent${_indent}is String -> result');
+    buffer.writeln(
+      '$_indent${_indent}else -> JSONObject.wrap(result)?.toString() ?: result.toString()',
+    );
     buffer.writeln('$_indent}');
     buffer.writeln();
     buffer.writeln('$_indent/**');

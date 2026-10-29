@@ -31,6 +31,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.json.JSONObject
 
 /**
  * A task in your task list
@@ -136,7 +137,7 @@ class AppFunctionsBridge private constructor(
             ),
             object : MethodChannel.Result {
                 override fun success(result: Any?) {
-                    cont.resume(result?.toString() ?: "{}")
+                    cont.resume(encodeReply(result))
                 }
 
                 override fun error(code: String, message: String?, details: Any?) {
@@ -148,6 +149,16 @@ class AppFunctionsBridge private constructor(
                 }
             }
         )
+    }
+
+    /**
+     * Encodes the Dart handler reply as JSON. A map or list from Dart arrives
+     * as a Kotlin Map / List, whose toString() is not JSON (`{a=1}`).
+     */
+    private fun encodeReply(result: Any?): String = when (result) {
+        null -> "{}"
+        is String -> result
+        else -> JSONObject.wrap(result)?.toString() ?: result.toString()
     }
 
     /**
