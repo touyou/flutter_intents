@@ -216,6 +216,46 @@ AppFunctions は Android 16（API 36）の機能ですが、導入のために�
 `MainApplication` の `AppFunctionsBridge.initialize()` もそのチャネルを保持するだけです。サンプルアプリは
 `minSdk = flutter.minSdkVersion` でビルドされ、CI が APK の minSdk を確認します。
 
+#### adb で AppFunctions を確認する
+
+Gemini などのシステムエージェントから AppFunctions を呼べるのは Google の
+[Early Access Program](https://developer.android.com/ai/appfunctions) に参加しているアプリだけですが、
+登録と呼び出しは申請なしで `adb` から自分で確認できます。
+
+1. **Android 17（API 37）のエミュレータイメージを使います**（例:
+   `system-images;android-37.0;google_apis;arm64-v8a`）。Android 16 初期のイメージ
+   （API 36、`BE2A.250530`）は AppFunctions のサービス自体は動いていますが、
+   `cmd app_function` が `No shell command implementation.` を返します。
+2. アプリをインストールして、登録された関数を一覧します:
+
+   ```bash
+   adb shell cmd app_function list-app-functions --package <your.application.id>
+   ```
+
+   関数ごとに `functionId`（`<your.kotlin.package>.GeneratedAppFunctions#<name>`）、
+   KDoc から作られた説明、引数が表示されます。
+3. 関数を呼びます。ブリッジをプロセスの起動時に接続していれば、アプリが起動していなくても動きます。引数は引数名をキーにした JSON です:
+
+   ```bash
+   adb shell cmd app_function execute-app-function \
+     --package <your.application.id> \
+     --function '<your.kotlin.package>.GeneratedAppFunctions\#createTask' \
+     --parameters "'{\"title\":\"牛乳を買う\"}'"
+   ```
+
+   結果は `androidAppfunctionsReturnValue` で返ります。Dart のハンドラが投げた
+   `AppIntentError` は、コードつきの `AppFunctionException` として返ります。
+
+example app で確認してわかったこと（2026-10-29、Android 17 エミュレータ）:
+
+- **アプリ未起動時の呼び出しが `AppFunctionsBridge not initialized. Call initialize() first.` で失敗する場合**、
+  ブリッジを `MainActivity` で接続しています。呼び出しはプロセスを起動しますが Activity は起動しないので、
+  プロセスの起動時に接続してください（上の `MainApplication` の設定を参照）。
+- **結果は JSON で返ります。** Dart のハンドラが返した `Map` や `List` は JSON
+  （`{"openCount":1,"headline":"1 tasks to go"}`）に、`String` はそのまま、戻り値なしは `{}` になります。
+  0.20.0 より前の `app_intents_codegen` で生成した Kotlin は結果の `toString()`（`{openCount=1, headline=1 tasks to go}`）
+  を渡していたので、この形が返ってくる場合は再生成してください。
+
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 
 `AppIntentsBridge` Swiftパッケージは、FlutterアプリとiOS App Intentsのネイティブブリッジを提供します。
