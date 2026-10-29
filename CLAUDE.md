@@ -943,7 +943,7 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
+1. Use AGP 9.4.1 / Gradle 9.8.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.4.1" apply false
