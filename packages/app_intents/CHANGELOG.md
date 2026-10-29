@@ -1,8 +1,3 @@
-## Unreleased
-
-- Migrates the Android plugin to built-in Kotlin: `android/build.gradle.kts` no longer applies the Kotlin Gradle Plugin, so Flutter no longer warns that `app_intents` applies KGP.
-- Updates the minimum supported SDK version to Flutter 3.44 / Dart 3.12.
-
 ## 0.19.1
 
 - Version bump to align with `app_intents_codegen` (docs now target `androidx.appfunctions` 1.0.0-beta01).
