@@ -1,3 +1,8 @@
+## 0.19.1
+
+- Version bump to align with `app_intents_codegen` (docs now target `androidx.appfunctions` 1.0.0-beta01).
+- No API changes
+
 ## 0.19.0
 
 - `@IntentSpec(authenticationPolicy:)` with the new `IntentAuthentication` enum (`alwaysAllowed` / `requiresAuthentication` / `requiresLocalDeviceAuthentication`). Leaving it unset keeps the system default. iOS only (#159).
