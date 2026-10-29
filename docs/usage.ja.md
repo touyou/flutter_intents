@@ -237,7 +237,7 @@ Gemini などのシステムエージェントから AppFunctions を呼べる�
 
    関数ごとに `functionId`（`<your.kotlin.package>.GeneratedAppFunctions#<name>`）、
    KDoc から作られた説明、引数が表示されます。
-3. **アプリを起動してから**関数を呼びます。引数は引数名をキーにした JSON です:
+3. 関数を呼びます。ブリッジをプロセスの起動時に接続していれば、アプリが起動していなくても動きます。引数は引数名をキーにした JSON です:
 
    ```bash
    adb shell cmd app_function execute-app-function \

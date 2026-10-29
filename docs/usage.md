@@ -245,7 +245,7 @@ register and call your functions yourself with `adb`, without any sign-up.
    Each function appears with its `functionId`
    (`<your.kotlin.package>.GeneratedAppFunctions#<name>`), the description from the
    KDoc, and its parameters.
-3. **Launch the app**, then call a function. Parameters are a JSON object keyed by
+3. Call a function. The app does not have to be running when the bridge is wired at process start. Parameters are a JSON object keyed by
    parameter name:
 
    ```bash
