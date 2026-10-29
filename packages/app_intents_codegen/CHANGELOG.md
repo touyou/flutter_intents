@@ -1,3 +1,8 @@
+## Unreleased
+
+- Android: with `androidx.appfunctions` 1.0.0-beta01, Kotlin **2.4.x** builds again (the example app now uses 2.4.20).
+  alpha09–alpha13 failed KSP under Kotlin 2.4 with `Can't escape identifier`; stay on Kotlin 2.2.x if you are still on an alpha.
+
 ## 0.19.1
 
 - Android: the example app and docs now target `androidx.appfunctions` **1.0.0-beta01** (first beta).

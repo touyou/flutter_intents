@@ -369,8 +369,13 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunctionDeclaration` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
 - Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha13 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28 on alpha12: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
-- **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
-  Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.12`,
+- **Kotlin 2.4 blocker: resolved by appfunctions 1.0.0-beta01 (2026-10-29, PR #186).**
+  The example app now runs Kotlin **2.4.20** with KSP `2.3.12` + appfunctions beta01:
+  CI's `flutter build apk --debug` is green and KSP registers all 4 example functions.
+  beta01's fix for generated file names containing invalid symbols (Idced4) is what
+  cleared it. Kotlin bumps are ordinary dependency bumps again; the history below
+  explains why appfunctions **alpha09–alpha13 require Kotlin < 2.4**.
+- **History: Kotlin was gated by the AppFunctions/KSP toolchain.** The example app pinned Kotlin **2.2.20** (KSP `2.3.12`,
   `appfunctions:1.0.0-beta01`, AGP `9.4.1`,
   Gradle `9.7.1`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
   `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
@@ -938,14 +943,14 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
+1. Use AGP 9.4.1 / Gradle 9.8.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.4.1" apply false
-   id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+   id("org.jetbrains.kotlin.android") version "2.4.20" apply false
    id("com.google.devtools.ksp") version "2.3.12" apply false
    ```
-   Do **not** raise Kotlin past 2.2.20 — see the Kotlin bump decision rule in Gotchas.
+   Kotlin 2.4.x needs `appfunctions` 1.0.0-beta01 or later; with alpha09–alpha13, stay on 2.2.20 (see Gotchas).
 3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
    ```properties
    android.newDsl=false
