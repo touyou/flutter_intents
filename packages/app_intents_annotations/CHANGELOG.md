@@ -1,3 +1,8 @@
+## 0.20.0
+
+- Version bump to align with `app_intents` / `app_intents_codegen`
+- No API changes
+
 ## 0.19.1
 
 - Version bump to align with `app_intents_codegen` (docs now target `androidx.appfunctions` 1.0.0-beta01).

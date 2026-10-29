@@ -1,5 +1,10 @@
-## Unreleased
+## 0.20.0
 
+> **Regenerate your Android Kotlin.** AppFunction results are now JSON.
+
+- Android: a `Map` or `List` returned by a Dart handler now reaches the AppFunctions caller as JSON
+  (`{"openCount":1}`) instead of Kotlin's `toString()` form (`{openCount=1}`), which agents could not parse.
+  A `String` passes through unchanged and no return value is still `{}` (#191).
 - Android: with `androidx.appfunctions` 1.0.0-beta01, Kotlin **2.4.x** builds again (the example app now uses 2.4.20).
   alpha09–alpha13 failed KSP under Kotlin 2.4 with `Can't escape identifier`; stay on Kotlin 2.2.x if you are still on an alpha.
 
