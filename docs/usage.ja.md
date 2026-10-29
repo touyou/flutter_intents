@@ -254,9 +254,10 @@ example app で確認してわかったこと（2026-10-29、Android 17 エミ�
 - **アプリ未起動時の呼び出しが `AppFunctionsBridge not initialized. Call initialize() first.` で失敗する場合**、
   ブリッジを `MainActivity` で接続しています。呼び出しはプロセスを起動しますが Activity は起動しないので、
   プロセスの起動時に接続してください（上の `MainApplication` の設定を参照）。
-- **Dart のハンドラが返した `Map` は JSON になりません。** ブリッジが結果の `toString()`
-  をそのまま渡すので、呼び出し側には `{"openCount":1,"headline":"1 tasks to go"}`
-  ではなく `{openCount=1, headline=1 tasks to go}` が届きます。何も返さないハンドラは `{}` になります。
+- **結果は JSON で返ります。** Dart のハンドラが返した `Map` や `List` は JSON
+  （`{"openCount":1,"headline":"1 tasks to go"}`）に、`String` はそのまま、戻り値なしは `{}` になります。
+  0.20.0 より前の `app_intents_codegen` で生成した Kotlin は結果の `toString()`（`{openCount=1, headline=1 tasks to go}`）
+  を渡していたので、この形が返ってくる場合は再生成してください。
 
 ### 3. iOSネイティブ設定 (AppIntentsBridge)
 
