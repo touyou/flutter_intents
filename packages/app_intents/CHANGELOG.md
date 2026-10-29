@@ -1,3 +1,7 @@
+## Unreleased
+
+- **Requires Flutter 3.44+ / Dart 3.12+.** The Android plugin no longer applies the Kotlin Gradle Plugin (`kotlin-android`) and builds with AGP's built-in Kotlin, as Flutter will drop support for plugins that apply KGP. Hosts on Flutter 3.47+ can set `android.builtInKotlin=true`; on 3.44–3.46 keep `android.builtInKotlin=false` and apply `kotlin-android` in the app.
+
 ## 0.19.1
 
 - Version bump to align with `app_intents_codegen` (docs now target `androidx.appfunctions` 1.0.0-beta01).
