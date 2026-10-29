@@ -56,10 +56,9 @@ class AppIntentExecution {
   /// it.
   AppIntentExecution({
     required this.executionId,
-    required Future<void> Function(int completed, int total) reportUnits,
-    required Future<Object?> Function(String parameter) requestParameterValue,
-  }) : _reportUnits = reportUnits,
-       _requestParameterValue = requestParameterValue;
+    required this._reportUnits,
+    required this._requestParameterValue,
+  });
 
   /// The zone key the plugin stores the active execution under.
   static const Object zoneKey = #appIntentsExecution;
