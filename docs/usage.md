@@ -137,34 +137,30 @@ in your `Application` and let `MainActivity` reuse it:
 // MainApplication.kt
 import android.app.Application
 import dev.touyou.app_intents.AppIntentsPlugin
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.FlutterEngineCache
-import io.flutter.embedding.engine.dart.DartExecutor
 import <your.kotlin.package>.AppFunctionsBridge
 
 class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         // AppFunctions calls start the process without an activity, so the engine and the bridge start here.
-        val engine = FlutterEngine(this)
-        engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
-        FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
-        AppIntentsPlugin.shared?.let { AppFunctionsBridge.initialize(it.getChannel()) }
-    }
-
-    companion object {
-        const val ENGINE_ID = "main"
+        AppIntentsPlugin.startEngine(this) { AppFunctionsBridge.initialize(it) }
     }
 }
 
 // MainActivity.kt
+import dev.touyou.app_intents.AppIntentsPlugin
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity() {
     // Reuses the engine MainApplication started.
-    override fun getCachedEngineId(): String = MainApplication.ENGINE_ID
+    override fun getCachedEngineId(): String = AppIntentsPlugin.DEFAULT_ENGINE_ID
 }
 ```
+
+`startEngine` runs the default Dart entrypoint, caches the engine under
+`AppIntentsPlugin.DEFAULT_ENGINE_ID` (pass `engineId` to use another key) and hands the
+plugin's channel to the callback. The plugin cannot name the generated `AppFunctionsBridge`,
+which is why the wiring is a callback.
 
 ```xml
 <!-- AndroidManifest.xml: replace android:name="${applicationName}" -->
@@ -175,7 +171,9 @@ AppFunction calls have no time limit by default, as on iOS. To bound them, pass
 a positive `executionTimeoutMillis` to `initialize`:
 
 ```kotlin
-AppFunctionsBridge.initialize(plugin.getChannel(), executionTimeoutMillis = 30_000L)
+AppIntentsPlugin.startEngine(this) {
+    AppFunctionsBridge.initialize(it, executionTimeoutMillis = 30_000L)
+}
 ```
 
 When the bound elapses, the call fails with
