@@ -136,34 +136,29 @@ AppFunctions の呼び出しはアプリのプロセスを起動して生成さ�
 // MainApplication.kt
 import android.app.Application
 import dev.touyou.app_intents.AppIntentsPlugin
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.FlutterEngineCache
-import io.flutter.embedding.engine.dart.DartExecutor
 import <your.kotlin.package>.AppFunctionsBridge
 
 class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         // AppFunctions の呼び出しは Activity なしでプロセスを起動するので、エンジンとブリッジはここで起動する
-        val engine = FlutterEngine(this)
-        engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
-        FlutterEngineCache.getInstance().put(ENGINE_ID, engine)
-        AppIntentsPlugin.shared?.let { AppFunctionsBridge.initialize(it.getChannel()) }
-    }
-
-    companion object {
-        const val ENGINE_ID = "main"
+        AppIntentsPlugin.startEngine(this) { AppFunctionsBridge.initialize(it) }
     }
 }
 
 // MainActivity.kt
+import dev.touyou.app_intents.AppIntentsPlugin
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity() {
     // MainApplication が起動したエンジンを使い回す
-    override fun getCachedEngineId(): String = MainApplication.ENGINE_ID
+    override fun getCachedEngineId(): String = AppIntentsPlugin.DEFAULT_ENGINE_ID
 }
 ```
+
+`startEngine` は Dart の既定のエントリポイントを実行し、エンジンを `AppIntentsPlugin.DEFAULT_ENGINE_ID` で
+キャッシュして（別のキーにするには `engineId` を渡す）、プラグインのチャネルをコールバックに渡します。
+プラグインからは生成された `AppFunctionsBridge` を参照できないため、接続はコールバックで書きます。
 
 ```xml
 <!-- AndroidManifest.xml: replace android:name="${applicationName}" -->
@@ -174,7 +169,9 @@ AppFunction の呼び出しには、iOS と同じく既定では時間制限が�
 `initialize` に正の `executionTimeoutMillis` を渡します:
 
 ```kotlin
-AppFunctionsBridge.initialize(plugin.getChannel(), executionTimeoutMillis = 30_000L)
+AppIntentsPlugin.startEngine(this) {
+    AppFunctionsBridge.initialize(it, executionTimeoutMillis = 30_000L)
+}
 ```
 
 上限を過ぎると呼び出しは `Intent <identifier> timed out after <n>ms` で失敗し、Dart ハンドラにも

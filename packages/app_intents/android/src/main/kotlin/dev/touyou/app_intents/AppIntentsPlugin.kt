@@ -1,6 +1,10 @@
 package dev.touyou.app_intents
 
+import android.content.Context
 import android.os.Build
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -24,6 +28,43 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
          */
         var shared: AppIntentsPlugin? = null
             private set
+
+        /** The [FlutterEngineCache] key [startEngine] uses by default. */
+        const val DEFAULT_ENGINE_ID = "app_intents"
+
+        /**
+         * Starts a Flutter engine running the default Dart entrypoint, caches it
+         * under [engineId] and hands its "app_intents" channel to [onChannelReady].
+         *
+         * Call it from `Application.onCreate`: an AppFunctions call starts the
+         * process and binds the generated service without launching any activity,
+         * so an engine created by the activity does not exist yet. Have the
+         * activity reuse the engine by returning [engineId] from
+         * `FlutterActivity.getCachedEngineId()`.
+         *
+         * The plugin cannot name the generated `AppFunctionsBridge`, hence the
+         * callback: `startEngine(this) { AppFunctionsBridge.initialize(it) }`.
+         * If an engine is already cached under [engineId], it is reused.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun startEngine(
+            context: Context,
+            engineId: String = DEFAULT_ENGINE_ID,
+            onChannelReady: (MethodChannel) -> Unit,
+        ): FlutterEngine {
+            val cache = FlutterEngineCache.getInstance()
+            val engine = cache.get(engineId) ?: FlutterEngine(context.applicationContext).also {
+                it.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
+                cache.put(engineId, it)
+            }
+            // FlutterEngine registers plugins in its constructor unless the app
+            // opted out of automatic registration.
+            val plugin = engine.plugins.get(AppIntentsPlugin::class.java) as? AppIntentsPlugin
+                ?: error("AppIntentsPlugin is not registered with the engine")
+            onChannelReady(plugin.getChannel())
+            return engine
+        }
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
