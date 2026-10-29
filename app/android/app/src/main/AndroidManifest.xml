@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <application
         android:label="app"
-        android:name="${applicationName}"
+        android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

@@ -210,7 +210,7 @@ docs/
   - Android `AppIntentsPlugin.kt`: MethodChannel bridge (`"app_intents"`)
   - CLI command: `dart run app_intents_codegen:generate_kotlin` for Kotlin file output
   - Example app Gradle configured with KSP and AppFunctions dependencies
-  - `MainActivity` wires `AppFunctionsBridge` to plugin's MethodChannel
+  - `MainApplication` starts a cached FlutterEngine and wires `AppFunctionsBridge` to the plugin's MethodChannel (`MainActivity` reuses the engine)
   - Android APK build verified successful
 
 ### Known Limitations
@@ -370,8 +370,13 @@ Options:
 - KSP compiler cannot handle `Map<String, Any?>` as `@AppFunctionDeclaration` return type — use `String` (JSON)
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
 - Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha13 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28 on alpha12: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
-- **Kotlin version is gated by the AppFunctions/KSP toolchain — do NOT blindly accept
-  Dependabot Kotlin bumps.** The example app pins Kotlin **2.2.20** (KSP `2.3.12`,
+- **Kotlin 2.4 blocker: resolved by appfunctions 1.0.0-beta01 (2026-10-29, PR #186).**
+  The example app now runs Kotlin **2.4.20** with KSP `2.3.12` + appfunctions beta01:
+  CI's `flutter build apk --debug` is green and KSP registers all 4 example functions.
+  beta01's fix for generated file names containing invalid symbols (Idced4) is what
+  cleared it. Kotlin bumps are ordinary dependency bumps again; the history below
+  explains why appfunctions **alpha09–alpha13 require Kotlin < 2.4**.
+- **History: Kotlin was gated by the AppFunctions/KSP toolchain.** The example app pinned Kotlin **2.2.20** (KSP `2.3.12`,
   `appfunctions:1.0.0-beta01`, AGP `9.4.1`,
   Gradle `9.7.1`). Bumping to **Kotlin 2.4.0** (released 2026-06-03) failed
   `:app:kspDebugKotlin` when bisected against KSP `2.3.9` + appfunctions **alpha09** with
@@ -892,7 +897,7 @@ Android AppFunctions run in-process, so MethodChannel works directly (no URL sch
 
 ### Key Integration Points
 - **iOS: FlutterBridge ↔ AppIntentsPlugin**: Wired via `setIntentExecutor()`, `setEntityQueryExecutor()`, and `setSuggestedEntitiesExecutor()` in AppDelegate
-- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel, executionTimeoutMillis = …)` in MainActivity (the timeout is optional; unbounded by default)
+- **Android: AppFunctionsBridge ↔ AppIntentsPlugin**: Wired via `AppFunctionsBridge.initialize(channel, executionTimeoutMillis = …)` in MainApplication (process start; AppFunctions calls launch no activity) (the timeout is optional; unbounded by default)
 - **MethodChannel name**: `"app_intents"`
 - **Method names**: `executeIntent`, `queryEntities`, `getSuggestedEntities`; native → Dart: `intentCancelled`
 
@@ -939,21 +944,22 @@ if #available(iOS 17.0, *) {
 7. **(WWDC26 experimental only)** When emitting experimental features, wire the additional bridges in AppDelegate: `setValueQueryExecutor` (#51), `AppIntentsPlugin.relevantEntitiesDonationForwarder` + the generated `register<Entity>RelevantEntitiesDonator()` (#55), and `AppIntentsPlugin.onscreenEntityBinder` (#56). See `docs/usage.md` → "Native wiring for experimental bridges". Gate the iOS-27 ones with `#if APP_INTENTS_WWDC26`.
 
 ### Android App Integration Steps
-1. Use AGP 9.4.1 / Gradle 9.7.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
+1. Use AGP 9.4.1 / Gradle 9.8.1 (example app's current toolchain; `appfunctions:1.0.0-alpha10`+ needs AGP 9.1.1+ / Gradle 9.3.1+ at minimum — the AAR itself declares AGP 9.1.0, but its `compileSdk 37` needs AGP 9.1.1 per the official AGP/API-level table)
 2. Add KSP plugin to `android/settings.gradle.kts`:
    ```kotlin
    id("com.android.application") version "9.4.1" apply false
-   id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+   id("org.jetbrains.kotlin.android") version "2.4.20" apply false
    id("com.google.devtools.ksp") version "2.3.12" apply false
    ```
-   Do **not** raise Kotlin past 2.2.20 — see the Kotlin bump decision rule in Gotchas.
-3. Add the following to `android/gradle.properties` (AGP 9 compatibility shims for Flutter + KSP):
+   Kotlin 2.4.x needs `appfunctions` 1.0.0-beta01 or later; with alpha09–alpha13, stay on 2.2.20 (see Gotchas).
+3. Add the following to `android/gradle.properties`:
    ```properties
    android.newDsl=false
-   android.builtInKotlin=false
+   android.builtInKotlin=true
    ```
+   Built-in Kotlin needs Flutter 3.47+ and works with KSP 2.3.12 (verified 2026-10-29: `flutter build apk --debug` runs KSP and packs all 4 example functions). The `org.jetbrains.kotlin.android` entry in `settings.gradle.kts` stays: it pins the Kotlin version built-in Kotlin uses. The plugin's own `build.gradle.kts` no longer applies `kotlin-android` either, so `app_intents` requires Flutter 3.44+ (Dart 3.12+). On Flutter 3.44–3.46 a host sets `android.builtInKotlin=false` and applies `kotlin-android` itself.
 4. Configure `android/app/build.gradle.kts`:
-   - Apply `kotlin-android` and KSP plugins, set `compileSdk = 37`, `targetSdk = 37`; **leave `minSdk` at Flutter's default** (see the host-minSdk gotcha)
+   - Apply the KSP plugin (not `kotlin-android`: built-in Kotlin replaces it), set `compileSdk = 37`, `targetSdk = 37`; **leave `minSdk` at Flutter's default** (see the host-minSdk gotcha)
    - Add AppFunctions dependencies: `implementation("androidx.appfunctions:appfunctions:…")` + `ksp("androidx.appfunctions:appfunctions-compiler:…")` (no `appfunctions-service`, no KSP args)
    - **Set the JVM target via the `compilerOptions` DSL, not `kotlinOptions`** — the
      legacy `android { kotlinOptions { jvmTarget = ... } }` accessor is an ERROR-level
@@ -969,21 +975,7 @@ if #available(iOS 17.0, *) {
      }
      ```
 5. Run `make kotlin-gen` to generate Kotlin code
-6. Wire AppFunctionsBridge in MainActivity:
-```kotlin
-import dev.touyou.app_intents.AppIntentsPlugin
-import com.example.app.generated.AppFunctionsBridge
-
-class MainActivity : FlutterActivity() {
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        val plugin = AppIntentsPlugin.shared
-        if (plugin != null) {
-            AppFunctionsBridge.initialize(plugin.getChannel())
-        }
-    }
-}
-```
+6. Wire AppFunctionsBridge in a custom `Application`, not in `MainActivity`: an AppFunctions call starts the process and binds the generated service **without any activity**, so wiring in `MainActivity.configureFlutterEngine` left the bridge uninitialized and cold calls failed with `AppFunctionsBridge not initialized` (verified 2026-10-29 on an Android 17 emulator). `MainApplication.onCreate` creates a `FlutterEngine`, runs the default Dart entrypoint, caches it in `FlutterEngineCache` under `"main"` and calls `AppFunctionsBridge.initialize(AppIntentsPlugin.shared!!.getChannel())`; `MainActivity` only overrides `getCachedEngineId()`; the manifest's `android:name` is `.MainApplication`. Cold calls succeed (taskSummary / createTask verified after `am force-stop`). Channel buffers only hold a call until the `app_intents` channel has *a* handler, which happens at the first `AppIntents()` call, while the example's `main()` still awaits storage setup before registering intent handlers; the plugin therefore waits up to `handlerRegistrationTimeout` (5 s, like iOS `FlutterBridge`) for a missing intent handler instead of failing with `handlerNotFound`. See `app/android/app/src/main/kotlin/com/example/app/MainApplication.kt`.
    `initialize` takes an optional `executionTimeoutMillis` (`null` by default: unbounded) bounding each AppFunction call; set it only for idempotent handlers.
 7. Register the KSP-generated `GeneratedAppFunctionService` in `AndroidManifest.xml` (permission, action and `<property>`s as in the Gotchas entry, plus the **required** `android:enabled="@bool/app_intents_app_functions_service_enabled"` and `tools:targetApi="36"`; see `app/android/app/src/main/AndroidManifest.xml`)
 

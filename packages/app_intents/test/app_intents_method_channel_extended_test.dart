@@ -11,7 +11,9 @@ void main() {
   final List<MethodCall> methodCalls = [];
 
   setUp(() {
-    platform = MethodChannelAppIntents();
+    platform = MethodChannelAppIntents()
+      // Unregistered-handler tests should fail fast; the wait has its own test.
+      ..handlerRegistrationTimeout = Duration.zero;
     methodCalls.clear();
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -51,6 +53,21 @@ void main() {
       expect(handlerCalled, isTrue);
       expect(receivedParams, {'key': 'value'});
       expect(result, {'success': true});
+    });
+
+    test('waits for a handler registered after the call arrives', () async {
+      // A cold start delivers the call while main() is still setting up.
+      platform.handlerRegistrationTimeout = const Duration(seconds: 1);
+      final result = platform.handleIntentExecution('com.example.late', {
+        'n': 1,
+      });
+
+      platform.registerIntentHandler(
+        'com.example.late',
+        (params) async => {'got': params['n']},
+      );
+
+      expect(await result, {'got': 1});
     });
 
     test('registerIntentHandler throws error for unknown intent', () async {
