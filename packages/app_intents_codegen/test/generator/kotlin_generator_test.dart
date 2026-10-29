@@ -874,6 +874,19 @@ void main() {
         );
       });
 
+      test('encodes the Dart reply as JSON, not Map.toString()', () {
+        final result = generator.generateBridge();
+
+        expect(result, contains('cont.resume(encodeReply(result))'));
+        expect(result, isNot(contains('result?.toString()')));
+        expect(
+          result,
+          contains(
+            'else -> JSONObject.wrap(result)?.toString() ?: result.toString()',
+          ),
+        );
+      });
+
       test('opens a Dart execution scope and forwards cancellation', () {
         final result = generator.generateBridge();
 
@@ -970,6 +983,7 @@ void main() {
           contains('import io.flutter.plugin.common.MethodChannel'),
         );
         expect(result, contains('import kotlinx.coroutines.Dispatchers'));
+        expect(result, contains('import org.json.JSONObject'));
       });
 
       test('imports the AppFunctions exceptions the bridge raises', () {
