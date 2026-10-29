@@ -1,6 +1,8 @@
 ## Unreleased
 
 - **Requires Flutter 3.44+ / Dart 3.12+.** The Android plugin no longer applies the Kotlin Gradle Plugin (`kotlin-android`) and builds with AGP's built-in Kotlin, as Flutter will drop support for plugins that apply KGP. Hosts on Flutter 3.47+ can set `android.builtInKotlin=true`; on 3.44–3.46 keep `android.builtInKotlin=false` and apply `kotlin-android` in the app.
+- An incoming intent now waits up to 5 seconds (`handlerRegistrationTimeout`) for its handler to be registered, instead of failing at once with `handlerNotFound`. A cold start (an Android AppFunction or an iOS background intent waking the app) can deliver the call while `main()` is still awaiting setup.
+- Docs (Android): wire `AppFunctionsBridge` in an `Application` subclass that starts the Flutter engine, not in `MainActivity`; an AppFunction call starts the process without an Activity.
 
 ## 0.19.1
 
