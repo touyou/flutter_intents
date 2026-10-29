@@ -231,11 +231,12 @@ register and call your functions yourself with `adb`, without any sign-up.
    The result comes back as `androidAppfunctionsReturnValue`. An `AppIntentError`
    thrown by the Dart handler comes back as an `AppFunctionException` with its code.
 
-Current limits, found on the example app (2026-10-29, Android 17 emulator):
+Things to know, found on the example app (2026-10-29, Android 17 emulator):
 
-- **The app must already be running.** A call starts the process, but `MainActivity`
-  does not run, so `AppFunctionsBridge` has no `MethodChannel` and the call fails with
-  `AppFunctionsBridge not initialized. Call initialize() first.`
+- **If a call fails with `AppFunctionsBridge not initialized. Call initialize() first.`**
+  while the app is not running, the bridge is wired in `MainActivity`. A call starts the
+  process but launches no activity, so wire it when the process starts (see the
+  `MainApplication` setup above).
 - **A `Map` returned by the Dart handler is not JSON.** The bridge passes on the
   result's `toString()`, so the caller gets `{openCount=1, headline=1 tasks to go}`
   rather than `{"openCount":1,"headline":"1 tasks to go"}`. A handler that returns
