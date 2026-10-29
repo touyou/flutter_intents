@@ -1,3 +1,8 @@
+## Unreleased
+
+- An incoming intent now waits up to 5 seconds (`handlerRegistrationTimeout`) for its handler to be registered, instead of failing at once with `handlerNotFound`. A cold start (an Android AppFunction or an iOS background intent waking the app) can deliver the call while `main()` is still awaiting setup.
+- Docs (Android): wire `AppFunctionsBridge` in an `Application` subclass that starts the Flutter engine, not in `MainActivity`; an AppFunction call starts the process without an Activity.
+
 ## 0.19.1
 
 - Version bump to align with `app_intents_codegen` (docs now target `androidx.appfunctions` 1.0.0-beta01).

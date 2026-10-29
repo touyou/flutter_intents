@@ -59,6 +59,16 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// Registered intent handlers, keyed by intent identifier.
   final Map<String, IntentHandler> _intentHandlers = {};
 
+  /// How long an intent waits for its handler to be registered.
+  ///
+  /// A cold start (an Android AppFunction or an iOS background intent waking
+  /// the app) can deliver the call while `main()` is still awaiting setup,
+  /// before the handlers are registered.
+  @visibleForTesting
+  Duration handlerRegistrationTimeout = const Duration(seconds: 5);
+
+  final Map<String, Completer<void>> _handlerRegistrations = {};
+
   /// Registered entity query handlers, keyed by entity identifier.
   final Map<String, EntityQueryHandler> _entityQueryHandlers = {};
 
@@ -303,6 +313,7 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   @override
   void registerIntentHandler(String identifier, IntentHandler handler) {
     _intentHandlers[identifier] = handler;
+    _handlerRegistrations.remove(identifier)?.complete();
   }
 
   @override
@@ -516,6 +527,19 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     return processed;
   }
 
+  Future<IntentHandler?> _awaitIntentHandler(String identifier) async {
+    final registration = _handlerRegistrations.putIfAbsent(
+      identifier,
+      Completer<void>.new,
+    );
+    try {
+      await registration.future.timeout(handlerRegistrationTimeout);
+    } on TimeoutException {
+      _handlerRegistrations.remove(identifier);
+    }
+    return _intentHandlers[identifier];
+  }
+
   /// Executes the registered handler for the given intent.
   ///
   /// This method is called internally when an intent execution request
@@ -526,7 +550,8 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
     String identifier,
     Map<String, dynamic> params,
   ) async {
-    final handler = _intentHandlers[identifier];
+    final handler =
+        _intentHandlers[identifier] ?? await _awaitIntentHandler(identifier);
     if (handler == null) {
       throw AppIntentError.fromCode(
         AppIntentErrorCode.handlerNotFound,
