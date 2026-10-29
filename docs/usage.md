@@ -199,6 +199,48 @@ Everything else in `app_intents` is version-agnostic: the plugin's Android code 
 channel. The example app builds with `minSdk = flutter.minSdkVersion`, and CI checks that
 its APK keeps it.
 
+#### Verifying AppFunctions with adb
+
+Gemini and other system agents can call AppFunctions only through Google's
+[Early Access Program](https://developer.android.com/ai/appfunctions), but you can
+register and call your functions yourself with `adb`, without any sign-up.
+
+1. **Use an Android 17 (API 37) emulator image**, for example
+   `system-images;android-37.0;google_apis;arm64-v8a`. Early Android 16 images
+   (API 36, `BE2A.250530`) run the AppFunctions service but answer
+   `cmd app_function` with `No shell command implementation.`
+2. Install the app and list what was registered:
+
+   ```bash
+   adb shell cmd app_function list-app-functions --package <your.application.id>
+   ```
+
+   Each function appears with its `functionId`
+   (`<your.kotlin.package>.GeneratedAppFunctions#<name>`), the description from the
+   KDoc, and its parameters.
+3. **Launch the app**, then call a function. Parameters are a JSON object keyed by
+   parameter name:
+
+   ```bash
+   adb shell cmd app_function execute-app-function \
+     --package <your.application.id> \
+     --function '<your.kotlin.package>.GeneratedAppFunctions\#createTask' \
+     --parameters "'{\"title\":\"Buy milk\"}'"
+   ```
+
+   The result comes back as `androidAppfunctionsReturnValue`. An `AppIntentError`
+   thrown by the Dart handler comes back as an `AppFunctionException` with its code.
+
+Current limits, found on the example app (2026-10-29, Android 17 emulator):
+
+- **The app must already be running.** A call starts the process, but `MainActivity`
+  does not run, so `AppFunctionsBridge` has no `MethodChannel` and the call fails with
+  `AppFunctionsBridge not initialized. Call initialize() first.`
+- **A `Map` returned by the Dart handler is not JSON.** The bridge passes on the
+  result's `toString()`, so the caller gets `{openCount=1, headline=1 tasks to go}`
+  rather than `{"openCount":1,"headline":"1 tasks to go"}`. A handler that returns
+  nothing yields `{}`.
+
 ### 3. iOS Native Setup (AppIntentsBridge)
 
 The `AppIntentsBridge` Swift package provides the native bridge between your
