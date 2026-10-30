@@ -27,9 +27,15 @@ jobs:
 
           tag = os.environ["TAG"]
           version = tag.removeprefix("v")
-          # The first paragraph of the notes is the summary; the rest is headings and detail.
+          # The release notes are English (OSS), but the dev-null post is Japanese:
+          # a hidden <!-- devnull: ... --> comment in the notes is the summary when present,
+          # otherwise the first paragraph of the notes is.
           notes = os.environ.get("NOTES", "").replace("\r\n", "\n")
-          summary = notes.split("\n## ", 1)[0].strip().split("\n\n", 1)[0]
+          hidden = re.search(r"<!--\s*devnull:\s*(.+?)\s*-->", notes, re.S)
+          if hidden:
+              summary = hidden.group(1).strip()
+          else:
+              summary = notes.split("\n## ", 1)[0].strip().split("\n\n", 1)[0]
           summary = re.sub(r"\*\*(.+?)\*\*", r"\1", summary)
           if len(summary) > 600:
               cut = summary[:600]

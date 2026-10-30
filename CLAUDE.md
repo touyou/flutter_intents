@@ -1261,5 +1261,5 @@ Do NOT update CLAUDE.md for:
 ## Repository-wide rules
 
 - **Name branches by role**: `feature/`, `fix/`, `chore/`, `docs/`, `refactor/`, `release/x.y.z` plus a short description (e.g. `fix/android-timeout`). Do not use `claude/...` or other auto-generated names.
-- **Release notes get a warm opening line**: GitHub Release bodies and release announcements start with one friendly sentence for users (what the release makes nicer) before the list of changes. `CHANGELOG.md` stays factual.
+- **Release notes get a warm opening line, in English**: GitHub Release bodies start with one friendly sentence for users (what the release makes nicer) before the list of changes, and the whole Release is written in English (OSS). The dev-null.sh post stays Japanese via a hidden `<!-- devnull: ... -->` comment (see `RELEASING.md`). `CHANGELOG.md` stays factual.
 - **Clean up after yourself**: delete merged or abandoned work branches (remote too), temp files and build outputs when the work is done. Never delete `main` or a branch with an open PR.
