@@ -99,5 +99,10 @@ git push origin main vX.Y.Z
 - Verify the three packages appear on pub.dev at the new version and that
   the package score / topics look correct.
 - Create a GitHub Release from the new tag, pasting the combined changelog
-  entries.
+  entries. **Write the Release in English** (this is an OSS library), opening
+  with one warm sentence for users before the changes. For the Japanese
+  dev-null.sh post, put a Japanese version of that sentence in a hidden
+  comment right after it: `<!-- devnull: ... -->`. The `/dev/null` workflow
+  posts that comment instead of the first paragraph, and it does not render on
+  GitHub. Editing a Release later does not re-post.
 - Update any open issues that asked for the now-released change.
