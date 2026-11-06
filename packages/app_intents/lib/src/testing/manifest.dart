@@ -85,6 +85,10 @@ class DeclaredIntent {
   /// The intent's title.
   String get title => json['title'] as String;
 
+  /// `dart`, `swift` or `kotlin`. Only a `dart` intent is expected to have a
+  /// Dart handler.
+  String get implementation => json['implementation'] as String? ?? 'dart';
+
   /// The intent's description, if any.
   String? get description => json['description'] as String?;
 

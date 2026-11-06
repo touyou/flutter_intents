@@ -201,6 +201,50 @@ void main() {
     });
   });
 
+  test('records the implementation and never lets id or title be null', () {
+    final manifest = ManifestGenerator().build(
+      intents: const [
+        IntentInfo(
+          className: 'NativeSpec',
+          identifier: 'com.example.native',
+          title: 'Native',
+          implementation: IntentImplementationType.swift,
+          parameters: [],
+        ),
+      ],
+      entities: const [
+        EntityInfo(
+          className: 'NoteSpec',
+          identifier: 'com.example.Note',
+          title: 'Note',
+          pluralTitle: 'Notes',
+          properties: [
+            EntityPropertyInfo(
+              fieldName: 'id',
+              dartType: 'String?',
+              role: EntityPropertyRole.id,
+            ),
+            EntityPropertyInfo(
+              fieldName: 'name',
+              dartType: 'String?',
+              role: EntityPropertyRole.title,
+            ),
+          ],
+        ),
+      ],
+    );
+    expect(
+      ((manifest['intents'] as List).single as Map)['implementation'],
+      'swift',
+    );
+    final props =
+        (((manifest['entities'] as List).single as Map)['schema']
+                as Map)['properties']
+            as Map;
+    expect(props['id'], containsPair('type', 'string'));
+    expect(props['name'], containsPair('type', 'string'));
+  });
+
   test('generate emits JSON that round-trips', () {
     final json = ManifestGenerator().generate(
       intents: const [],

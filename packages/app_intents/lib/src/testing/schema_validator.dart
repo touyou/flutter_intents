@@ -33,7 +33,6 @@ void _validate(
         '$path: ${_describe(value)} matches none of the allowed shapes',
       );
     }
-    return;
   }
 
   final type = schema['type'];

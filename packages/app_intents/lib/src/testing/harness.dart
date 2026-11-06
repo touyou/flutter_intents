@@ -366,10 +366,13 @@ class AppIntentsInventory {
   /// The manifest this was compared with, if any.
   final AppIntentsManifest? manifest;
 
-  /// Declared intents that no handler answers. Empty without a manifest.
+  /// Declared Dart-implemented intents that no handler answers. Intents
+  /// implemented natively (`swift` / `kotlin`) are not expected to have one.
+  /// Empty without a manifest.
   Set<String> get unhandledIntents => {
     for (final i in manifest?.intents ?? const <DeclaredIntent>[])
-      if (!intents.contains(i.identifier)) i.identifier,
+      if (i.implementation == 'dart' && !intents.contains(i.identifier))
+        i.identifier,
   };
 
   /// Declared entities without an entity query handler. Empty without a

@@ -81,6 +81,8 @@ class ManifestGenerator {
     return {
       'identifier': intent.identifier,
       'className': intent.className,
+      // Only `dart` intents get a generated Dart handler registration.
+      'implementation': intent.implementation.name,
       'title': intent.title,
       'description': ?intent.description,
       'longRunning': intent.longRunning,
@@ -221,9 +223,13 @@ class ManifestGenerator {
         'bool' => 'boolean',
         _ => null,
       };
-      final nullable = p.dartType.endsWith('?');
       // The generated Swift reads every role field with `as? String` and
-      // drops the row when id or title is not one.
+      // drops the row when id or title is not one, so null is never valid
+      // there even when the Dart field is nullable.
+      final nullable =
+          p.dartType.endsWith('?') &&
+          p.role != EntityPropertyRole.id &&
+          p.role != EntityPropertyRole.title;
       final wireType = switch (p.role) {
         EntityPropertyRole.id ||
         EntityPropertyRole.title ||

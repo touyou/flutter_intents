@@ -51,6 +51,10 @@ void main() {
       'com.example.taskapp.TaskEntity',
     );
     expect(suggested.single['title'], 'Buy milk');
+    expect(
+      TaskRepository.instance.getAllTasks().single.dueDate,
+      DateTime.parse('2026-11-07T09:00:00.000Z'),
+    );
   });
 
   test('completeTask reports an unknown task as notFound', () async {

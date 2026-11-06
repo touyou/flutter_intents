@@ -26,6 +26,13 @@ const _manifestJson = '''
       "className": "DeclaredOnlySpec",
       "title": "Declared only",
       "parameters": {"type": "object", "properties": {}, "required": []}
+    },
+    {
+      "identifier": "test.native",
+      "className": "NativeSpec",
+      "implementation": "swift",
+      "title": "Native",
+      "parameters": {"type": "object", "properties": {}, "required": []}
     }
   ],
   "entities": [
@@ -88,6 +95,18 @@ void main() {
       expect(bare.list().unhandledIntents, isEmpty);
       expect(bare.list().undeclaredIntents, isEmpty);
     });
+  });
+
+  test('validateJsonSchema checks constraints beside anyOf', () {
+    expect(
+      validateJsonSchema(2, {
+        'anyOf': [
+          {'type': 'integer'},
+        ],
+        'enum': [1],
+      }),
+      isNotEmpty,
+    );
   });
 
   group('run', () {

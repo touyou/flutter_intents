@@ -4,6 +4,7 @@
     {
       "identifier": "com.example.taskapp.completeTask",
       "className": "CompleteTaskIntentSpec",
+      "implementation": "dart",
       "title": "Complete Task",
       "description": "Mark a task as completed",
       "longRunning": false,
@@ -28,6 +29,7 @@
     {
       "identifier": "com.example.taskapp.createTask",
       "className": "CreateTaskIntentSpec",
+      "implementation": "dart",
       "title": "Create Task",
       "description": "Create a new task in your task list",
       "longRunning": false,
@@ -76,6 +78,7 @@
     {
       "identifier": "com.example.taskapp.createTaskWithImage",
       "className": "CreateTaskWithImageIntentSpec",
+      "implementation": "dart",
       "title": "Create Task with Image",
       "description": "Create a new task with an optional image attachment",
       "longRunning": false,
@@ -131,6 +134,7 @@
     {
       "identifier": "com.example.taskapp.taskSummary",
       "className": "TaskSummaryIntentSpec",
+      "implementation": "dart",
       "title": "Task Summary",
       "description": "Summarize how many tasks are left",
       "longRunning": false,
