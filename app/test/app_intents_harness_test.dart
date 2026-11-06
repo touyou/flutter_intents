@@ -56,9 +56,7 @@ void main() {
   test('completeTask reports an unknown task as notFound', () async {
     await expectLater(
       harness.run('com.example.taskapp.completeTask', {'task': 'missing'}),
-      throwsA(
-        isA<AppIntentError>().having((e) => e.code, 'code', 'notFound'),
-      ),
+      throwsA(isA<AppIntentError>().having((e) => e.code, 'code', 'notFound')),
     );
   });
 
