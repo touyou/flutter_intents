@@ -43,7 +43,12 @@ enum ExperimentalFeature {
   /// (generated closure registers with the plugin and calls
   /// `RelevantEntities.shared.updateEntities`). See
   /// `docs/adr/0003-donations-and-discovery.md`.
-  donation('donation');
+  donation('donation'),
+
+  /// Siri AI tools (iOS 27.3): `ToolIntent` conformance for
+  /// `@IntentSpec(tool: true)`. Gated on the SDK version, not on
+  /// `APP_INTENTS_WWDC26`, because the type is absent from 27.0–27.2.
+  tool('tool');
 
   const ExperimentalFeature(this.flag);
 

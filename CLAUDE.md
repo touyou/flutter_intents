@@ -722,6 +722,19 @@ Re-audit before gating anything new:
 | `GeoToolbox.PlaceDescriptor` (iOS 26.0) | ✅ | ✅ | only the `ValueRepresentation` around it needs `#if` |
 | `IntentCurrencyAmount` (iOS 16.0) | ✅ | ✅ | exists, but **not exportable** — see below |
 
+**27.3 SDK additions (Xcode 27.3 beta, audited 2026-11-06).** The 27.0–27.2
+SDKs lack these, so they need a second gate. `canImport(AppIntents, _version:
+301.2)` is it (27.3 ships AppIntents 301.2.x, 27.2 ships 301.1.x; both use Swift
+6.4.2, so `compiler(>=)` can't tell them apart). Generated code combines it with
+the usual flag: `#if APP_INTENTS_WWDC26 && canImport(AppIntents, _version: 301.2)`.
+`SwiftGenerator.sdk273Condition` holds the literal.
+
+| Symbol | 27.2 SDK | 27.3 SDK | Status |
+|---|:--:|:--:|---|
+| `video` schema domain (iOS/tvOS/visionOS 27.3, not macOS/watchOS) | ❌ | ✅ | done (#201); an intent taking a video entity follows it into the 27.3 branch |
+| `ToolIntent` (iOS/macOS/visionOS 27.3, not watchOS/tvOS) | ❌ | ✅ | done (`tool` flag, #200); additive extension. **A primary-domain schema + `ToolIntent` drops the target's metadata**, so `tool` + `schema` is a generation error |
+| `GenerableEntity` / `@AppEntity(.generable)`, `IntentVisibility`, `@Property(description:visibility:)`, `SnippetRepresentableEntity`, `DeleteIntent.Target`, `EntityCollectionSearchCriteria` (declared `anyAppleOS 27.0` but first present in 27.3), `AppEntity.authenticationPolicy` | ❌ | ✅ | not yet (#200, #202) |
+
 `AppEntityContext` still has exactly one factory in the RC (`.audio(_:)` →
 `AudioContext.nowPlaying`), so a "typed context catalog" would have one member.
 `RelevantEntities`' `removeEntities` / `removeAllEntities` (both overloads) are

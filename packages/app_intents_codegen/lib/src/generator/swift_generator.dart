@@ -125,8 +125,30 @@ class SwiftGenerator {
       buffer.writeln();
     }
     _generateIntentBody(buffer, info);
+    if (_usesToolIntent(info)) {
+      buffer.writeln();
+      buffer.writeln();
+      _writeToolIntentExtension(buffer, info);
+    }
 
     return buffer.toString();
+  }
+
+  /// Whether [info] becomes a Siri AI tool (`tool` feature + `tool: true`).
+  bool _usesToolIntent(IntentInfo info) =>
+      experimental.isEnabled(ExperimentalFeature.tool) && info.tool;
+
+  /// Writes the `ToolIntent` conformance as an additive extension, so the
+  /// intent struct is the same on every SDK and only gains the conformance
+  /// where the type exists. `ToolIntent` is unavailable on watchOS and tvOS,
+  /// which `@available(..., *)` alone does not exclude.
+  void _writeToolIntentExtension(StringBuffer buffer, IntentInfo info) {
+    buffer.writeln(
+      '#if APP_INTENTS_WWDC26 && $sdk273Condition && !os(watchOS) && !os(tvOS)',
+    );
+    buffer.writeln('@available(iOS 27.3, macOS 27.3, visionOS 27.3, *)');
+    buffer.writeln('extension ${info.className}: ToolIntent {}');
+    buffer.write('#endif');
   }
 
   /// Writes a parameter declaration to the buffer.
@@ -1527,12 +1549,12 @@ class SwiftGenerator {
       // App Schema (#49) is iOS 27+: the entity, its query and extensions all
       // move to iOS 27 in the experimental branch. The #else branch keeps the
       // stable form so released-SDK builds without the flag still compile.
-      buffer.writeln('#if APP_INTENTS_WWDC26');
+      buffer.writeln('#if ${_wwdcCondition(info.schema)}');
       _writeEntityAndQuery(
         buffer,
         info,
-        availability: 'iOS 27.0',
-        indexedAvailability: 'iOS 27.0',
+        availability: _wwdcAvailability(info.schema),
+        indexedAvailability: _wwdcAvailability(info.schema),
         schemaMacro: _usesExperimentalEntitySchema(info)
             ? '@AppEntity(schema: .${info.schema})'
             : null,
@@ -1623,7 +1645,7 @@ class SwiftGenerator {
   void _writeIndexedEntityQueryExtension(StringBuffer buffer, EntityInfo info) {
     final dualId = _usesDualIdentifier(info);
     buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln('extension ${info.className}Query: IndexedEntityQuery {');
     buffer.writeln('${_indent}func reindexEntities(');
     buffer.writeln(
@@ -1668,7 +1690,7 @@ class SwiftGenerator {
   /// with no `#else` (additive).
   void _writeSyncableEntityExtension(StringBuffer buffer, EntityInfo info) {
     buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln(
       '/// The id is already stable across devices, so no extra members are needed.',
     );
@@ -1701,7 +1723,7 @@ class SwiftGenerator {
     final fnName = 'register${info.className}RelevantEntitiesDonator';
 
     buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln(
       '/// Registers the RelevantEntities donator for ${info.className}.',
     );
@@ -1767,7 +1789,7 @@ class SwiftGenerator {
     buffer.writeln('$_indent}');
     buffer.writeln('}');
     buffer.writeln();
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln('extension ${info.className} {');
     buffer.writeln(
       '$_indent/// Maps an opaque context token from Dart to an AppEntityContext.',
@@ -1888,7 +1910,7 @@ class SwiftGenerator {
       buffer.writeln('import GeoToolbox');
     }
     buffer.writeln();
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln('extension ${info.className}: Transferable {');
     buffer.writeln(
       '${_indent}static var transferRepresentation: some TransferRepresentation {',
@@ -2221,11 +2243,11 @@ class SwiftGenerator {
     // A dual identifier (#132) changes the entity type the same way a schema
     // does, so the query has to follow it into both branches.
     if (_usesExperimentalEntitySchema(info) || _usesDualIdentifier(info)) {
-      buffer.writeln('#if APP_INTENTS_WWDC26');
+      buffer.writeln('#if ${_wwdcCondition(info.schema)}');
       _writeValueQueryStructBody(
         buffer,
         info,
-        availability: 'iOS 27.0',
+        availability: _wwdcAvailability(info.schema),
         dualId: _usesDualIdentifier(info),
       );
       buffer.writeln();
@@ -2289,7 +2311,7 @@ class SwiftGenerator {
   /// Writes the experimental `OwnershipProvidingEntity` conformance extension.
   void _writeOwnershipExtension(StringBuffer buffer, EntityInfo info) {
     buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln('extension ${info.className}: OwnershipProvidingEntity {');
     buffer.writeln(
       '${_indent}var ownership: EntityOwnership { ${_ownershipToSwift(info.ownership!)} }',
@@ -2327,6 +2349,43 @@ class SwiftGenerator {
   /// An expression yielding the entity identifier as a plain `String`.
   String _entityIdString(String receiver, bool dualId) =>
       dualId ? '$receiver.id.entityIdentifierString' : '$receiver.id';
+
+  /// True when compiling against the 27.3 SDK or newer. The AppIntents module
+  /// version is the only thing that tells 27.2 from 27.3 (both ship Swift
+  /// 6.4.2, so `compiler(>=)` cannot); 27.2 is 301.1.x, 27.3 beta is 301.2.x.
+  static const sdk273Condition = 'canImport(AppIntents, _version: 301.2)';
+
+  /// App Schema domains that first shipped in the 27.3 SDK. Their accessors
+  /// (`.video.movie`) are absent from 27.0–27.2, so `APP_INTENTS_WWDC26` alone
+  /// cannot gate them: a project on 27.2 with that flag set would stop
+  /// compiling. [sdk273Condition] keeps such a project on the stable form.
+  static const _sdk273SchemaDomains = {'video'};
+
+  /// Whether [schema] belongs to a domain that needs the 27.3 SDK.
+  bool _needsSdk273(String? schema) =>
+      experimental.isEnabled(ExperimentalFeature.appSchema) &&
+      schema != null &&
+      _sdk273SchemaDomains.contains(schema.split('.').first);
+
+  /// The `#if` condition of the WWDC26 branch for a declaration with [schema].
+  String _wwdcCondition(String? schema) => _needsSdk273(schema)
+      ? 'APP_INTENTS_WWDC26 && $sdk273Condition'
+      : 'APP_INTENTS_WWDC26';
+
+  /// The availability of the WWDC26 branch for a declaration with [schema],
+  /// or of anything in a WWDC26 block that names such a declaration: an
+  /// extension cannot be available earlier than the type it extends.
+  String _wwdcAvailability(String? schema) =>
+      _needsSdk273(schema) ? 'iOS 27.3' : 'iOS 27.0';
+
+  /// [_wwdcAvailability] for a union, which names every case's entity.
+  String _unionAvailability(UnionInfo union, List<EntityInfo> entities) {
+    final byClass = {for (final e in entities) e.className: e};
+    final needs273 = union.cases.any(
+      (c) => _needsSdk273(byClass[c.entityType]?.schema),
+    );
+    return needs273 ? 'iOS 27.3' : 'iOS 27.0';
+  }
 
   /// Whether [info] should emit the `@AppEntity(schema:)` macro.
   bool _usesExperimentalEntitySchema(EntityInfo info) =>
@@ -3097,7 +3156,7 @@ class SwiftGenerator {
     final allUnions = _collectUnions(intents, unions);
     final decodedUnionEntities = <String>{};
     for (final union in allUnions) {
-      _generateUnionEnum(buffer, union);
+      _generateUnionEnum(buffer, union, entities);
       buffer.writeln();
       buffer.writeln();
       // #133: a union-returning IntentValueQuery — one query answering with
@@ -3119,7 +3178,7 @@ class SwiftGenerator {
         buffer.writeln();
         buffer.writeln();
       }
-      _generateIntentBody(buffer, intent);
+      _generateIntentBody(buffer, intent, entities);
       // #55 intent donation: additive reverse executor, in its own #if block
       // (no #else — without the flag the intent simply isn't donatable). The
       // `donate()` symbol is stable iOS 16+ but we gate behind the donation
@@ -3129,6 +3188,11 @@ class SwiftGenerator {
         buffer.writeln();
         buffer.writeln();
         _writeIntentDonator(buffer, intent);
+      }
+      if (_usesToolIntent(intent)) {
+        buffer.writeln();
+        buffer.writeln();
+        _writeToolIntentExtension(buffer, intent);
       }
       buffer.writeln();
       buffer.writeln();
@@ -3328,7 +3392,7 @@ class SwiftGenerator {
       _writeUnionCaseDecoder(buffer, entity);
       buffer.writeln();
     }
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_unionAvailability(union, entities)}, *)');
     buffer.writeln('struct ${union.className}ValueQuery: IntentValueQuery {');
     buffer.writeln(
       '${_indent}func values(for input: String) async throws -> [${union.className}] {',
@@ -3381,7 +3445,7 @@ class SwiftGenerator {
         .where((p) => p.role == EntityPropertyRole.image)
         .firstOrNull;
 
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_wwdcAvailability(info.schema)}, *)');
     buffer.writeln('extension ${info.className} {');
     buffer.writeln(
       '$_indent'
@@ -3404,9 +3468,13 @@ class SwiftGenerator {
 
   /// Writes a `@UnionValue enum`, gated by `#if APP_INTENTS_WWDC26` (no `#else`:
   /// the type can't exist on the stable SDK).
-  void _generateUnionEnum(StringBuffer buffer, UnionInfo union) {
+  void _generateUnionEnum(
+    StringBuffer buffer,
+    UnionInfo union,
+    List<EntityInfo> entities,
+  ) {
     buffer.writeln('#if APP_INTENTS_WWDC26');
-    buffer.writeln('@available(iOS 27.0, *)');
+    buffer.writeln('@available(${_unionAvailability(union, entities)}, *)');
     buffer.writeln('@UnionValue');
     buffer.writeln('enum ${union.className} {');
     for (final c in union.cases) {
@@ -3416,10 +3484,19 @@ class SwiftGenerator {
     buffer.write('#endif');
   }
 
-  void _generateIntentBody(StringBuffer buffer, IntentInfo info) {
-    if (_usesExperimentalIntent(info)) {
-      buffer.writeln('#if APP_INTENTS_WWDC26');
-      _generateExperimentalIntentBody(buffer, info);
+  void _generateIntentBody(
+    StringBuffer buffer,
+    IntentInfo info, [
+    List<EntityInfo> entities = const [],
+  ]) {
+    final needsSdk273 = _intentNeedsSdk273(info, entities);
+    if (_usesExperimentalIntent(info) || needsSdk273) {
+      buffer.writeln(
+        needsSdk273
+            ? '#if APP_INTENTS_WWDC26 && $sdk273Condition'
+            : '#if APP_INTENTS_WWDC26',
+      );
+      _generateExperimentalIntentBody(buffer, info, needsSdk273: needsSdk273);
       buffer.writeln();
       buffer.writeln('#else');
       _generateStableIntentBody(buffer, info);
@@ -3428,6 +3505,22 @@ class SwiftGenerator {
     } else {
       _generateStableIntentBody(buffer, info);
     }
+  }
+
+  /// Whether [info]'s WWDC26 branch names a 27.3-SDK schema: its own, or that
+  /// of an entity one of its parameters takes. A parameter counts because a
+  /// struct cannot be available earlier than the types it stores.
+  bool _intentNeedsSdk273(IntentInfo info, List<EntityInfo> entities) {
+    if (_needsSdk273(info.schema)) return true;
+    final byClass = {for (final e in entities) e.className: e};
+    bool entityNeeds(String? className) =>
+        className != null && _needsSdk273(byClass[className]?.schema);
+    return info.parameters.any(
+      (p) =>
+          entityNeeds(p.entityType) ||
+          entityNeeds(p.entityCollectionType) ||
+          (p.unionInfo?.cases.any((c) => entityNeeds(c.entityType)) ?? false),
+    );
   }
 
   /// Whether [info] uses any experimental WWDC26 feature (execution control or
@@ -3502,7 +3595,11 @@ class SwiftGenerator {
   /// `performBackgroundTask` / `withIntentCancellationHandler`. The whole struct
   /// is gated at the minimum OS version the chosen APIs require (so we avoid the
   /// problem of conditionally conforming to a newer-OS protocol).
-  void _generateExperimentalIntentBody(StringBuffer buffer, IntentInfo info) {
+  void _generateExperimentalIntentBody(
+    StringBuffer buffer,
+    IntentInfo info, {
+    bool needsSdk273 = false,
+  }) {
     final hasExecutionTargets =
         info.executionTargets != null && info.executionTargets!.isNotEmpty;
     final hasSchema = _usesExperimentalSchema(info);
@@ -3515,11 +3612,12 @@ class SwiftGenerator {
     // LongRunningIntent, IntentExecutionTargets, App Schema and native
     // `Duration` parameters are iOS 27+; CancellableIntent on its own is
     // iOS 26.4+.
-    final minVersion =
-        (info.longRunning ||
-            hasExecutionTargets ||
-            hasSchema ||
-            nativeRichTypes)
+    final minVersion = needsSdk273
+        ? '27.3'
+        : (info.longRunning ||
+              hasExecutionTargets ||
+              hasSchema ||
+              nativeRichTypes)
         ? '27.0'
         : '26.4';
 
@@ -3752,11 +3850,11 @@ class SwiftGenerator {
   void _generateEnumBody(StringBuffer buffer, EnumInfo info) {
     if (experimental.isEnabled(ExperimentalFeature.appSchema) &&
         info.schema != null) {
-      buffer.writeln('#if APP_INTENTS_WWDC26');
+      buffer.writeln('#if ${_wwdcCondition(info.schema)}');
       _writeEnumStruct(
         buffer,
         info,
-        availability: 'iOS 27.0',
+        availability: _wwdcAvailability(info.schema),
         schemaMacro: '@AppEnum(schema: .${info.schema})',
       );
       buffer.writeln();

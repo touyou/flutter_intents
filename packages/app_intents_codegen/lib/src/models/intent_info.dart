@@ -79,6 +79,9 @@ class IntentInfo {
   /// `donation` feature is enabled.
   final bool donatable;
 
+  /// `@IntentSpec(tool: true)`: a Siri AI tool (iOS 27.3).
+  final bool tool;
+
   const IntentInfo({
     required this.className,
     required this.identifier,
@@ -100,6 +103,7 @@ class IntentInfo {
     this.executionTargets,
     this.schema,
     this.donatable = false,
+    this.tool = false,
   });
 
   @override
@@ -126,6 +130,7 @@ class IntentInfo {
         cancellable == other.cancellable &&
         schema == other.schema &&
         donatable == other.donatable &&
+        tool == other.tool &&
         _nullableListEquals(executionTargets, other.executionTargets);
   }
 
@@ -149,7 +154,7 @@ class IntentInfo {
     longRunning,
     cancellable,
     schema,
-    donatable,
+    Object.hash(donatable, tool),
     executionTargets == null ? null : Object.hashAll(executionTargets!),
   );
 
@@ -167,7 +172,7 @@ class IntentInfo {
       'supportedModes: $supportedModes, '
       'authenticationPolicy: $authenticationPolicy, longRunning: $longRunning, '
       'cancellable: $cancellable, executionTargets: $executionTargets, '
-      'schema: $schema, donatable: $donatable)';
+      'schema: $schema, donatable: $donatable, tool: $tool)';
 }
 
 /// The implementation language for the intent.

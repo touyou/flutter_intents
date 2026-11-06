@@ -80,6 +80,14 @@ enum AppSchemaDomain {
   /// `system` — system-level actions.
   system('system'),
 
+  /// `video` — movies, TV shows and other video content.
+  ///
+  /// iOS / tvOS / visionOS **27.3** (unavailable on macOS and watchOS). The
+  /// generated schema form is compiled only against a 27.3 SDK or newer (on
+  /// top of `APP_INTENTS_WWDC26`); an older SDK gets the stable form, so a
+  /// project that has not moved to 27.3 keeps compiling.
+  video('video'),
+
   /// `visualIntelligence` — visual search integration.
   visualIntelligence('visualIntelligence'),
 
@@ -139,6 +147,9 @@ abstract final class AppSchemas {
 
   /// Schemas in the `system` domain.
   static const SystemSchemas system = SystemSchemas._();
+
+  /// Schemas in the `video` domain (iOS / tvOS / visionOS 27.3+).
+  static const VideoSchemas video = VideoSchemas._();
 }
 
 /// Verified schemas in the `messages` domain.
@@ -228,4 +239,60 @@ final class SystemSchemas {
 
   /// `system.open` — open a target entity in your app (`@AppIntent`, iOS 17+).
   String get open => 'system.open';
+}
+
+/// Verified schemas in the `video` domain (iOS / tvOS / visionOS 27.3+, not
+/// macOS or watchOS).
+///
+/// The schema form is compiled only with `APP_INTENTS_WWDC26` set and a 27.3
+/// SDK or newer; otherwise the stable form is. See [AppSchemaDomain.video].
+final class VideoSchemas {
+  const VideoSchemas._();
+
+  /// `video.addToWatchList` — add content to the watch list (`@AppIntent`).
+  String get addToWatchList => 'video.addToWatchList';
+
+  /// `video.removeFromWatchList` — remove content from the watch list
+  /// (`@AppIntent`).
+  String get removeFromWatchList => 'video.removeFromWatchList';
+
+  /// `video.playContent` — play a movie, show or video (`@AppIntent`).
+  String get playContent => 'video.playContent';
+
+  /// `video.playTrailer` — play a trailer (`@AppIntent`).
+  String get playTrailer => 'video.playTrailer';
+
+  /// `video.movie` — a movie (`@AppEntity`).
+  String get movie => 'video.movie';
+
+  /// `video.tvShow` — a TV show (`@AppEntity`).
+  String get tvShow => 'video.tvShow';
+
+  /// `video.tvSeason` — a season of a TV show (`@AppEntity`).
+  String get tvSeason => 'video.tvSeason';
+
+  /// `video.tvEpisode` — an episode of a TV show (`@AppEntity`).
+  String get tvEpisode => 'video.tvEpisode';
+
+  /// `video.freeformVideo` — a video that is not a movie or episode
+  /// (`@AppEntity`).
+  String get freeformVideo => 'video.freeformVideo';
+
+  /// `video.image` — artwork for video content (`@AppEntity`).
+  String get image => 'video.image';
+
+  /// `video.contentCreator` — a creator or channel (`@AppEntity`).
+  String get contentCreator => 'video.contentCreator';
+
+  /// `video.person` — a cast or crew member (`@AppEntity`).
+  String get person => 'video.person';
+
+  /// `video.videoContentType` — kind of video content (`@AppEnum`).
+  String get videoContentType => 'video.videoContentType';
+
+  /// `video.imageType` — kind of artwork (`@AppEnum`).
+  String get imageType => 'video.imageType';
+
+  /// `video.personRole` — a person's role (`@AppEnum`).
+  String get personRole => 'video.personRole';
 }

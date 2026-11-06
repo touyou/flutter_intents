@@ -1,3 +1,10 @@
+## Unreleased
+
+- iOS (experimental, 27.3 SDK): `video` App Schema entities, intents and enums, and `@IntentSpec(tool: true)` →
+  `ToolIntent` behind the new `--experimental=tool` flag. Both are emitted under
+  `#if APP_INTENTS_WWDC26 && canImport(AppIntents, _version: 301.2)`, so a 27.0–27.2 SDK still compiles the stable
+  form with no extra build flag (#201, #200).
+
 ## 0.20.0
 
 > **Regenerate your Android Kotlin.** AppFunction results are now JSON.

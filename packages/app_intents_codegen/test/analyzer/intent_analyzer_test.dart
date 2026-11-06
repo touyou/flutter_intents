@@ -349,6 +349,54 @@ void main() {
         expect(result!.donatable, isTrue);
       });
 
+      test('tool: true is captured on a FlutterBridge intent', () async {
+        final library = await resolveSource('''
+            import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+            @IntentSpec(identifier: 'com.example.tool', title: 'Tool', tool: true)
+            class ToolSpec extends IntentSpecBase {
+              ToolSpec();
+            }
+          ''');
+        expect(analyzer.analyze(findClass(library, 'ToolSpec'))!.tool, isTrue);
+      });
+
+      for (final (name, extra, message) in [
+        ('urlScheme', "urlScheme: 'app', urlAction: 'go',", 'FlutterBridge'),
+        (
+          'foreground',
+          'supportedModes: IntentMode.foreground,',
+          'FlutterBridge',
+        ),
+        ('schema', "schema: 'messages.sendMessage',", 'cannot be combined'),
+      ]) {
+        test('tool: true rejects $name', () async {
+          final library = await resolveSource('''
+              import 'package:app_intents_annotations/app_intents_annotations.dart';
+
+              @IntentSpec(
+                identifier: 'com.example.tool',
+                title: 'Tool',
+                tool: true,
+                $extra
+              )
+              class ToolSpec extends IntentSpecBase {
+                ToolSpec();
+              }
+            ''');
+          expect(
+            () => analyzer.analyze(findClass(library, 'ToolSpec')),
+            throwsA(
+              isA<Object>().having(
+                (e) => e.toString(),
+                'message',
+                contains(message),
+              ),
+            ),
+          );
+        });
+      }
+
       test('donatable: true rejects entityType params (#55 MVP)', () async {
         final library = await resolveSource('''
             import 'package:app_intents_annotations/app_intents_annotations.dart';
