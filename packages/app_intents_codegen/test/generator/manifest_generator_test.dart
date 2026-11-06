@@ -157,6 +157,31 @@ void main() {
     expect(content['required'], ['_type', 'id']);
   });
 
+  test('lists declarations by identifier, not by source order', () {
+    IntentInfo intent(String id) => IntentInfo(
+      className: id,
+      identifier: id,
+      title: id,
+      implementation: IntentImplementationType.dart,
+      parameters: const [],
+    );
+    final manifest = ManifestGenerator().build(
+      intents: [intent('b'), intent('a')],
+    );
+    expect(
+      [for (final i in manifest['intents'] as List) i['identifier']],
+      ['a', 'b'],
+    );
+  });
+
+  test('a file param allows a null mimeType and filename', () {
+    final file =
+        properties([_param('f', 'IntentFile', fileType: 'image')])['f'] as Map;
+    expect((file['properties'] as Map)['mimeType'], {
+      'type': ['string', 'null'],
+    });
+  });
+
   test('an unknown type gets no constraint', () {
     final props = properties([_param('blob', 'Uint8List')]);
     expect(props['blob'], isNot(contains('type')));

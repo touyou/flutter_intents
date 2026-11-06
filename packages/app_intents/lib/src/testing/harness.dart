@@ -116,30 +116,38 @@ class AppIntentsHarness {
   /// Runs the intent [identifier] with [params] and returns the handler's
   /// result map.
   ///
-  /// Opens an execution scope the way the generated Android bridge does for
-  /// every call: the params carry an `_executionId`, so
-  /// `AppIntentExecution.current` is non-null inside the handler.
+  /// By default opens an execution scope the way the generated Android bridge
+  /// does for every call: the params carry an `_executionId`, so
+  /// `AppIntentExecution.current` is non-null inside the handler. Pass
+  /// `executionScope: false` for the iOS shape of an intent that is neither
+  /// long-running, cancellable nor requests a value, where `current` is null.
   ///
-  /// Throws [AppIntentError] with the code the native side would see, and
-  /// [AppIntentsSchemaViolation] when [params] do not match the declared
-  /// schema.
+  /// Completes with [AppIntentError] carrying the code the native side would
+  /// see, or with [AppIntentsSchemaViolation] when [params] do not match the
+  /// declared schema.
   Future<Map<String, dynamic>> run(
     String identifier, [
     Map<String, Object?> params = const {},
-  ]) => start(identifier, params).result;
+    bool executionScope = true,
+  ]) => start(identifier, params, executionScope).result;
 
   /// Starts the intent [identifier] and returns before it finishes, so a test
   /// can [HarnessRun.cancel] it or watch [progressReports] meanwhile.
+  ///
+  /// [HarnessRun.executionId] is null when [executionScope] is false.
   HarnessRun start(
     String identifier, [
     Map<String, Object?> params = const {},
+    bool executionScope = true,
   ]) {
-    _checkParams(identifier, params);
-    final executionId = 'harness-${++_nextExecution}';
-    final result = _invoke('executeIntent', {
-      'identifier': identifier,
-      'params': {...params, intentExecutionIdKey: executionId},
-    }).then((value) => _stringMap(value));
+    final executionId = executionScope ? 'harness-${++_nextExecution}' : null;
+    final violation = _paramsViolation(identifier, params);
+    final result = violation != null
+        ? Future<Map<String, dynamic>>.error(violation)
+        : _invoke('executeIntent', {
+            'identifier': identifier,
+            'params': {...params, intentExecutionIdKey: ?executionId},
+          }).then((value) => _stringMap(value));
     return HarnessRun._(this, executionId, result);
   }
 
@@ -189,24 +197,41 @@ class AppIntentsHarness {
       });
 
   /// Restores the plugin instance that was active before this harness.
+  ///
+  /// Harnesses disposed out of order leave the newest live one installed.
+  /// The disposed instance's streams stay open so a call already in flight
+  /// can still finish.
   void dispose() {
-    _platform.dispose();
-    if (identical(AppIntentsPlatform.instance, _platform)) {
-      AppIntentsPlatform.instance = _previous;
-    }
+    if (!identical(AppIntentsPlatform.instance, _platform)) return;
+    AppIntentsPlatform.instance = _previous;
     final previous = _previous;
-    if (previous is MethodChannelAppIntents) previous.attachMethodCallHandler();
+    if (previous is MethodChannelAppIntents) {
+      previous.attachMethodCallHandler();
+    } else {
+      // Nothing to hand the channel back to; leaving it on this harness
+      // would let later calls reach handlers the test no longer owns.
+      const MethodChannel(_channel).setMethodCallHandler(null);
+    }
   }
 
-  void _checkParams(String identifier, Map<String, Object?> params) {
-    if (!validateParams) return;
+  AppIntentsSchemaViolation? _paramsViolation(
+    String identifier,
+    Map<String, Object?> params,
+  ) {
+    if (!validateParams) return null;
     final declared = manifest?.intent(identifier);
-    if (declared == null) return;
+    if (declared == null) return null;
     final errors = validateJsonSchema(params, declared.parameters);
-    if (errors.isNotEmpty) {
-      throw AppIntentsSchemaViolation._(identifier, errors);
-    }
+    return errors.isEmpty
+        ? null
+        : AppIntentsSchemaViolation._(identifier, errors);
   }
+
+  /// [value] after a round trip through the channel codec, so a value a
+  /// device could not send fails here too, and the stored copy is detached
+  /// from the caller's object.
+  static Object? _throughCodec(Object? value) => _codec.messageCodec
+      .decodeMessage(_codec.messageCodec.encodeMessage(value));
 
   List<Map<String, dynamic>> _checkEntities(
     String entityIdentifier,
@@ -272,8 +297,8 @@ class HarnessRun {
 
   final AppIntentsHarness _harness;
 
-  /// The `_executionId` the handler sees.
-  final String executionId;
+  /// The `_executionId` the handler sees, or null without an execution scope.
+  final String? executionId;
 
   /// Completes with the handler's result, or with the error a native caller
   /// would get.
@@ -285,9 +310,15 @@ class HarnessRun {
       if (p.executionId == executionId) p,
   ];
 
-  /// Cancels this run (#130).
-  Future<void> cancel({String reason = 'userCancelled'}) =>
-      _harness.cancel(executionId, reason: reason);
+  /// Cancels this run (#130). Only a run with an execution scope can be
+  /// cancelled: the system addresses cancellations by execution id.
+  Future<void> cancel({String reason = 'userCancelled'}) {
+    final id = executionId;
+    if (id == null) {
+      throw StateError('A run started without an execution scope has no id.');
+    }
+    return _harness.cancel(id, reason: reason);
+  }
 }
 
 /// One progress report from a handler.
@@ -408,8 +439,9 @@ class _HarnessPlatform extends MethodChannelAppIntents {
     String parameter,
   ) async => _harness.onRequestValue?.call(executionId, parameter);
 
-  void _record(String method, [Object? arguments]) =>
-      _harness.nativeCalls.add(MethodCall(method, arguments));
+  void _record(String method, [Object? arguments]) => _harness.nativeCalls.add(
+    MethodCall(method, AppIntentsHarness._throughCodec(arguments)),
+  );
 
   @override
   Future<void> donateRelevantEntities(
@@ -457,11 +489,12 @@ class _HarnessPlatform extends MethodChannelAppIntents {
       _record('updateAppShortcutParameters');
 
   @override
-  Future<dynamic> getCachedValue(String key) async => _harness.cache[key];
+  Future<dynamic> getCachedValue(String key) async =>
+      AppIntentsHarness._throughCodec(_harness.cache[key]);
 
   @override
   Future<void> setCachedValue(String key, dynamic value) async =>
-      _harness.cache[key] = value;
+      _harness.cache[key] = AppIntentsHarness._throughCodec(value);
 
   @override
   Future<void> clearCachedValue(String key) async => _harness.cache.remove(key);

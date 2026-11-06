@@ -2,17 +2,26 @@
   "formatVersion": 1,
   "intents": [
     {
-      "identifier": "com.example.taskapp.taskSummary",
-      "className": "TaskSummaryIntentSpec",
-      "title": "Task Summary",
-      "description": "Summarize how many tasks are left",
+      "identifier": "com.example.taskapp.completeTask",
+      "className": "CompleteTaskIntentSpec",
+      "title": "Complete Task",
+      "description": "Mark a task as completed",
       "longRunning": false,
       "cancellable": false,
       "parameters": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
-        "properties": {},
-        "required": [],
+        "properties": {
+          "task": {
+            "title": "Task",
+            "description": "The task to complete",
+            "type": "string",
+            "x-entity": "com.example.taskapp.TaskEntity"
+          }
+        },
+        "required": [
+          "task"
+        ],
         "additionalProperties": false
       }
     },
@@ -65,30 +74,6 @@
       }
     },
     {
-      "identifier": "com.example.taskapp.completeTask",
-      "className": "CompleteTaskIntentSpec",
-      "title": "Complete Task",
-      "description": "Mark a task as completed",
-      "longRunning": false,
-      "cancellable": false,
-      "parameters": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "task": {
-            "title": "Task",
-            "description": "The task to complete",
-            "type": "string",
-            "x-entity": "com.example.taskapp.TaskEntity"
-          }
-        },
-        "required": [
-          "task"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
       "identifier": "com.example.taskapp.createTaskWithImage",
       "className": "CreateTaskWithImageIntentSpec",
       "title": "Create Task with Image",
@@ -115,10 +100,16 @@
                     "type": "string"
                   },
                   "mimeType": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "filename": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
@@ -134,6 +125,21 @@
         "required": [
           "title"
         ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "identifier": "com.example.taskapp.taskSummary",
+      "className": "TaskSummaryIntentSpec",
+      "title": "Task Summary",
+      "description": "Summarize how many tasks are left",
+      "longRunning": false,
+      "cancellable": false,
+      "parameters": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": false
       }
     }

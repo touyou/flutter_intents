@@ -33,12 +33,17 @@ class ManifestGenerator {
     final enumsByClass = {for (final e in enums) e.className: e};
     return {
       'formatVersion': formatVersion,
+      // Sorted: source order follows the directory listing, which differs
+      // between filesystems, and CI diffs this output.
       'intents': [
-        for (final intent in intents)
+        for (final intent in _sorted(intents, (i) => i.identifier))
           _intent(intent, entitiesByClass, enumsByClass),
       ],
-      'entities': [for (final entity in entities) _entity(entity)],
-      'enums': [for (final e in enums) _enum(e)],
+      'entities': [
+        for (final entity in _sorted(entities, (e) => e.identifier))
+          _entity(entity),
+      ],
+      'enums': [for (final e in _sorted(enums, (e) => e.identifier)) _enum(e)],
     };
   }
 
@@ -49,6 +54,9 @@ class ManifestGenerator {
     List<EnumInfo> enums = const [],
   }) =>
       '${const JsonEncoder.withIndent('  ').convert(build(intents: intents, entities: entities, enums: enums))}\n';
+
+  static List<T> _sorted<T>(List<T> items, String Function(T) key) =>
+      [...items]..sort((a, b) => key(a).compareTo(key(b)));
 
   Map<String, Object?> _intent(
     IntentInfo intent,
@@ -142,8 +150,13 @@ class ManifestGenerator {
         'type': 'object',
         'properties': {
           'path': {'type': 'string'},
-          'mimeType': {'type': 'string'},
-          'filename': {'type': 'string'},
+          // Both platforms send null when they cannot tell.
+          'mimeType': {
+            'type': ['string', 'null'],
+          },
+          'filename': {
+            'type': ['string', 'null'],
+          },
         },
         'required': ['path'],
       };
@@ -209,8 +222,17 @@ class ManifestGenerator {
         _ => null,
       };
       final nullable = p.dartType.endsWith('?');
+      // The generated Swift reads every role field with `as? String` and
+      // drops the row when id or title is not one.
+      final wireType = switch (p.role) {
+        EntityPropertyRole.id ||
+        EntityPropertyRole.title ||
+        EntityPropertyRole.subtitle ||
+        EntityPropertyRole.image => 'string',
+        _ => type,
+      };
       properties[p.fieldName] = {
-        if (type != null) 'type': nullable ? [type, 'null'] : type,
+        if (wireType != null) 'type': nullable ? [wireType, 'null'] : wireType,
         if (p.role != EntityPropertyRole.none) 'x-role': p.role.name,
       };
       // A map missing either is dropped by the generated Swift query.

@@ -173,7 +173,7 @@ void main() {
       });
 
       await expectLater(
-        () => harness.run('test.create', {
+        harness.run('test.create', {
           'priority': 'urgent',
           'due': 'tomorrow',
           'extra': 1,
@@ -277,6 +277,33 @@ void main() {
         ),
       );
     });
+  });
+
+  test(
+    'runs without an execution scope, like an ordinary iOS intent',
+    () async {
+      AppIntents().registerIntentHandler('plain', (_) async {
+        return {'scoped': AppIntentExecution.current != null};
+      });
+
+      expect(await harness.run('plain', {}, false), {'scoped': false});
+    },
+  );
+
+  test('outgoing values go through the codec', () async {
+    await expectLater(
+      AppIntents().setCachedValue('k', DateTime(2026)),
+      throwsArgumentError,
+    );
+  });
+
+  test('a disposed harness hands the channel back', () async {
+    final inner = AppIntentsHarness();
+    AppIntents().registerIntentHandler('inner', (_) async => {});
+    inner.dispose();
+    AppIntents().registerIntentHandler('outer', (_) async => {'ok': true});
+
+    expect(await harness.run('outer'), {'ok': true});
   });
 
   test('keeps cache writes and donations in memory', () async {
