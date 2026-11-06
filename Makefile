@@ -1,7 +1,7 @@
 # Flutter Intents - Development Commands
 # Usage: make <target>
 
-.PHONY: help ios ios-build android android-build codegen swift-gen widget-gen kotlin-gen test verify-swift clean
+.PHONY: help ios ios-build android android-build codegen swift-gen widget-gen kotlin-gen describe test verify-swift clean
 
 # Default target
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "  make swift-gen      Generate Swift code from annotations"
 	@echo "  make widget-gen     Generate Widget Extension Swift code (WidgetConfigurationIntent)"
 	@echo "  make kotlin-gen     Generate Kotlin code for Android AppFunctions"
+	@echo "  make describe       Write the intent manifest (JSON Schema) the test harness reads"
 	@echo "  make test           Run all Dart / Flutter tests (Swift package test omitted; see RELEASING.md)"
 	@echo "  make verify-swift   Type-check the generated Swift against both Xcodes"
 	@echo "  make clean          Clean build artifacts"
@@ -62,6 +63,9 @@ kotlin-gen:
 	  -i lib \
 	  -o android/app/src/main/kotlin/com/example/app/generated \
 	  -p com.example.app.generated
+
+describe:
+	@cd app && dart run app_intents_codegen:describe -o test/app_intents.json
 
 # Run all tests
 test:

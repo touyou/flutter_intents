@@ -1,0 +1,181 @@
+{
+  "formatVersion": 1,
+  "intents": [
+    {
+      "identifier": "com.example.taskapp.taskSummary",
+      "className": "TaskSummaryIntentSpec",
+      "title": "Task Summary",
+      "description": "Summarize how many tasks are left",
+      "longRunning": false,
+      "cancellable": false,
+      "parameters": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "identifier": "com.example.taskapp.createTask",
+      "className": "CreateTaskIntentSpec",
+      "title": "Create Task",
+      "description": "Create a new task in your task list",
+      "longRunning": false,
+      "cancellable": false,
+      "parameters": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "description": "The title of the task",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "description": "Optional description for the task",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueDate": {
+            "title": "Due Date",
+            "description": "When the task is due",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "identifier": "com.example.taskapp.completeTask",
+      "className": "CompleteTaskIntentSpec",
+      "title": "Complete Task",
+      "description": "Mark a task as completed",
+      "longRunning": false,
+      "cancellable": false,
+      "parameters": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "task": {
+            "title": "Task",
+            "description": "The task to complete",
+            "type": "string",
+            "x-entity": "com.example.taskapp.TaskEntity"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "identifier": "com.example.taskapp.createTaskWithImage",
+      "className": "CreateTaskWithImageIntentSpec",
+      "title": "Create Task with Image",
+      "description": "Create a new task with an optional image attachment",
+      "longRunning": false,
+      "cancellable": false,
+      "parameters": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "description": "The title of the task",
+            "type": "string"
+          },
+          "image": {
+            "title": "Image",
+            "description": "An image to attach to the task",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "mimeType": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "entities": [
+    {
+      "identifier": "com.example.taskapp.TaskEntity",
+      "className": "TaskEntitySpec",
+      "title": "Task",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "x-role": "id"
+          },
+          "title": {
+            "type": "string",
+            "x-role": "title"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-role": "subtitle"
+          },
+          "iconName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-role": "image"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      }
+    }
+  ],
+  "enums": []
+}

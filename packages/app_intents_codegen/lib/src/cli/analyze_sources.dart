@@ -114,7 +114,11 @@ class InvalidAnnotationsException implements Exception {
 ///
 /// Throws [InvalidAnnotationsException] if any analyzer rejects an annotation.
 /// A file that fails to resolve is skipped with a warning instead.
-Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
+Future<AnalyzeResult> analyzeSourceFiles(
+  String inputDir, {
+  StringSink? log,
+}) async {
+  final out = log ?? stdout;
   final currentDir = Directory.current.path;
   final absoluteInputDir = path.isAbsolute(inputDir)
       ? inputDir
@@ -125,7 +129,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     exit(1);
   }
 
-  stdout.writeln(
+  out.writeln(
     'Scanning $inputDir for @IntentSpec and @EntitySpec annotations...',
   );
 
@@ -144,7 +148,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
   }
 
   if (dartFiles.isEmpty) {
-    stdout.writeln('No Dart files found in $inputDir');
+    out.writeln('No Dart files found in $inputDir');
     return const AnalyzeResult(
       intents: [],
       entities: [],
@@ -155,7 +159,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     );
   }
 
-  stdout.writeln('Found ${dartFiles.length} Dart files');
+  out.writeln('Found ${dartFiles.length} Dart files');
 
   // Analyze files (use Maps to deduplicate by identifier)
   final intentsMap = <String, IntentInfo>{};
@@ -204,7 +208,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           final info = intentAnalyzer.analyze(element);
           if (info != null && !intentsMap.containsKey(info.identifier)) {
             intentsMap[info.identifier] = info;
-            stdout.writeln('  Found intent: ${info.className}');
+            out.writeln('  Found intent: ${info.className}');
           }
         }
 
@@ -213,7 +217,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           final info = entityAnalyzer.analyze(element);
           if (info != null && !entitiesMap.containsKey(info.identifier)) {
             entitiesMap[info.identifier] = info;
-            stdout.writeln('  Found entity: ${info.className}');
+            out.writeln('  Found entity: ${info.className}');
           }
         }
 
@@ -225,7 +229,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           if (info != null &&
               !widgetConfigurationsMap.containsKey(info.identifier)) {
             widgetConfigurationsMap[info.identifier] = info;
-            stdout.writeln('  Found widget configuration: ${info.className}');
+            out.writeln('  Found widget configuration: ${info.className}');
           }
         }
 
@@ -234,7 +238,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           final info = unionAnalyzer.analyze(element);
           if (info != null && !unionsMap.containsKey(info.identifier)) {
             unionsMap[info.identifier] = info;
-            stdout.writeln('  Found union: ${info.className}');
+            out.writeln('  Found union: ${info.className}');
           }
         }
 
@@ -243,7 +247,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           final shortcuts = shortcutAnalyzer.analyze(element);
           for (final shortcut in shortcuts) {
             allShortcuts.add(shortcut);
-            stdout.writeln('  Found shortcut: ${shortcut.shortTitle}');
+            out.writeln('  Found shortcut: ${shortcut.shortTitle}');
           }
         }
       }
@@ -254,7 +258,7 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
           final info = enumAnalyzer.analyze(element);
           if (info != null && !enumsMap.containsKey(info.identifier)) {
             enumsMap[info.identifier] = info;
-            stdout.writeln('  Found enum: ${info.className}');
+            out.writeln('  Found enum: ${info.className}');
           }
         }
       }
@@ -288,8 +292,8 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
     );
   }).toList();
 
-  stdout.writeln('');
-  stdout.writeln(
+  out.writeln('');
+  out.writeln(
     'Found ${intents.length} intents, ${entities.length} entities, '
     '${enums.length} enums, ${resolvedShortcuts.length} shortcuts, '
     '${unions.length} unions, and '
@@ -308,9 +312,14 @@ Future<AnalyzeResult> analyzeSourceFiles(String inputDir) async {
 
 /// [analyzeSourceFiles] for the CLIs: an invalid annotation is printed to
 /// stderr and the process exits 1, instead of generating incomplete output.
-Future<AnalyzeResult> analyzeSourceFilesOrExit(String inputDir) async {
+///
+/// [log] receives the progress lines (default stdout).
+Future<AnalyzeResult> analyzeSourceFilesOrExit(
+  String inputDir, {
+  StringSink? log,
+}) async {
   try {
-    return await analyzeSourceFiles(inputDir);
+    return await analyzeSourceFiles(inputDir, log: log);
   } on InvalidAnnotationsException catch (e) {
     stderr.writeln('Error: $e');
     exit(1);
