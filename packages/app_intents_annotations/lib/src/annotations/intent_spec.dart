@@ -153,6 +153,24 @@ class IntentSpec {
   /// follow-up issue. See `docs/adr/0003-donations-and-discovery.md`.
   final bool donatable;
 
+  /// **Experimental (Siri AI, iOS / macOS / visionOS 27.3).** Lets Siri call
+  /// this intent as a tool, even though it fits no system schema.
+  ///
+  /// Emits `extension <Intent>: ToolIntent {}` behind
+  /// `#if canImport(AppIntents, _version: 301.2)`, so the conformance exists
+  /// only when building against the 27.3 SDK or newer and the intent itself is
+  /// unchanged everywhere else. Needs the `tool` experimental feature.
+  ///
+  /// Siri can call a tool whenever it can reach the app, so the intent must use
+  /// the FlutterBridge (background) mode: `urlScheme` and
+  /// `supportedModes: IntentMode.foreground` are rejected. So is `schema`: a
+  /// primary-domain schema plus `ToolIntent` is a build error that drops the
+  /// target's whole App Intents metadata.
+  ///
+  /// Do not make search intents tools: Siri finds entities itself through the
+  /// entity queries and Spotlight.
+  final bool tool;
+
   const IntentSpec({
     required this.identifier,
     required this.title,
@@ -172,6 +190,7 @@ class IntentSpec {
     this.executionTargets,
     this.schema,
     this.donatable = false,
+    this.tool = false,
   });
 }
 

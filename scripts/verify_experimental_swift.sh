@@ -13,6 +13,11 @@
 # compile there by design, but everything outside `#if` must, which is what
 # catches a feature that graduated out of the gate too early (#51).
 #
+# Video-domain schemas and `ToolIntent` sit behind a second condition,
+# `canImport(AppIntents, _version: 301.2)`, which is true from the 27.3 SDK on.
+# So with a 27.3 SDK the WWDC26 run covers them, and with 27.0–27.2 the same run
+# proves they fall back cleanly. Run it against both to check both.
+#
 # Usage: scripts/verify_experimental_swift.sh
 #        DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 #          scripts/verify_experimental_swift.sh
@@ -101,6 +106,10 @@ fi
 # only check it when the SDK can actually provide them.
 if [ "${SDK_VER%%.*}" -ge 27 ]; then
   typecheck "WWDC26 form (-D APP_INTENTS_WWDC26)" -D APP_INTENTS_WWDC26
+  case "$SDK_VER" in
+    27.0*|27.1*|27.2*) echo "    (27.3-only schema/tool forms were compiled out: SDK $SDK_VER)" ;;
+    *) echo "    (27.3-only schema/tool forms included: SDK $SDK_VER)" ;;
+  esac
   echo "==> All experimental Swift type-checks passed (both branches)."
 else
   echo "==> Stable branch passed. Skipped the WWDC26 branch: SDK $SDK_VER has no"

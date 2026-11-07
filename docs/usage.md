@@ -1477,7 +1477,7 @@ can also toggle it from build settings. Existing stable output is unchanged.
 # Master switch + select features (comma-separated). Master OFF → nothing emitted.
 dart run app_intents_codegen:generate_swift \
   --experimental-wwdc26 \
-  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types,reindexing
+  --experimental=value-representation,donation,long-running,app-schema,ownership,rich-types,reindexing,tool
 ```
 
 To actually compile the emitted WWDC26 form, add `APP_INTENTS_WWDC26` to your
@@ -1494,6 +1494,25 @@ enables experimental codegen but hasn't set the flag still builds.
 | `value-representation` | Cross-app entity export/import via `ValueRepresentation` (#54, #129) |
 | `donation` | `SyncableEntity` (incl. dual id, #132) + `RelevantEntities` donation (#55, #133) |
 | `reindexing` | `IndexedEntityQuery` — the system asking your app to re-index an entity (#133) |
+| `tool` | `ToolIntent` conformance for `@IntentSpec(tool: true)` — the intent becomes a tool Siri can call (27.3 SDK, #200) |
+
+#### Features that need the 27.3 SDK
+
+The `video` schema domain and `ToolIntent` are new in the iOS 27.3 SDK. Their
+generated form is wrapped in `#if APP_INTENTS_WWDC26 && canImport(AppIntents,
+_version: 301.2)`: the second half is true from the 27.3 SDK on (27.2 ships
+AppIntents 301.1, and both use the same Swift compiler, so `compiler(>=)` can't
+tell them apart). On an older SDK the stable form compiles, with no extra flag
+to set.
+
+- `@IntentSpec(tool: true)` adds `extension <Intent>: ToolIntent {}` on iOS,
+  macOS and visionOS 27.3 (not watchOS or tvOS). The struct itself is
+  unchanged, so it keeps working as a normal intent everywhere. It needs the
+  FlutterBridge (background) mode, and it is rejected with `schema`: combining
+  a primary-domain schema with `ToolIntent` makes the build drop the target's
+  App Intents metadata. Don't make search intents into tools.
+- An intent that takes a `video` entity (or a union with one) moves to the
+  27.3 branch with it, so it never names a type newer than itself.
 
 ### App Schema (#49) — using the catalog
 
@@ -1523,7 +1542,9 @@ class SendMessageIntentSpec extends IntentSpecBase { /* ... */ }
 - `AppSchemaDomain` enumerates the known iOS 27 domains (`messages`, `mail`,
   `photos`, `calendar`, `maps`, `imageGeneration`, `visualIntelligence`, …).
 - `AppSchemas.<domain>.<schema>` exposes verified identifiers (currently
-  `messages`, `mail`, `photos`, `system`; more added over time).
+  `messages`, `mail`, `photos`, `system`, `video`; more added over time).
+  `video` (iOS / tvOS / visionOS 27.3) is compiled only against a 27.3 SDK;
+  see [Features that need the 27.3 SDK](#features-that-need-the-273-sdk).
 - The catalog is **not exhaustive** — the system matches by raw string, so any
   `'domain.schema'` value works. For a schema the catalog doesn't name yet:
   `schema: AppSchemas.of(AppSchemaDomain.calendar, 'event')` → `'calendar.event'`.

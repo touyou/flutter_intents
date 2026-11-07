@@ -83,6 +83,7 @@ Future<LibraryElement> resolveSource(String source) async {
           final List<IntentExecutionTarget>? executionTargets;
           final String? schema;
           final bool donatable;
+          final bool tool;
 
           const IntentSpec({
             required this.identifier,
@@ -103,6 +104,7 @@ Future<LibraryElement> resolveSource(String source) async {
             this.executionTargets,
             this.schema,
             this.donatable = false,
+            this.tool = false,
           });
         }
 

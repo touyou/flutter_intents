@@ -51,6 +51,13 @@ void main() {
       expect(AppSchemas.system.searchInApp, isNot('system.search'));
     });
 
+    test('video schemas use the 27.3 SDK accessor names', () {
+      expect(AppSchemaDomain.fromKeyword('video'), AppSchemaDomain.video);
+      expect(AppSchemas.video.playContent, 'video.playContent');
+      expect(AppSchemas.video.tvEpisode, 'video.tvEpisode');
+      expect(AppSchemas.video.personRole, 'video.personRole');
+    });
+
     test('of() builds a dotted identifier for any domain/schema', () {
       expect(
         AppSchemas.of(AppSchemaDomain.calendar, 'event'),

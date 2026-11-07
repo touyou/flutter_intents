@@ -91,6 +91,7 @@ class IntentAnalyzer {
     );
     final schema = annotation.getField('schema')?.toStringValue();
     final donatable = annotation.getField('donatable')?.toBoolValue() ?? false;
+    final tool = annotation.getField('tool')?.toBoolValue() ?? false;
 
     if (identifier == null) {
       throw InvalidGenerationSourceError(
@@ -113,6 +114,28 @@ class IntentAnalyzer {
         '@IntentSpec "longRunning"/"cancellable" require background execution '
         'and cannot be combined with "urlScheme" or '
         'supportedModes: IntentMode.foreground.',
+        element: element,
+      );
+    }
+
+    // Siri calls a tool whenever it can reach the app; the URL scheme and
+    // foreground modes only work once the Flutter engine is up in the app.
+    if (tool &&
+        (urlScheme != null || supportedModes == IntentModeType.foreground)) {
+      throw InvalidGenerationSourceError(
+        '@IntentSpec(tool: true) needs the FlutterBridge (background) mode, '
+        'but this intent uses '
+        '${urlScheme != null ? '"urlScheme"' : 'supportedModes: IntentMode.foreground'}. '
+        'Siri can call a tool while the app is not in the foreground.',
+        element: element,
+      );
+    }
+    if (tool && schema != null) {
+      throw InvalidGenerationSourceError(
+        '@IntentSpec(tool: true) cannot be combined with "schema". ToolIntent '
+        'on a primary-domain schema intent is a build error that drops the '
+        "target's whole App Intents metadata, and Siri already handles schema "
+        'intents.',
         element: element,
       );
     }
@@ -179,6 +202,7 @@ class IntentAnalyzer {
       executionTargets: executionTargets,
       schema: schema,
       donatable: donatable,
+      tool: tool,
     );
   }
 
