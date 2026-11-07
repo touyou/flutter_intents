@@ -2301,6 +2301,74 @@ Any other exception escaping a handler is reported as `execution_error` and
 takes the last row. On iOS the code is not mapped to a system error type; it
 appears in the error the intent throws (`Flutter error (notFound): …`).
 
+## Testing intents without a device
+
+`package:app_intents/testing.dart` runs your Dart handlers under plain
+`flutter test`, through the same `app_intents` channel entry that iOS App
+Intents and Android AppFunctions use. Both platforms end in the same Dart
+handler, so one behaviour test stands for both.
+
+1. Write the manifest of what your specs declare (regenerate it whenever a spec
+   changes; CI can `git diff --exit-code` it):
+
+   ```bash
+   dart run app_intents_codegen:describe -o test/app_intents.json
+   ```
+
+   Without `-o` it prints the JSON to stdout, so a coding agent can read what
+   the app can do without launching it. Each intent carries a JSON Schema of the
+   params map its handler receives: the **wire** shape, so a `DateTime` is an
+   ISO-8601 string, a `Duration` is microseconds and an entity parameter is the
+   entity's id.
+
+2. Drive the handlers with `AppIntentsHarness`:
+
+   ```dart
+   import 'dart:io';
+
+   import 'package:app_intents/app_intents.dart';
+   import 'package:app_intents/testing.dart';
+   import 'package:flutter_test/flutter_test.dart';
+
+   void main() {
+     TestWidgetsFlutterBinding.ensureInitialized();
+     late AppIntentsHarness harness;
+
+     setUp(() {
+       harness = AppIntentsHarness(
+         manifest: AppIntentsManifest.parse(
+           File('test/app_intents.json').readAsStringSync(),
+         ),
+       );
+       initializeCreateTaskAppIntents(); // register AFTER creating the harness
+     });
+     tearDown(() => harness.dispose());
+
+     test('every declared intent has a handler', () {
+       expect(harness.list().unhandledIntents, isEmpty);
+     });
+
+     test('createTask', () async {
+       await harness.run('com.example.taskapp.createTask', {'title': 'Milk'});
+     });
+   }
+   ```
+
+What the harness does, and why:
+
+| Call | Behaviour |
+|---|---|
+| `list()` | Registered intent / entity / value-query handlers. With a manifest, `unhandledIntents` (declared, no handler: a `handlerNotFound` on a device), `unhandledEntities`, and `undeclaredIntents` (a handler under an identifier nothing declares) |
+| `run(id, params)` / `start(id, params)` | Validates `params` against the declared schema (`AppIntentsSchemaViolation`; `validateParams: false` to skip), adds `_executionId` so `AppIntentExecution.current` is non-null, encodes the call with the channel codec and delivers it on `app_intents`. An `AppIntentError` comes back with its code; a result the codec cannot carry fails with code `error`, as on a device |
+| `start(...).cancel()` / `cancel(executionId)` | Delivers `intentCancelled`, as the system does |
+| `queryEntities` / `suggestedEntities` / `queryValues` | Entity side, checked against the entity schema: a map missing its id or title is dropped by the generated Swift query, so it fails here instead |
+| `progressReports`, `cache`, `nativeCalls`, `onRequestValue` | The native side, answered in memory: progress, the App Group cache, donations and other outgoing calls, and the `requestValue` prompt (null by default, like Android) |
+
+A missing handler fails at once (`handlerRegistrationTimeout` defaults to zero
+in the harness, 5 seconds on a device). What the OS decides — Siri routing,
+the Shortcuts UI, AppFunctions discovery — is out of reach by design; keep
+`swiftc -typecheck`, the KSP output check and adb for those.
+
 ## Troubleshooting
 
 ### Build Errors
