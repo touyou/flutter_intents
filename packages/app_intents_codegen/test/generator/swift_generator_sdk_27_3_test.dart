@@ -9,6 +9,8 @@ const _all = SwiftGenerator(
   experimental: ExperimentalFeatures(masterEnabled: true),
 );
 const _sdk273 = 'canImport(AppIntents, _version: 301.2)';
+const _videoGate =
+    '#if APP_INTENTS_WWDC26 && $_sdk273 && !os(macOS) && !os(watchOS)';
 
 EntityInfo _entity(String? schema, {bool valueQuery = false}) => EntityInfo(
   className: 'MovieEntity',
@@ -108,9 +110,7 @@ void main() {
       );
       expect(
         swift,
-        contains(
-          '#if APP_INTENTS_WWDC26 && $_sdk273\n@available(iOS 27.3, *)\nstruct PlayIntent',
-        ),
+        contains('$_videoGate\n@available(iOS 27.3, *)\nstruct PlayIntent'),
       );
     });
 
@@ -128,6 +128,116 @@ void main() {
       );
       expect(swift, contains('#if APP_INTENTS_WWDC26 && $_sdk273'));
       expect(swift, contains('@AppEnum(schema: .video.videoContentType)'));
+    });
+
+    test('every additive block of a dual-id video entity follows it', () {
+      const entity = EntityInfo(
+        className: 'MovieEntity',
+        identifier: 'com.example.Movie',
+        title: 'Movie',
+        pluralTitle: 'Movies',
+        schema: 'video.movie',
+        syncable: true,
+        relevantEntities: true,
+        indexed: true,
+        exportAs: EntityExportKind.person,
+        properties: [
+          EntityPropertyInfo(
+            fieldName: 'id',
+            dartType: 'String',
+            role: EntityPropertyRole.id,
+          ),
+          EntityPropertyInfo(
+            fieldName: 'title',
+            dartType: 'String',
+            role: EntityPropertyRole.title,
+          ),
+          EntityPropertyInfo(
+            fieldName: 'serverId',
+            dartType: 'String',
+            role: EntityPropertyRole.none,
+            isStableId: true,
+          ),
+        ],
+      );
+      final swift = _all.generateAll(entities: [entity]);
+      // Each of these names the dual-id entity shape, which exists only
+      // where the entity's own 27.3 branch compiled.
+      expect(RegExp('#if APP_INTENTS_WWDC26\n').hasMatch(swift), isFalse);
+      expect(swift, contains('IndexedEntityQuery'));
+      expect(swift, contains('Transferable'));
+      expect(swift, contains('RelevantEntitiesDonator'));
+    });
+
+    test('an intent taking a video enum follows the enum', () {
+      const contentType = EnumInfo(
+        className: 'ContentType',
+        identifier: 'com.example.ContentType',
+        title: 'Content Type',
+        schema: 'video.videoContentType',
+        cases: [EnumCaseInfo(name: 'movie', displayTitle: 'Movie')],
+      );
+      final swift = _all.generateAll(
+        intents: [
+          _intent(
+            parameters: const [
+              IntentParamInfo(
+                fieldName: 'kind',
+                dartType: 'String',
+                title: 'Kind',
+                isOptional: false,
+                enumType: 'ContentType',
+              ),
+            ],
+          ),
+        ],
+        enums: [contentType],
+      );
+      expect(
+        swift,
+        contains('$_videoGate\n@available(iOS 27.3, *)\nstruct PlayIntent'),
+      );
+    });
+
+    test('a donator for a video intent is available from 27.3', () {
+      final swift = _all.generateAll(
+        intents: [
+          IntentInfo(
+            className: 'PlayIntent',
+            identifier: 'com.example.play',
+            title: 'Play',
+            implementation: IntentImplementationType.dart,
+            schema: 'video.playContent',
+            donatable: true,
+            parameters: const [],
+          ),
+        ],
+      );
+      expect(
+        swift,
+        contains(
+          '$_videoGate\n@available(iOS 27.3, *)\n'
+          '/// Registers the intent donator for PlayIntent.',
+        ),
+      );
+    });
+
+    test('generateIntent follows a video entity it is given', () {
+      final swift = _all.generateIntent(
+        _intent(
+          parameters: const [
+            IntentParamInfo(
+              fieldName: 'movie',
+              dartType: 'String',
+              title: 'Movie',
+              isOptional: false,
+              entityType: 'MovieEntity',
+            ),
+          ],
+        ),
+        entities: [_entity('video.movie')],
+      );
+      expect(swift, contains(_videoGate));
     });
 
     test('without app-schema nothing is gated on 27.3', () {

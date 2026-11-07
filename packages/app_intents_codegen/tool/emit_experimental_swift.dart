@@ -313,6 +313,48 @@ void main(List<String> args) {
     ],
   );
 
+  // A dual-id video entity with additive blocks: each names the 27.3-only
+  // entity shape, so each has to sit behind the same gate as the entity.
+  const showEntity = EntityInfo(
+    className: 'ShowEntity',
+    identifier: 'com.example.app.ShowEntity',
+    title: 'Show',
+    pluralTitle: 'Shows',
+    schema: 'video.tvShow',
+    syncable: true,
+    relevantEntities: true,
+    indexed: true,
+    properties: [
+      EntityPropertyInfo(
+        fieldName: 'id',
+        dartType: 'String',
+        role: EntityPropertyRole.id,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'name',
+        dartType: 'String',
+        role: EntityPropertyRole.title,
+      ),
+      EntityPropertyInfo(
+        fieldName: 'serverId',
+        dartType: 'String',
+        role: EntityPropertyRole.none,
+        isStableId: true,
+      ),
+    ],
+  );
+
+  // A donatable video-schema intent: its donator builds the 27.3 struct.
+  const watchListIntent = IntentInfo(
+    className: 'AddToWatchListIntent',
+    identifier: 'com.example.app.addToWatchList',
+    title: 'Add to Watch List',
+    implementation: IntentImplementationType.dart,
+    schema: 'video.addToWatchList',
+    donatable: true,
+    parameters: [],
+  );
+
   const playIntent = IntentInfo(
     className: 'PlayMovieIntent',
     identifier: 'com.example.app.playMovie',
@@ -348,7 +390,13 @@ void main(List<String> args) {
   );
 
   final swift = gen.generateAll(
-    intents: [sendIntent, dialogIntent, playIntent, lookupIntent],
+    intents: [
+      sendIntent,
+      dialogIntent,
+      playIntent,
+      lookupIntent,
+      watchListIntent,
+    ],
     entities: [
       productEntity,
       messageEntity,
@@ -356,6 +404,7 @@ void main(List<String> args) {
       deviceEntity,
       teamEntity,
       movieEntity,
+      showEntity,
     ],
     unions: [searchResult],
     // #149: the provider plus its registerParameterUpdater() extension.
