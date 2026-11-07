@@ -12,6 +12,7 @@ export 'src/analyzer/widget_configuration_analyzer.dart';
 export 'src/experimental/experimental_features.dart';
 export 'src/generator/dart_generator.dart';
 export 'src/generator/kotlin_generator.dart';
+export 'src/generator/manifest_generator.dart';
 export 'src/generator/swift_generator.dart';
 export 'src/generator/widget_swift_generator.dart';
 export 'src/generator/xcstrings_generator.dart';

@@ -1,3 +1,8 @@
+## Unreleased
+
+- New `package:app_intents/testing.dart`: `AppIntentsHarness` lists and runs the registered Dart handlers under plain `flutter test`, through the same channel entry iOS and Android use. With the manifest from `app_intents_codegen:describe` it reports declared intents without a handler and validates params against their JSON Schema. See `docs/usage.md` → "Testing intents without a device" (#203).
+- `MethodChannelAppIntents` exposes the registered identifiers (`registeredIntentIdentifiers` and friends) and `attachMethodCallHandler()`; `handlerRegistrationTimeout` is no longer `@visibleForTesting`.
+
 ## 0.20.0
 
 > **Action required on Android: wire `AppFunctionsBridge` in your `Application`, not in `MainActivity`.**

@@ -101,6 +101,16 @@ jobs:
       - name: Analyze
         working-directory: app
         run: flutter analyze
+      - name: Check the intent manifest is up to date
+        # The harness test validates params against this file; a stale one
+        # would pass tests against specs that no longer exist.
+        working-directory: app
+        run: |
+          dart run app_intents_codegen:describe -o test/app_intents.json
+          git diff --exit-code test/app_intents.json
+      - name: Run tests
+        working-directory: app
+        run: flutter test
 
   android-plugin:
     name: Android plugin build

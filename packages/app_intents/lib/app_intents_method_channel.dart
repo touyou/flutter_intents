@@ -64,7 +64,6 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   /// A cold start (an Android AppFunction or an iOS background intent waking
   /// the app) can deliver the call while `main()` is still awaiting setup,
   /// before the handlers are registered.
-  @visibleForTesting
   Duration handlerRegistrationTimeout = const Duration(seconds: 5);
 
   final Map<String, Completer<void>> _handlerRegistrations = {};
@@ -129,6 +128,14 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
 
     methodChannel.setMethodCallHandler(_handleMethodCall);
   }
+
+  /// Makes this instance the `app_intents` channel's receiver again.
+  ///
+  /// Each instance takes the channel over when constructed, so after a newer
+  /// one (such as the one `AppIntentsHarness` installs) is done, the older one
+  /// receives nothing until this is called.
+  void attachMethodCallHandler() =>
+      methodChannel.setMethodCallHandler(_handleMethodCall);
 
   /// Handles incoming method calls from the native platform.
   ///
@@ -339,6 +346,25 @@ class MethodChannelAppIntents extends AppIntentsPlatform {
   ) {
     _valueQueryHandlers[entityIdentifier] = handler;
   }
+
+  /// Identifiers of the intents with a registered handler.
+  ///
+  /// Read by `package:app_intents/testing.dart` to list what a native caller
+  /// could reach.
+  Set<String> get registeredIntentIdentifiers =>
+      Set.unmodifiable(_intentHandlers.keys);
+
+  /// Entity identifiers with a registered entity query handler.
+  Set<String> get registeredEntityQueryIdentifiers =>
+      Set.unmodifiable(_entityQueryHandlers.keys);
+
+  /// Entity identifiers with a registered suggested entities handler.
+  Set<String> get registeredSuggestedEntitiesIdentifiers =>
+      Set.unmodifiable(_suggestedEntitiesHandlers.keys);
+
+  /// Entity identifiers with a registered value query handler (#51).
+  Set<String> get registeredValueQueryIdentifiers =>
+      Set.unmodifiable(_valueQueryHandlers.keys);
 
   @override
   Stream<IntentExecutionRequest> get onIntentExecution =>
