@@ -1855,13 +1855,16 @@ class SwiftGenerator {
       '$_indent$_indent${_indent}intentIdentifier: "${info.identifier}"',
     );
     buffer.writeln('$_indent$_indent) { params in');
+    final binding = info.parameters.isEmpty ? 'let' : 'var';
     buffer.writeln(
-      '$_indent$_indent${_indent}var intent = ${info.className}()',
+      '$_indent$_indent$_indent$binding intent = ${info.className}()',
     );
     for (final param in info.parameters) {
       _writeIntentDonatorParamAssignment(buffer, param);
     }
-    buffer.writeln('$_indent$_indent${_indent}_ = await intent.donate()');
+    // The 27.3 SDK marks `donate()` as throwing; earlier SDKs only warn
+    // about a needless `try?`.
+    buffer.writeln('$_indent$_indent${_indent}_ = try? await intent.donate()');
     buffer.writeln('$_indent$_indent}');
     buffer.writeln('$_indent}');
     buffer.writeln('}');

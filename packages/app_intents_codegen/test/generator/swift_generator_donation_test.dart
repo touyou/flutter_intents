@@ -163,7 +163,7 @@ void main() {
       // DateTime fields decode via ISO8601DateFormatter.
       expect(result, contains('if let s = params["dueDate"] as? String,'));
       expect(result, contains('let d = ISO8601DateFormatter().date(from: s)'));
-      expect(result, contains('_ = await intent.donate()'));
+      expect(result, contains('_ = try? await intent.donate()'));
     });
 
     test('does not emit donator when donatable=false', () {
