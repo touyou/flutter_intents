@@ -48,7 +48,7 @@ dependencies {
     // `appfunctions` since alpha10; the old `appfunctions-service` artifact (last
     // published at alpha09) is no longer needed.
     // alpha13: @AppFunction renamed to @AppFunctionDeclaration. beta01: isDescribedByKDoc has no default.
-    implementation("androidx.appfunctions:appfunctions:1.0.0-beta01")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-rc01")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-beta01")
 }
 
