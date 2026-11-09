@@ -377,8 +377,8 @@ Options:
 - KSP version: KSP1 used the `{kotlin-version}-{ksp-version}` concatenation (e.g., `2.2.20-2.0.4`); KSP2 (current) uses a standalone version (e.g., `2.3.12`) — match whatever the example app's `settings.gradle.kts` declares
 - Two Jetpack artifacts are used: `appfunctions` and `appfunctions-compiler` (KSP). `appfunctions-service` (last published at alpha09) was folded into `appfunctions` at alpha10 and is **no longer a dependency**, and the `appfunctions:aggregateAppFunctions` KSP arg (legacy aggregated path) is no longer needed. Google Maven's group index confirms the artifact stopped at alpha09 while `appfunctions` / `-compiler` / `-testing` continued through alpha10–alpha13 (`curl -s https://dl.google.com/dl/android/maven2/androidx/appfunctions/group-index.xml`) — check that index, not a POM URL, if the question comes up again. Verified 2026-09-28 on alpha12: `flutter build apk --debug` generates `GeneratedAppFunctionService` and an XML with all 4 example functions, and both land in the APK.
 - **Kotlin 2.4 blocker: resolved by appfunctions 1.0.0-beta01 (2026-10-29, PR #186).**
-  The example app now runs Kotlin **2.4.20** with KSP `2.3.12` + appfunctions beta01:
-  CI's `flutter build apk --debug` is green and KSP registers all 4 example functions.
+  At that point the example app ran Kotlin **2.4.20** with KSP `2.3.12` + appfunctions beta01:
+  CI's `flutter build apk --debug` was green and KSP registered all 4 example functions.
   beta01's fix for generated file names containing invalid symbols (Idced4) is what
   cleared it. Kotlin bumps are ordinary dependency bumps again; the history below
   explains why appfunctions **alpha09–alpha13 require Kotlin < 2.4**.
