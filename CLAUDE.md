@@ -34,7 +34,7 @@ docs/
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
 | Deep Linking | **app_links** package |
 | Android Minimum | **Host minSdk unchanged** (Flutter default 24). AppFunctions are served on **API 36+** only: generated service is `@RequiresApi(36)`, manifest `android:enabled="@bool/app_intents_app_functions_service_enabled"` (**required**; bool shipped by the plugin, `false` / `true` in `values-v36`) |
-| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-beta01**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
+| Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-rc01**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
 | Cross-Process Storage (iOS) | **App Group UserDefaults** (explicit configuration required) |
 | WWDC26 New APIs | **Opt-in, default OFF** (`#if APP_INTENTS_WWDC26`, dual-branch generation) |
 | App Extension entity access | **Read-only App Group cache** via `AppIntentsEntityCache` (`AppIntentsBridge`); no Flutter engine in extensions |
