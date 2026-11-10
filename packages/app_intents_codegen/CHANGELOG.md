@@ -1,4 +1,4 @@
-## Unreleased
+## 0.21.0
 
 - New `dart run app_intents_codegen:describe [-o file]`: prints every declared intent, entity and enum as JSON, with a JSON Schema of the params map each Dart handler receives. `package:app_intents/testing.dart` reads it (#203).
 - iOS (experimental, 27.3 SDK): `video` App Schema entities, intents and enums, and `@IntentSpec(tool: true)` →

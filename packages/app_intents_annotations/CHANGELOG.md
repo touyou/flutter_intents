@@ -1,4 +1,4 @@
-## Unreleased
+## 0.21.0
 
 - `AppSchemaDomain.video` and `AppSchemas.video` (iOS / tvOS / visionOS 27.3 schemas, #201).
 - `@IntentSpec(tool:)` to make an intent a Siri tool (`ToolIntent`, 27.3 SDK, experimental, #200).
