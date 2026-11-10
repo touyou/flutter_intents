@@ -1266,6 +1266,8 @@ Future<void> main() async {
 
 > **バッファリング**: `pendingActionsStream` はネイティブ側で `FlutterEventChannel` のバッファードプッシュを使用するため、Dartリスナーがアタッチされる前に到着したイベントは失われません。一方、`registerIntentHandler` で登録するハンドラーはバッファリング**されません**。`processPendingActions()` がディスパッチした時点でハンドラーが未登録なら、そのハンドラーは実行されません。その時点でネイティブ側はアクションを消費済みなので、ハンドラーは `main()` で登録してください。
 
+> **Android**: 保留中アクションは iOS のみの仕組みです。Android の `pendingActionsStream` はリスナーを受け付けますが何も流さず、`processPendingActions()` は `false` を返します。上のリスナーに `Platform.isIOS` のガードは不要です。
+
 ### コールドスタートでの Intent からの画面遷移
 
 コールドスタートでは `registerIntentHandler` と `onIntentExecution` の振る舞いが

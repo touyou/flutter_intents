@@ -1292,6 +1292,8 @@ Future<void> main() async {
 
 > **Buffering**: `pendingActionsStream` uses `FlutterEventChannel` with buffered push on the native side, so events arriving before the Dart listener is attached are not lost. Handlers registered with `registerIntentHandler` are **not** buffered: if no handler is registered when `processPendingActions()` dispatches, the handler never runs. The native side has already consumed the action by then, so register handlers in `main()`.
 
+> **Android**: pending actions are iOS-only. On Android `pendingActionsStream` accepts listeners and never emits, and `processPendingActions()` returns `false`, so the listener above needs no `Platform.isIOS` guard.
+
 ### Navigating from an intent on a cold start
 
 `registerIntentHandler` and `onIntentExecution` behave differently on a cold

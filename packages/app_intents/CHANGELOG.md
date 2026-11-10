@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Android: `pendingActionsStream.listen` no longer reports `MissingPluginException (No implementation found for method listen on channel app_intents/pending_actions)`. The plugin now registers the `app_intents/pending_actions` event channel on Android too; it never emits, because pending actions are iOS-only. The error went through `FlutterError.reportError`, so crash reporters recorded it as a fatal error on every launch of an app that listens on all platforms (the example app included).
 - New `package:app_intents/testing.dart`: `AppIntentsHarness` lists and runs the registered Dart handlers under plain `flutter test`, through the same channel entry iOS and Android use. With the manifest from `app_intents_codegen:describe` it reports declared intents without a handler and validates params against their JSON Schema. See `docs/usage.md` → "Testing intents without a device" (#203).
 - `MethodChannelAppIntents` exposes the registered identifiers (`registeredIntentIdentifiers` and friends) and `attachMethodCallHandler()`; `handlerRegistrationTimeout` is no longer `@visibleForTesting`.
 

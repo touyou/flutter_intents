@@ -6,6 +6,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -20,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
 
     private lateinit var channel: MethodChannel
+    private lateinit var pendingActionsChannel: EventChannel
 
     companion object {
         /**
@@ -31,6 +33,9 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
 
         /** The [FlutterEngineCache] key [startEngine] uses by default. */
         const val DEFAULT_ENGINE_ID = "app_intents"
+
+        /** Must match `pendingActionsChannel` in `app_intents_method_channel.dart` and the iOS plugin. */
+        private const val PENDING_ACTIONS_CHANNEL = "app_intents/pending_actions"
 
         /**
          * Starts a Flutter engine running the default Dart entrypoint, caches it
@@ -70,11 +75,19 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, "app_intents")
         channel.setMethodCallHandler(this)
+        // Cache-mode pending actions are an iOS concept, so this stream never
+        // emits on Android. It is still registered: without a handler, Dart's
+        // `pendingActionsStream.listen` gets MissingPluginException on the
+        // `listen` call, which EventChannel reports through FlutterError
+        // (a fatal crash in Crashlytics) instead of failing the stream.
+        pendingActionsChannel = EventChannel(binding.binaryMessenger, PENDING_ACTIONS_CHANNEL)
+        pendingActionsChannel.setStreamHandler(NoPendingActionsStreamHandler)
         shared = this
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        pendingActionsChannel.setStreamHandler(null)
         shared = null
     }
 
@@ -111,4 +124,11 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
      * with the MethodChannel, enabling communication with the Dart side.
      */
     fun getChannel(): MethodChannel = channel
+
+    /** Accepts listeners and never emits: Android has no pending actions. */
+    private object NoPendingActionsStreamHandler : EventChannel.StreamHandler {
+        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) = Unit
+
+        override fun onCancel(arguments: Any?) = Unit
+    }
 }
