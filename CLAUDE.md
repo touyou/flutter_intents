@@ -32,7 +32,7 @@ docs/
 | Entity Images | **URL + Asset + SF Symbol** |
 | Intent Execution (iOS) | **URL Scheme** (due to Flutter engine timing) |
 | Intent Execution (Android) | **MethodChannel** (in-process, no URL scheme needed) |
-| Flutter 3.50 native interop (Pigeon FFI/JNI, FFIgen, JNIgen, engine id) | **Not adopted; min Flutter stays 3.44** (ADR 0011). The bottleneck is a not-yet-running engine, not channel speed, and Pigeon native interop is preview. iOS `registrar.engineIdentifier` needs 3.50 to compile: adopt it together with the next min bump. Android `AppIntentsPlugin.shared` now falls back to the next still-attached engine on detach |
+| Flutter 3.50 native interop (Pigeon FFI/JNI, FFIgen, JNIgen, engine id) | **Not adopted; min Flutter stays 3.44** (ADR 0011). The bottleneck is a not-yet-running engine, not channel speed, and Pigeon native interop is preview. iOS `registrar.engineIdentifier` needs 3.50 to compile: adopt it together with the next min bump. Android `AppIntentsPlugin.shared` now falls back to the most recently attached engine that is still attached |
 | Deep Linking | **app_links** package |
 | Android Minimum | **Host minSdk unchanged** (Flutter default 24). AppFunctions are served on **API 36+** only: generated service is `@RequiresApi(36)`, manifest `android:enabled="@bool/app_intents_app_functions_service_enabled"` (**required**; bool shipped by the plugin, `false` / `true` in `values-v36`) |
 | Android AppFunctions | **Jetpack `androidx.appfunctions` 1.0.0-beta01**, `@AppFunctionServiceEntryPoint` model (no `appfunctions-service`, no `AppFunctionContext` — see Gotchas) |
