@@ -36,7 +36,7 @@ dependencies:
     path: ../packages/app_intents
   app_intents_annotations:
     path: ../packages/app_intents_annotations
-  material_ui: ^1.11.0
+  material_ui: ^1.3.0
 
 dev_dependencies:
   flutter_test:
