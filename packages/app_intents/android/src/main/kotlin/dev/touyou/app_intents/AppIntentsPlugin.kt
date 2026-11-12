@@ -25,11 +25,18 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
 
     companion object {
         /**
-         * Shared instance for generated AppFunctions code to access.
-         * Available after [onAttachedToEngine] is called.
+         * The instance on the most recently attached engine that is still attached.
+         *
+         * With several engines (an activity that does not reuse the cached one,
+         * a `FlutterEngineGroup`), detaching one must not clear the instance of
+         * an engine that is still running, so this falls back to the next one.
+         * To reach a specific engine, use the channel [startEngine] hands over.
          */
-        var shared: AppIntentsPlugin? = null
-            private set
+        val shared: AppIntentsPlugin?
+            get() = attached.lastOrNull()
+
+        // Attach and detach run on the platform thread.
+        private val attached = ArrayList<AppIntentsPlugin>()
 
         /** The [FlutterEngineCache] key [startEngine] uses by default. */
         const val DEFAULT_ENGINE_ID = "app_intents"
@@ -82,13 +89,14 @@ class AppIntentsPlugin : FlutterPlugin, MethodCallHandler {
         // (a fatal crash in Crashlytics) instead of failing the stream.
         pendingActionsChannel = EventChannel(binding.binaryMessenger, PENDING_ACTIONS_CHANNEL)
         pendingActionsChannel.setStreamHandler(NoPendingActionsStreamHandler)
-        shared = this
+        attached.remove(this)
+        attached.add(this)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         pendingActionsChannel.setStreamHandler(null)
-        shared = null
+        attached.remove(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {

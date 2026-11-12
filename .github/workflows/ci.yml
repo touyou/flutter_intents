@@ -30,7 +30,7 @@ jobs:
         with:
           # Pinned to keep analyze/test reproducible. Dependabot does not bump
           # this input; keep it on the Dart bundled with the pinned Flutter.
-          sdk: '3.13.7'
+          sdk: '3.14.0'
       - name: Install dependencies
         working-directory: packages/${{ matrix.package }}
         run: dart pub get
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.8'
+          flutter-version: '3.50.0'
           channel: stable
           cache: true
       - name: Install dependencies
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.8'
+          flutter-version: '3.50.0'
           channel: stable
           cache: true
       - name: Install dependencies
@@ -123,7 +123,7 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.8'
+          flutter-version: '3.50.0'
           channel: stable
           cache: true
       - name: Install Flutter dependencies
