@@ -82,6 +82,7 @@ Xcode 27 RC と安定版 Xcode 26.6（**iOS 26.5** SDK）を突き合わせた�
 | [0008](0008-app-intents-package.md) | #59 | `AppIntentsPackage`（共有パッケージ構成の宣言生成） | 低（宣言のみ・構成は利用者側） | — |
 | [0009](0009-relevant-intents.md) | #55残 | `RelevantIntent` ドネーション（Smart Stack 提案） | 中（ブリッジ + codegen） | 0008 の区別整理 |
 | [0010](0010-intent-execution-context.md) | #130 / #131 | 実行中インテントとの双方向経路（進捗・キャンセル・値要求） | 中（ブリッジ + codegen + Zone） | — |
+| [0011](0011-flutter-3-50-native-interop.md) | — | Flutter 3.50 のネイティブ相互運用（Pigeon native interop / FFIgen / JNIgen / engine id）の採否 | 調査 + Android の複数エンジン対策 | — |
 
 関連: #58（ビジュアルインテリジェンス）は #51 の `Input` を `SemanticContentDescriptor`
 （ピクセルバッファ）に特殊化したケースで、ネイティブ完結が前提。0001 で線引きを示し、
