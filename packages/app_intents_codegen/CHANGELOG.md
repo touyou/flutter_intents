@@ -1,3 +1,8 @@
+## 0.21.1
+
+- Version bump to align with `app_intents`. Verified on Flutter 3.50 / Dart 3.14.
+- No API changes
+
 ## 0.21.0
 
 - New `dart run app_intents_codegen:describe [-o file]`: prints every declared intent, entity and enum as JSON, with a JSON Schema of the params map each Dart handler receives. `package:app_intents/testing.dart` reads it (#203).

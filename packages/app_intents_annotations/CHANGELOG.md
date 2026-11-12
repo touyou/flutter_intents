@@ -1,3 +1,8 @@
+## 0.21.1
+
+- Version bump to align with `app_intents`. Verified on Flutter 3.50 / Dart 3.14.
+- No API changes
+
 ## 0.21.0
 
 - `AppSchemaDomain.video` and `AppSchemas.video` (iOS / tvOS / visionOS 27.3 schemas, #201).

@@ -1,3 +1,8 @@
+## 0.21.1
+
+- Android: `AppIntentsPlugin.shared` no longer becomes `null` when some other Flutter engine detaches. It now points at the most recently attached engine that is still attached, so host code reading it keeps working in apps that run more than one engine.
+- Verified on Flutter 3.50 / Dart 3.14 (CI now runs on 3.50.0). The minimum stays Flutter 3.44 / Dart 3.12.
+
 ## 0.21.0
 
 - Android: `pendingActionsStream.listen` no longer reports `MissingPluginException (No implementation found for method listen on channel app_intents/pending_actions)`. The plugin now registers the `app_intents/pending_actions` event channel on Android too; it never emits, because pending actions are iOS-only. The error went through `FlutterError.reportError`, so crash reporters recorded it as a fatal error on every launch of an app that listens on all platforms (the example app included).
