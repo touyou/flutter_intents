@@ -20,10 +20,11 @@ packages:
   app_intents_annotations:
     dependency: "direct main"
     description:
-      path: "../app_intents_annotations"
-      relative: true
-    source: path
-    version: "0.21.0"
+      name: app_intents_annotations
+      sha256: "53ec255e512abaa5a790c1ac0db53f2d04d36b48ff9c1e88e90bd120bc6dbb7b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.21.1"
   args:
     dependency: "direct main"
     description:
