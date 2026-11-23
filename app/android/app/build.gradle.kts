@@ -49,7 +49,7 @@ dependencies {
     // published at alpha09) is no longer needed.
     // alpha13: @AppFunction renamed to @AppFunctionDeclaration. beta01: isDescribedByKDoc has no default.
     // rc01: version bump to RC; legacy aggregateAppFunctions KSP arg officially removed (was already unused).
-    implementation("androidx.appfunctions:appfunctions:1.0.0-rc01")
+    implementation("androidx.appfunctions:appfunctions:1.0.0")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-rc01")
 }
 
